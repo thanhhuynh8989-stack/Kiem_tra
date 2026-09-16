@@ -3,101 +3,118 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Hệ Thống Quản Lý & Thi Trực Tuyến AI</title>
+  <title>Hệ Thống Thi Trực Tuyến AI</title>
   
-  <!-- Thư viện KaTeX (Hiển thị toán học) -->
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.css">
   <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.js"></script>
-
-  <!-- Thư viện Mammoth.js (Đọc file DOCX) -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js"></script>
-
-  <!-- Thư viện PDF.js (Đọc file PDF) -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
-
-  <!-- Thư viện SheetJS (Xuất file Excel) -->
-  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 
   <style>
     :root { --primary: #2563eb; --bg: #f8fafc; --surface: #ffffff; --text: #1e293b; }
-    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: var(--bg); color: var(--text); margin: 0; padding: 20px; }
+    body { font-family: system-ui, -apple-system, sans-serif; background: var(--bg); color: var(--text); margin: 0; padding: 20px; }
     .container { max-width: 900px; margin: 0 auto; background: var(--surface); padding: 24px; border-radius: 12px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); }
-    .nav-tabs { display: flex; gap: 12px; border-bottom: 2px solid #e2e8f0; margin-bottom: 20px; }
-    .tab-btn { padding: 10px 20px; border: none; background: none; font-weight: 600; cursor: pointer; color: #64748b; }
-    .tab-btn.active { color: var(--primary); border-bottom: 2px solid var(--primary); }
-    .section { display: none; }
-    .section.active { display: block; }
+    .header-bar { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #e2e8f0; padding-bottom: 12px; margin-bottom: 20px; }
+    .role-badge { background: #e0e7ff; color: #4338ca; padding: 4px 12px; border-radius: 99px; font-weight: 600; font-size: 14px; }
+    .view-section { display: none; }
+    .view-section.active { display: block; }
     .form-group { margin-bottom: 16px; }
     label { display: block; font-weight: 600; margin-bottom: 6px; }
-    input, select, button { width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 6px; box-sizing: border-box; }
+    input, button { width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 6px; box-sizing: border-box; }
     button { background: var(--primary); color: white; border: none; font-weight: 600; cursor: pointer; }
     button:hover { opacity: 0.9; }
     .question-card { border: 1px solid #e2e8f0; border-radius: 8px; padding: 16px; margin-bottom: 16px; }
-    .option-item { margin: 8px 0; }
+    .logout-btn { background: #ef4444; width: auto; padding: 6px 16px; }
   </style>
 </head>
 <body>
 
 <div class="container">
-  <div class="nav-tabs">
-    <button class="tab-btn active" onclick="switchTab('studentView')">Học Sinh Làm Bài</button>
-    <button class="tab-btn" onclick="switchTab('lecturerView')">Giảng Viên / Quản Trị</button>
+  <div class="header-bar">
+    <h2 style="margin:0;">Hệ Thống Kiểm Tra AI</h2>
+    <div id="userInfo" style="display: none;">
+      <span id="userBadge" class="role-badge">STUDENT</span>
+      <button id="logoutBtn" class="logout-btn">Đăng xuất</button>
+    </div>
   </div>
 
-  <!-- GIAO DIỆN HỌC SINH -->
-  <div id="studentView" class="section active">
+  <!-- 1. GIAO DIỆN CHỌN VAI TRÒ / ĐĂNG NHẬP -->
+  <div id="authView" class="view-section active">
+    <h3>Đăng Nhập Cổng Quản Trị / Giảng Viên</h3>
+    <div class="form-group">
+      <label>Tên đăng nhập</label>
+      <input type="text" id="loginUsername" placeholder="Nhập username...">
+    </div>
+    <div class="form-group">
+      <label>Mật khẩu</label>
+      <input type="password" id="loginPassword" placeholder="Nhập password...">
+    </div>
+    <button id="loginBtn">Đăng Nhập</button>
+    
+    <hr style="margin: 24px 0; border: 0; border-top: 1px solid #e2e8f0;">
+    
+    <p style="text-align: center;">Bạn là Học sinh / Sinh viên? <a href="#" id="gotoStudentBtn" style="color: var(--primary); font-weight: bold;">Chuyển đến trang Làm bài thi</a></p>
+  </div>
+
+  <!-- 2. GIAO DIỆN SINH VIÊN -->
+  <div id="studentView" class="view-section">
     <div id="examSearchSection">
-      <h2>Nhập Mã Đề Thi</h2>
+      <h3>Nhập Mã Đề Thi</h3>
       <div class="form-group">
-        <label>Mã Đề Thi (VD: test_6959.json)</label>
-        <input type="text" id="examCodeInput" placeholder="Nhập tên file đề thi...">
+        <input type="text" id="examCodeInput" placeholder="Ví dụ: exam_a1b2c3d4.json">
       </div>
-      <button id="loadExamBtn">Tải Đề Thi</button>
+      <button id="loadExamBtn">Vào Thi</button>
+      <p style="text-align: right; margin-top: 10px;"><a href="#" class="backToAuthLink" style="font-size: 14px;">Quay lại Đăng nhập cán bộ</a></p>
     </div>
 
-    <div id="examContainer" style="display: none; margin-top: 20px;">
+    <div id="examContainer" style="display: none;">
       <h2 id="examTitle">Đề Thi Trực Tuyến</h2>
       <div class="form-group">
-        <label>Họ và Tên Học Sinh</label>
+        <label>Họ và Tên</label>
         <input type="text" id="studentName" required placeholder="Nguyễn Văn A">
       </div>
       <div class="form-group">
-        <label>Mã Số Sinh Viên / Lớp</label>
+        <label>Mã Sinh Viên / Lớp</label>
         <input type="text" id="studentCode" required placeholder="123456">
       </div>
-      
       <div id="questionsList"></div>
-      
       <button id="submitExamBtn" style="margin-top: 20px;">Nộp Bài Thi</button>
     </div>
 
-    <div id="resultContainer" style="display: none; margin-top: 20px; text-align: center;">
+    <div id="resultContainer" style="display: none; text-align: center;">
       <h2>Kết Quả Làm Bài</h2>
       <p id="scoreText" style="font-size: 24px; font-weight: bold; color: var(--primary);"></p>
     </div>
   </div>
 
-  <!-- GIAO DIỆN GIẢNG VIÊN -->
-  <div id="lecturerView" class="section">
-    <h2>Tải Đề Thi Mới Về Hệ Thống</h2>
+  <!-- 3. GIAO DIỆN GIẢNG VIÊN -->
+  <div id="lecturerView" class="view-section">
+    <h3>Cổng Giảng Viên - Bóc Tách & Tải Đề Thi</h3>
     <div class="form-group">
       <label>Chọn file đề thi (.docx hoặc .pdf)</label>
       <input type="file" id="examFileInput" accept=".docx,.pdf">
     </div>
-    <button id="processExamBtn">Bóc Tách & Tải Đề Lên</button>
-
+    <button id="processExamBtn">Phân Tích Đề & Xuất Bản</button>
     <div id="uploadStatus" style="margin-top: 16px; font-weight: 600;"></div>
+  </div>
+
+  <!-- 4. GIAO DIỆN ADMIN -->
+  <div id="adminView" class="view-section">
+    <h3>Cổng Quản Trị Hệ Thống (ADMIN)</h3>
+    <div style="background: #f1f5f9; padding: 16px; border-radius: 8px; margin-bottom: 20px;">
+      <h4>Quản Lý Người Dùng (Google Sheet Database)</h4>
+      <button id="loadUsersBtn" style="width: auto;">Tải Danh Sách Tài Khoản</button>
+      <div id="usersListTable" style="margin-top: 12px;"></div>
+    </div>
+    
+    <div style="background: #f1f5f9; padding: 16px; border-radius: 8px;">
+      <h4>Quyền Hạn Giảng Viên</h4>
+      <p>Có thể tải đề thi mới lên hệ thống, hệ thống tự động bóc tách và tạo đáp án bảo mật.</p>
+      <button id="gotoLecturerPortalBtn" style="background: #475569;">Mở Giao Diện Tải Đề Thi</button>
+    </div>
   </div>
 </div>
 
 <script type="module" src="src/app.js"></script>
-<script>
-  function switchTab(tabId) {
-    document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
-    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-    document.getElementById(tabId).classList.add('active');
-    event.target.classList.add('active');
-  }
-</script>
 </body>
 </html>
