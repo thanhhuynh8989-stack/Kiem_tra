@@ -3,7 +3,7 @@
  */
 
 export const APP_CONFIG = {
-  // Cấu hình kết nối Backend
+  // Cấu hình kết nối Backend Google Apps Script
   APPS_SCRIPT_URL: 'https://script.google.com/macros/s/AKfycbxb4Tb3_B2F7_Qywy9rSaNYaYcfzDmTZTfALSrSB4JXW9pfc289BjEZ7xR4M2DKjvLx/exec',
   
   // Cấu hình GitHub CDN / Public Exam Repository
@@ -29,19 +29,13 @@ export const APP_CONFIG = {
   LOG_MAX_ENTRIES: 100
 };
 
+// Sử dụng new RegExp() để chống lỗi cú pháp Regex trên trình duyệt
 export const REGEX_PATTERNS = {
-  // Nhận diện đầu câu hỏi (Ví dụ: "Câu 1:", "Question 12.", "Bài 3:")
-  QUESTION_START: /^(?:Câu|Question|Bài)\s*(\d+)[:.]?\s*/i,
-
-  // Nhận diện các lựa chọn đáp án (Ví dụ: "A. ", "B) ", "C: ")
-  OPTION_START: /^[A-H][.:)]\s*/,
-
-  // Nhận diện đáp án đúng trong ngoặc hoặc đính kèm
-  ANSWER_KEY: /(?:Đáp án|Key|Ans)[:\s]*([A-H])/i,
-
-  // ĐÃ SỬA: Bắt buộc thêm ký tự escape '\$' cho dấu dollar
-  LATEX_INLINE: /\$([^$]+)\$/g,
-  LATEX_BLOCK: /\$\$([^$]+)\$\$/g
+  QUESTION_START: new RegExp('^(?:Câu|Question|Bài)\\s*(\\d+)[:.]?\\s*', 'i'),
+  OPTION_START: new RegExp('^[A-H][.:)]\\s*'),
+  ANSWER_KEY: new RegExp('(?:Đáp án|Key|Ans)[:\\s]*([A-H])', 'i'),
+  LATEX_INLINE: new RegExp('\\$([^$]+)\\$', 'g'),
+  LATEX_BLOCK: new RegExp('\\$\\$([^$]+)\\$\\$', 'g')
 };
 
 export const USER_ROLES = {
