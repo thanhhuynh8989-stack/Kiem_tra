@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Hệ Thống Quản Lý & Thi Trực Tuyến AI</title>
+  
+  <!-- Thư viện KaTeX (Hiển thị toán học) -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.css">
+  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.js"></script>
+
+  <!-- Thư viện Mammoth.js (Đọc file DOCX) -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js"></script>
+
+  <!-- Thư viện PDF.js (Đọc file PDF) -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+
+  <!-- Thư viện SheetJS (Xuất file Excel) -->
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+
+  <style>
+    :root { --primary: #2563eb; --bg: #f8fafc; --surface: #ffffff; --text: #1e293b; }
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: var(--bg); color: var(--text); margin: 0; padding: 20px; }
+    .container { max-width: 900px; margin: 0 auto; background: var(--surface); padding: 24px; border-radius: 12px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); }
+    .nav-tabs { display: flex; gap: 12px; border-bottom: 2px solid #e2e8f0; margin-bottom: 20px; }
+    .tab-btn { padding: 10px 20px; border: none; background: none; font-weight: 600; cursor: pointer; color: #64748b; }
+    .tab-btn.active { color: var(--primary); border-bottom: 2px solid var(--primary); }
+    .section { display: none; }
+    .section.active { display: block; }
+    .form-group { margin-bottom: 16px; }
+    label { display: block; font-weight: 600; margin-bottom: 6px; }
+    input, select, button { width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 6px; box-sizing: border-box; }
+    button { background: var(--primary); color: white; border: none; font-weight: 600; cursor: pointer; }
+    button:hover { opacity: 0.9; }
+    .question-card { border: 1px solid #e2e8f0; border-radius: 8px; padding: 16px; margin-bottom: 16px; }
+    .option-item { margin: 8px 0; }
+  </style>
+</head>
+<body>
+
+<div class="container">
+  <div class="nav-tabs">
+    <button class="tab-btn active" onclick="switchTab('studentView')">Học Sinh Làm Bài</button>
+    <button class="tab-btn" onclick="switchTab('lecturerView')">Giảng Viên / Quản Trị</button>
+  </div>
+
+  <!-- GIAO DIỆN HỌC SINH -->
+  <div id="studentView" class="section active">
+    <div id="examSearchSection">
+      <h2>Nhập Mã Đề Thi</h2>
+      <div class="form-group">
+        <label>Mã Đề Thi (VD: test_6959.json)</label>
+        <input type="text" id="examCodeInput" placeholder="Nhập tên file đề thi...">
+      </div>
+      <button id="loadExamBtn">Tải Đề Thi</button>
+    </div>
+
+    <div id="examContainer" style="display: none; margin-top: 20px;">
+      <h2 id="examTitle">Đề Thi Trực Tuyến</h2>
+      <div class="form-group">
+        <label>Họ và Tên Học Sinh</label>
+        <input type="text" id="studentName" required placeholder="Nguyễn Văn A">
+      </div>
+      <div class="form-group">
+        <label>Mã Số Sinh Viên / Lớp</label>
+        <input type="text" id="studentCode" required placeholder="123456">
+      </div>
+      
+      <div id="questionsList"></div>
+      
+      <button id="submitExamBtn" style="margin-top: 20px;">Nộp Bài Thi</button>
+    </div>
+
+    <div id="resultContainer" style="display: none; margin-top: 20px; text-align: center;">
+      <h2>Kết Quả Làm Bài</h2>
+      <p id="scoreText" style="font-size: 24px; font-weight: bold; color: var(--primary);"></p>
+    </div>
+  </div>
+
+  <!-- GIAO DIỆN GIẢNG VIÊN -->
+  <div id="lecturerView" class="section">
+    <h2>Tải Đề Thi Mới Về Hệ Thống</h2>
+    <div class="form-group">
+      <label>Chọn file đề thi (.docx hoặc .pdf)</label>
+      <input type="file" id="examFileInput" accept=".docx,.pdf">
+    </div>
+    <button id="processExamBtn">Bóc Tách & Tải Đề Lên</button>
+
+    <div id="uploadStatus" style="margin-top: 16px; font-weight: 600;"></div>
+  </div>
+</div>
+
+<script type="module" src="src/app.js"></script>
+<script>
+  function switchTab(tabId) {
+    document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    document.getElementById(tabId).classList.add('active');
+    event.target.classList.add('active');
+  }
+</script>
+</body>
+</html>
