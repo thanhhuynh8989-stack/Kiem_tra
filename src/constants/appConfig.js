@@ -36,10 +36,10 @@ export const REGEX_PATTERNS = {
   // Nhận diện các lựa chọn đáp án (Ví dụ: "A. ", "B) ", "C: ")
   OPTION_START: /^[A-H][.:)]\s*/,
 
-  // Nhận diện đáp án đúng trong ngoặc hoặc đính kèm (Ví dụ: "Đáp án: A", "Key: B")
+  // Nhận diện đáp án đúng trong ngoặc hoặc đính kèm
   ANSWER_KEY: /(?:Đáp án|Key|Ans)[:\s]*([A-H])/i,
 
-  // Nhận diện công thức LaTeX dạng inline $...$ hoặc block $$...$$
+  // ĐÃ SỬA: Bắt buộc thêm ký tự escape '\$' cho dấu dollar
   LATEX_INLINE: /\$([^$]+)\$/g,
   LATEX_BLOCK: /\$\$([^$]+)\$\$/g
 };
