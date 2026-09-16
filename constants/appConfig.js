@@ -4,12 +4,12 @@
 
 export const APP_CONFIG = {
   // Cấu hình kết nối Backend
-  APPS_SCRIPT_URL: 'https://script.google.com/macros/s/AKfycbxfUkdbRhpXOpdV4S68FFYm65Jwu0j9edGz3RzbHXrHG_0p3wVzvPu_10SAzDFbgi5l/exec',
+  APPS_SCRIPT_URL: 'https://script.google.com/macros/s/AKfycbxb4Tb3_B2F7_Qywy9rSaNYaYcfzDmTZTfALSrSB4JXW9pfc289BjEZ7xR4M2DKjvLx/exec',
   
   // Cấu hình GitHub CDN / Public Exam Repository
   GITHUB: {
-    OWNER: 'your-github-username',
-    REPO: 'your-repo-name',
+    OWNER: 'thanhhuynh8989-stack',
+    REPO: 'Kiem_tra',
     BRANCH: 'main'
   },
 
