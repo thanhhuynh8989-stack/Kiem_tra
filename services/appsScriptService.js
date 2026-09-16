@@ -1,97 +1,62 @@
-import { API_ENDPOINTS } from '../constants/apiEndpoints.js';
-import { fetchWithRetry, AppError } from '../utils/errorHandler.js';
+import { APP_CONFIG } from '../constants/appConfig.js';
 import { logger } from '../utils/logger.js';
 
-/
+export const appsScriptService = {
+  /**
+   * Wrapper gọi API sang Google Apps Script.
+   * Sử dụng 'text/plain;charset=utf-8' để BỎ QUA kiểm tra CORS Preflight (OPTIONS) của trình duyệt.
+   */
+  async request(action, payload = {}) {
+    const endpoint = APP_CONFIG.APPS_SCRIPT_URL;
+    if (!endpoint) {
+      throw new Error('Chưa cấu hình APPS_SCRIPT_URL trong APP_CONFIG');
+    }
 
-Service managing secure communication with Google Apps Script Backend Gateway.
-*/
-export class AppsScriptService {
-constructor(webAppUrl = null) {
-this.webAppUrl = webAppUrl || localStorage.getItem(API_ENDPOINTS.APPS_SCRIPT.STORAGE_KEY) || '';
-}
+    const bodyData = JSON.stringify({ action, ...payload });
 
-setWebAppUrl(url) {
-this.webAppUrl = url;
-localStorage.setItem(API_ENDPOINTS.APPS_SCRIPT.STORAGE_KEY, url);
-}
+    try {
+      const response = await fetch(endpoint, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'text/plain;charset=utf-8'
+        },
+        body: bodyData
+      });
 
-/
+      if (!response.ok) {
+        throw new Error(`Apps Script HTTP Error: ${response.status}`);
+      }
 
-Sends a request to Google Apps Script Web App Endpoint.
-*/
-async request(action, payload = {}) {
-if (!this.webAppUrl) {
-throw new AppError('Chưa cấu hình URL Google Apps Script Web App.', 'MISSING_APPS_SCRIPT_URL');
-}
+      const result = await response.json();
+      if (result.status === 'error') {
+        throw new Error(result.message || 'Lỗi xử lý tại Server Backend');
+      }
 
-const requestData = {
-  action,
-  payload,
-  timestamp: new Date().toISOString()
+      return result;
+    } catch (error) {
+      logger.error(`AppsScript Request Error [${action}]:`, error);
+      throw error;
+    }
+  },
+
+  async submitExamAnswers(examId, studentInfo, answers) {
+    return await this.request('SUBMIT_EXAM', { examId, studentInfo, answers });
+  },
+
+  async saveAndPublishExam(examId, masterKey, publicExamData, filePath) {
+    return await this.request('SAVE_AND_PUBLISH_EXAM', {
+      examId,
+      masterKey,
+      publicExamData,
+      filePath
+    });
+  },
+
+  async callGeminiVisionProxy(prompt, imageBase64, mimeType = 'image/jpeg') {
+    return await this.request('GEMINI_PROXY', { prompt, imageBase64, mimeType });
+  },
+
+  async authenticateLecturer(username, password) {
+    return await this.request('AUTH_LECTURER', { username, password });
+  }
 };
-
-return fetchWithRetry(async () => {
-  logger.info(`Đang gửi request đến Apps Script (Action: ${action})...`);
-
-  const response = await fetch(this.webAppUrl, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'text/plain;charset=utf-8'
-    },
-    body: JSON.stringify(requestData)
-  });
-
-  if (!response.ok) {
-    throw new Error(`Apps Script HTTP Error: ${response.status}`);
-  }
-
-  const result = await response.json();
-  if (result.status === 'error') {
-    throw new AppError(result.message || 'Lỗi xử lý từ Apps Script Backend', 'BACKEND_ERROR', result);
-  }
-
-  return result.data;
-});
-
-
-}
-
-/
-
-Submits student exam answers to Apps Script for server-side grading.
-*/
-async submitExam(examId, studentInfo, answers) {
-return this.request('submitExam', {
-examId,
-studentInfo,
-answers
-});
-}
-
-/
-
-Fetches exam results by exam ID.
-*/
-async getExamResults(examId) {
-return this.request('getExamResults', { examId });
-}
-
-/
-
-Authenticates lecturer credentials via Apps Script.
-*/
-async authenticateLecturer(username, password) {
-return this.request('authLecturer', { username, password });
-}
-
-/
-
-Saves exam key to Apps Script securely (protecting answers from frontend inspection).
-*/
-async saveExamKey(examId, keyData) {
-return this.request('saveExamKey', { examId, keyData });
-}
-}
-
-export const appsScriptService = new AppsScriptService();
