@@ -37,7 +37,6 @@ export class PdfParser {
       const pageText = textContent.items.map((item) => item.str).join(' ');
       extractedFullText += `\n--- Trang ${pageNum} ---\n` + pageText;
 
-      // Render page canvas for potential Vision OCR processing
       if (useVisionFallback) {
         const viewport = page.getViewport({ scale: 1.5 });
         const canvas = document.createElement('canvas');
@@ -51,7 +50,6 @@ export class PdfParser {
       }
     }
 
-    // Fall back to Gemini Vision OCR if extracted text is too short (scanned PDF)
     if (extractedFullText.trim().length < 100 && pageCanvasImages.length > 0) {
       logger.warn('PDF không chứa văn bản dạng text (Scanned PDF). Đang chuyển sang Gemini Vision OCR...');
       return await this._parseScannedPdfWithVision(pageCanvasImages);
@@ -62,8 +60,6 @@ export class PdfParser {
 
   /**
    * Parses raw extracted PDF string into question structures.
-   * @param {string} rawText
-   * @returns {Array}
    */
   static parseTextToQuestions(rawText) {
     const lines = rawText.split('\n').map((l) => l.trim()).filter(Boolean);
@@ -73,14 +69,14 @@ export class PdfParser {
     for (const line of lines) {
       if (line.startsWith('--- Trang')) continue;
 
-      const isQuestionHeader = REGEX_PATTERNS.QUESTION_START.test(line);
+      const isQuestionHeader = REGEX_PATTERNS.QUESTION_START ? REGEX_PATTERNS.QUESTION_START.test(line) : /^Câu\s+\d+/i.test(line);
 
       if (isQuestionHeader) {
         if (currentQuestion) {
           questions.push(currentQuestion);
         }
 
-        const stemClean = line.replace(REGEX_PATTERNS.QUESTION_START, '').trim();
+        const stemClean = line.replace(REGEX_PATTERNS.QUESTION_START || /^Câu\s+\d+[:.]?\s*/i, '').trim();
 
         currentQuestion = {
           stem: stemClean,
@@ -92,16 +88,16 @@ export class PdfParser {
         continue;
       }
 
-      const isOption = REGEX_PATTERNS.OPTION_START.test(line);
+      const isOption = REGEX_PATTERNS.OPTION_START ? REGEX_PATTERNS.OPTION_START.test(line) : /^[A-D]\.\s*/i.test(line);
 
       if (isOption && currentQuestion) {
-        const optionClean = line.replace(REGEX_PATTERNS.OPTION_START, '').trim();
+        const optionClean = line.replace(REGEX_PATTERNS.OPTION_START || /^[A-D]\.\s*/i, '').trim();
         currentQuestion.options.push(optionClean);
         continue;
       }
 
       if (currentQuestion) {
-        const ansMatch = line.match(REGEX_PATTERNS.ANSWER_KEY);
+        const ansMatch = REGEX_PATTERNS.ANSWER_KEY ? line.match(REGEX_PATTERNS.ANSWER_KEY) : null;
         if (ansMatch) {
           const letter = ansMatch[1].toUpperCase();
           currentQuestion.correctAnswer = letter.charCodeAt(0) - 65;
@@ -121,8 +117,6 @@ export class PdfParser {
 
   /**
    * Processes scanned PDF page images using Gemini Vision API.
-   * @param {Array} pageImages
-   * @returns {Promise<Array>}
    */
   static async _parseScannedPdfWithVision(pageImages = []) {
     const questions = [];
@@ -161,3 +155,6 @@ Ghi chú: Giữ nguyên định dạng công thức toán dưới dạng KaTeX (
     return questions;
   }
 }
+
+// Export named function để tương thích với import { parsePdfFile } từ app.js
+export const parsePdfFile = PdfParser.parsePdfFile.bind(PdfParser);
