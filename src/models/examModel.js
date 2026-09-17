@@ -7,9 +7,8 @@ import { logger } from '../utils/logger.js';
 export class ExamModel {
   /**
    * Tạo chuỗi UUID v4 duy nhất cho đề thi hoặc câu hỏi.
-   * @returns {string} Chuỗi UUID
    */
-  static generateUUID() {
+  generateUUID() {
     if (typeof crypto !== 'undefined' && crypto.randomUUID) {
       return crypto.randomUUID();
     }
@@ -22,35 +21,21 @@ export class ExamModel {
 
   /**
    * Chuẩn hóa và làm sạch văn bản HTML / KaTeX.
-   * @param {string} text - Văn bản cần làm sạch
-   * @returns {string} Văn bản đã chuẩn hóa
    */
-  static sanitizeContent(text) {
+  sanitizeContent(text) {
     if (!text || typeof text !== 'string') return '';
-    
-    return text
-      .trim()
-      .replace(/[\r\n]+/g, '\n')
-      .replace(/\s+/g, ' ');
+    return text.trim().replace(/[\r\n]+/g, '\n').replace(/\s+/g, ' ');
   }
 
   /**
    * Kiểm tra xem các phương án có chứa từ khóa cấm xáo trộn không.
-   * @param {Array<string>} options - Danh sách lựa chọn
-   * @returns {boolean} True nếu KHÔNG được xáo trộn
    */
-  static shouldDisableShuffle(options = []) {
+  shouldDisableShuffle(options = []) {
     if (!Array.isArray(options) || options.length === 0) return true;
 
     const exclusionPatterns = [
-      /tất cả/i,
-      /cả\s+[a-d0-9]/i,
-      /cả\s+\d+/i,
-      /không có/i,
-      /đáp án khác/i,
-      /all of the above/i,
-      /none of the above/i,
-      /both\s+[a-d]\s+and/i
+      /tất cả/i, /cả\s+[a-d0-9]/i, /cả\s+\d+/i, /không có/i,
+      /đáp án khác/i, /all of the above/i, /none of the above/i, /both\s+[a-d]\s+and/i
     ];
 
     return options.some((opt) =>
@@ -59,11 +44,9 @@ export class ExamModel {
   }
 
   /**
-   * Phân tách danh sách câu hỏi hoặc đề thi thành 2 phần: Câu hỏi & Bảng đáp án
-   * @param {Array|Object} input - Mảng câu hỏi hoặc đối tượng đề thi
-   * @returns {Object} { questions, answerKey } hoặc { studentExam, masterKey }
+   * Phân tách danh sách câu hỏi thành 2 phần: Nội dung câu hỏi & Bảng đáp án
    */
-  static splitExamAndKey(input = []) {
+  splitExamAndKey(input = []) {
     if (Array.isArray(input)) {
       const cleanQuestions = [];
       const answerKey = {};
@@ -96,11 +79,8 @@ export class ExamModel {
 
   /**
    * Tạo đối tượng đề thi hoàn chỉnh (Draft/Master).
-   * @param {Object} metadata - Thông tin tổng quan đề thi
-   * @param {Array<Object>} rawQuestions - Danh sách câu hỏi thô
-   * @returns {Object} Đề thi chuẩn hóa
    */
-  static createStandardExam(metadata = {}, rawQuestions = []) {
+  createStandardExam(metadata = {}, rawQuestions = []) {
     const examId = metadata.examId || `exam_${this.generateUUID()}`;
     const timestamp = new Date().toISOString();
 
@@ -138,11 +118,9 @@ export class ExamModel {
   }
 
   /**
-   * Tách đề thi thành 2 phần độc lập khi xuất bản (Publish)
-   * @param {Object} fullExam - Đề thi gốc
-   * @returns {{ studentExam: Object, masterKey: Object }}
+   * Tách đề thi thành 2 phần độc lập khi xuất bản (Publish).
    */
-  static splitExamForPublishing(fullExam) {
+  splitExamForPublishing(fullExam) {
     if (!fullExam || !fullExam.examId) {
       throw new Error('Đề thi không hợp lệ để phân tách.');
     }
@@ -181,17 +159,14 @@ export class ExamModel {
       keys: keys
     };
 
-    logger.info(`Đã phân tách thành công đề thi ${fullExam.examId} thành Student Exam và Master Key.`);
+    logger.info(`Đã phân tách thành công đề thi ${fullExam.examId}.`);
     return { studentExam, masterKey, questions: studentQuestions, answerKey: keys };
   }
 
   /**
-   * Trộn thứ tự câu hỏi và phương án (Thuật toán Fisher-Yates).
-   * @param {Array<Object>} questions - Danh sách câu hỏi
-   * @param {boolean} shuffleOptionsFlag - Có xáo trộn cả các phương án A,B,C,D hay không
-   * @returns {Array<Object>} Danh sách câu hỏi đã xáo trộn
+   * Trộn thứ tự câu hỏi và phương án.
    */
-  static shuffleExamQuestions(questions = [], shuffleOptionsFlag = true) {
+  shuffleExamQuestions(questions = [], shuffleOptionsFlag = true) {
     const clonedQuestions = JSON.parse(JSON.stringify(questions));
 
     for (let i = clonedQuestions.length - 1; i > 0; i--) {
@@ -214,18 +189,5 @@ export class ExamModel {
   }
 }
 
-// Export object chứa đầy đủ phương thức tĩnh để đáp ứng gọi dạng examModel.splitExamAndKey()
-export const examModel = {
-  generateUUID: ExamModel.generateUUID.bind(ExamModel),
-  sanitizeContent: ExamModel.sanitizeContent.bind(ExamModel),
-  shouldDisableShuffle: ExamModel.shouldDisableShuffle.bind(ExamModel),
-  splitExamAndKey: ExamModel.splitExamAndKey.bind(ExamModel),
-  createStandardExam: ExamModel.createStandardExam.bind(ExamModel),
-  splitExamForPublishing: ExamModel.splitExamForPublishing.bind(ExamModel),
-  shuffleExamQuestions: ExamModel.shuffleExamQuestions.bind(ExamModel)
-};
-
-// Export các hàm lẻ để tương thích với gọi dạng import { splitExamAndKey }
-export const splitExamAndKey = ExamModel.splitExamAndKey.bind(ExamModel);
-export const splitExamForPublishing = ExamModel.splitExamForPublishing.bind(ExamModel);
-export const createStandardExam = ExamModel.createStandardExam.bind(ExamModel);
+// Xuất instance chuẩn phục vụ import { examModel } từ app.js
+export const examModel = new ExamModel();
