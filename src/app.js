@@ -216,7 +216,7 @@ async function handleProcessExamWithAI() {
  * Render danh sách câu hỏi hỗ trợ chỉnh sửa trực tiếp & chọn đáp án
  */
 /**
- * Render danh sách câu hỏi AI bóc tách (Đã sửa lỗi vỡ khung & mất chữ phương án)
+ * Render danh sách câu hỏi AI bóc tách (Đã tối ưu hiển thị phương án & chỉnh sửa trực tiếp)
  */
 function renderQuestionListForReview(questions = []) {
   const reviewSection = document.getElementById('aiReviewSection');
@@ -229,7 +229,9 @@ function renderQuestionListForReview(questions = []) {
   container.innerHTML = '';
 
   const needReviewCount = questions.filter(q => q.flags?.needsUserConfirmation).length;
-  summaryText.innerHTML = `Tổng số <strong>${questions.length}</strong> câu hỏi. Có <strong>${needReviewCount}</strong> câu AI cần bạn duyệt lại.`;
+  if (summaryText) {
+    summaryText.innerHTML = `Tổng số <strong>${questions.length}</strong> câu hỏi. Có <strong>${needReviewCount}</strong> câu AI cần bạn duyệt lại.`;
+  }
 
   questions.forEach((q, idx) => {
     const isWarning = q.flags?.needsUserConfirmation;
@@ -238,12 +240,15 @@ function renderQuestionListForReview(questions = []) {
     card.style.cssText = 'border: 1px solid #e5e7eb; border-radius: 8px; padding: 16px; margin-bottom: 16px; background: #fff; width: 100%; box-sizing: border-box;';
     card.id = `review-card-${q.id}`;
 
+    // Xử lý render danh sách các phương án A, B, C, D
     let optionsHtml = '';
-    (q.options || []).forEach((opt, oIdx) => {
+    const optionsList = Array.isArray(q.options) ? q.options : [];
+
+    optionsList.forEach((opt, oIdx) => {
       const optLetter = String.fromCharCode(65 + oIdx);
       const isCorrect = Number(q.correctAnswer) === oIdx;
 
-      // Bóc tách văn bản an toàn dù opt là String hay Object ({ text: "..." })
+      // Bóc tách chuỗi an toàn
       const optText = typeof opt === 'string' ? opt : (opt?.text || opt?.content || String(opt || ''));
 
       optionsHtml += `
@@ -276,12 +281,12 @@ function renderQuestionListForReview(questions = []) {
         <label style="display:block; font-size: 12px; color: #6b7280; margin-bottom: 4px; font-weight: 500;">Nội dung câu hỏi:</label>
         <textarea style="width: 100%; padding: 8px 12px; border: 1px solid #d1d5db; border-radius: 6px; font-family: inherit; font-size: 14px; resize: vertical; box-sizing: border-box;" 
                   rows="2" 
-                  onchange="window.updateQuestionStem('${q.id}', this.value)">${escapeHtml(q.stem)}</textarea>
+                  onchange="window.updateQuestionStem('${q.id}', this.value)">${escapeHtml(q.stem || '')}</textarea>
       </div>
       
       <div>
         <label style="display:block; font-size: 12px; color: #6b7280; margin-bottom: 6px; font-weight: 500;">Các phương án (Tích nút tròn để chọn đáp án đúng):</label>
-        ${optionsHtml}
+        ${optionsHtml || '<p style="color: #ef4444; font-size: 13px;">Không tìm thấy danh sách phương án.</p>'}
       </div>
 
       ${isWarning ? `
@@ -296,6 +301,7 @@ function renderQuestionListForReview(questions = []) {
 
   renderKaTeX(container);
 }
+
 // Handler cập nhật dữ liệu khi người dùng sửa trên giao diện
 window.updateQuestionStem = (qId, val) => {
   if (!currentExamState) return;
@@ -326,6 +332,16 @@ window.confirmQuestionItem = (qId) => {
     renderQuestionListForReview(currentExamState.questions);
   }
 };
+
+// Hàm hỗ trợ escape chuỗi ký tự đặc biệt HTML
+function escapeHtml(str = '') {
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+}
 
 /**
  * Xuất bản đề thi (Tách Master Key và đăng đề lên GitHub)
