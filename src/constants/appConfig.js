@@ -4,7 +4,7 @@
 
 export const APP_CONFIG = {
   // Cấu hình kết nối Backend Google Apps Script
-  APPS_SCRIPT_URL: 'https://script.google.com/macros/s/AKfycbxb4Tb3_B2F7_Qywy9rSaNYaYcfzDmTZTfALSrSB4JXW9pfc289BjEZ7xR4M2DKjvLx/exec',
+  APPS_SCRIPT_URL: 'https://script.google.com/macros/s/AKfycbwI9MMpSt6alonmI9qW7CTYzdHZBB9pCQIpM-3lYScZlqvNxasDQRf7pyfFPm5zl0n8/exec',
   
   // Cấu hình GitHub CDN / Public Exam Repository
   GITHUB: {
