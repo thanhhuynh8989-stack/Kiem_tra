@@ -401,12 +401,3 @@ function setUploadStatus(text, style) {
     el.setAttribute('style', `margin-top: 12px; font-weight: 600; ${style}`);
   }
 }
-
-function escapeHtml(str = '') {
-  return String(str)
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#039;');
-}
