@@ -93,7 +93,7 @@ export class ExamModel {
       subject: metadata.subject || 'Chưa phân loại',
       durationMinutes: metadata.durationMinutes || 45,
       passScore: metadata.passScore || 5.0,
-      status: metadata.status || EXAM_STATUS.DRAFT,
+      status: metadata.status || (EXAM_STATUS && EXAM_STATUS.DRAFT) || 'DRAFT',
       createdAt: metadata.createdAt || timestamp,
       updatedAt: timestamp,
       questions: formattedQuestions
@@ -186,3 +186,6 @@ export class ExamModel {
     return clonedQuestions;
   }
 }
+
+// Export instance thường phục vụ import { examModel } từ app.js
+export const examModel = new ExamModel();
