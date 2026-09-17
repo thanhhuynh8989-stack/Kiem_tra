@@ -13,7 +13,6 @@ export class ExamModel {
     if (typeof crypto !== 'undefined' && crypto.randomUUID) {
       return crypto.randomUUID();
     }
-    // Fallback thủ công nếu trình duyệt không hỗ trợ crypto.randomUUID
     return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
       const r = (Math.random() * 16) | 0;
       const v = c === 'x' ? r : (r & 0x3) | 0x8;
@@ -31,13 +30,12 @@ export class ExamModel {
     
     return text
       .trim()
-      .replace(/[\r\n]+/g, '\n') // Chuẩn hóa xuống dòng
-      .replace(/\s+/g, ' ');     // Loại bỏ khoảng trắng thừa
+      .replace(/[\r\n]+/g, '\n')
+      .replace(/\s+/g, ' ');
   }
 
   /**
    * Kiểm tra xem các phương án có chứa từ khóa cấm xáo trộn không.
-   * (Ví dụ: "Tất cả các đáp án trên", "Cả A và B đều đúng", "None of the above")
    * @param {Array<string>} options - Danh sách lựa chọn
    * @returns {boolean} True nếu KHÔNG được xáo trộn
    */
@@ -61,6 +59,42 @@ export class ExamModel {
   }
 
   /**
+   * Phân tách danh sách câu hỏi hoặc đề thi thành 2 phần: Câu hỏi & Bảng đáp án
+   * @param {Array|Object} input - Mảng câu hỏi hoặc đối tượng đề thi
+   * @returns {Object} { questions, answerKey } hoặc { studentExam, masterKey }
+   */
+  static splitExamAndKey(input = []) {
+    if (Array.isArray(input)) {
+      const cleanQuestions = [];
+      const answerKey = {};
+
+      input.forEach((q, idx) => {
+        const qId = q.id || `q_${idx + 1}`;
+        if (q.correctAnswer !== undefined && q.correctAnswer !== null) {
+          answerKey[qId] = q.correctAnswer;
+        }
+        cleanQuestions.push({
+          id: qId,
+          stem: q.stem || '',
+          options: q.options || [],
+          explanation: q.explanation || '',
+          images: q.images || [],
+          disableShuffle: q.disableShuffle || false
+        });
+      });
+
+      logger.info(`Đã bóc tách ${cleanQuestions.length} câu hỏi và ${Object.keys(answerKey).length} đáp án.`);
+      return { questions: cleanQuestions, answerKey };
+    }
+
+    if (input && typeof input === 'object' && input.questions) {
+      return this.splitExamForPublishing(input);
+    }
+
+    return { questions: [], answerKey: {} };
+  }
+
+  /**
    * Tạo đối tượng đề thi hoàn chỉnh (Draft/Master).
    * @param {Object} metadata - Thông tin tổng quan đề thi
    * @param {Array<Object>} rawQuestions - Danh sách câu hỏi thô
@@ -80,7 +114,7 @@ export class ExamModel {
         stem: this.sanitizeContent(q.stem || q.questionText || ''),
         images: Array.isArray(q.images) ? q.images : [],
         options: options,
-        correctAnswer: q.correctAnswer !== undefined ? q.correctAnswer : null, // Chỉ số 0,1,2,3 hoặc 'A','B','C','D'
+        correctAnswer: q.correctAnswer !== undefined ? q.correctAnswer : null,
         explanation: this.sanitizeContent(q.explanation || ''),
         points: typeof q.points === 'number' ? q.points : 1.0,
         disableShuffle: disableShuffle
@@ -104,10 +138,7 @@ export class ExamModel {
   }
 
   /**
-   * Tách đề thi thành 2 phần độc lập khi xuất bản (Publish):
-   * 1. Student Exam: Không chứa đáp án đúng hay lời giải (Lưu trên GitHub/Client)
-   * 2. Master Key: Chứa đáp án, lời giải và biểu điểm (Lưu an toàn trên Apps Script Backend)
-   * 
+   * Tách đề thi thành 2 phần độc lập khi xuất bản (Publish)
    * @param {Object} fullExam - Đề thi gốc
    * @returns {{ studentExam: Object, masterKey: Object }}
    */
@@ -116,8 +147,7 @@ export class ExamModel {
       throw new Error('Đề thi không hợp lệ để phân tách.');
     }
 
-    // 1. Dữ liệu đề cho học sinh (Public)
-    const studentQuestions = fullExam.questions.map((q) => ({
+    const studentQuestions = (fullExam.questions || []).map((q) => ({
       id: q.id,
       stem: q.stem,
       images: q.images,
@@ -136,8 +166,7 @@ export class ExamModel {
       questions: studentQuestions
     };
 
-    // 2. Đáp án gốc lưu bảo mật (Backend Master Key)
-    const keys = fullExam.questions.reduce((acc, q) => {
+    const keys = (fullExam.questions || []).reduce((acc, q) => {
       acc[q.id] = {
         correctAnswer: q.correctAnswer,
         points: q.points || 1.0,
@@ -153,7 +182,7 @@ export class ExamModel {
     };
 
     logger.info(`Đã phân tách thành công đề thi ${fullExam.examId} thành Student Exam và Master Key.`);
-    return { studentExam, masterKey };
+    return { studentExam, masterKey, questions: studentQuestions, answerKey: keys };
   }
 
   /**
@@ -165,13 +194,11 @@ export class ExamModel {
   static shuffleExamQuestions(questions = [], shuffleOptionsFlag = true) {
     const clonedQuestions = JSON.parse(JSON.stringify(questions));
 
-    // 1. Trộn thứ tự các câu hỏi
     for (let i = clonedQuestions.length - 1; i > 0; i--) {
       const j = Math.floor(Math.random() * (i + 1));
       [clonedQuestions[i], clonedQuestions[j]] = [clonedQuestions[j], clonedQuestions[i]];
     }
 
-    // 2. Trộn phương án nếu cho phép
     if (shuffleOptionsFlag) {
       clonedQuestions.forEach((q) => {
         if (!q.disableShuffle && Array.isArray(q.options) && q.options.length > 1) {
@@ -187,5 +214,18 @@ export class ExamModel {
   }
 }
 
-// Export instance thường phục vụ import { examModel } từ app.js
-export const examModel = new ExamModel();
+// Export object chứa đầy đủ phương thức tĩnh để đáp ứng gọi dạng examModel.splitExamAndKey()
+export const examModel = {
+  generateUUID: ExamModel.generateUUID.bind(ExamModel),
+  sanitizeContent: ExamModel.sanitizeContent.bind(ExamModel),
+  shouldDisableShuffle: ExamModel.shouldDisableShuffle.bind(ExamModel),
+  splitExamAndKey: ExamModel.splitExamAndKey.bind(ExamModel),
+  createStandardExam: ExamModel.createStandardExam.bind(ExamModel),
+  splitExamForPublishing: ExamModel.splitExamForPublishing.bind(ExamModel),
+  shuffleExamQuestions: ExamModel.shuffleExamQuestions.bind(ExamModel)
+};
+
+// Export các hàm lẻ để tương thích với gọi dạng import { splitExamAndKey }
+export const splitExamAndKey = ExamModel.splitExamAndKey.bind(ExamModel);
+export const splitExamForPublishing = ExamModel.splitExamForPublishing.bind(ExamModel);
+export const createStandardExam = ExamModel.createStandardExam.bind(ExamModel);
