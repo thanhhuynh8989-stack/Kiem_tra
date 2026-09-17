@@ -3,7 +3,8 @@ import { githubService } from './services/githubService.js';
 import { parseDocxFile } from './parsers/docxParser.js';
 import { parsePdfFile } from './parsers/pdfParser.js';
 import { renderKaTeX } from './utils/domHelper.js';
-import { examModel } from './models/examModel.js';
+import { ExamModel } from './models/examModel.js';
+const examModel = new ExamModel();
 import { logger } from './utils/logger.js';
 
 let currentUser = null;
