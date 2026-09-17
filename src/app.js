@@ -8,7 +8,7 @@ import { examModel } from './models/examModel.js';
 import { logger } from './utils/logger.js';
 
 let currentUser = null;
-let currentExamState = null; // Lưu trạng thái đề thi AI đang phân tích
+let currentExamState = null; // Lưu trạng thái đề thi AI đang phân tích / duyệt
 let currentExamData = null;  // Lưu đề thi sinh viên đang làm
 const studentAnswers = {};
 
@@ -54,7 +54,7 @@ function showView(viewId) {
 }
 
 /**
- * Xử lý Đăng nhập phân quyền từ Google Sheet 'Users'
+ * Xử lý Đăng nhập phân quyền
  */
 async function handleLogin() {
   const username = document.getElementById('loginUsername').value.trim();
@@ -196,16 +196,14 @@ async function handleProcessExamWithAI() {
   try {
     setUploadStatus('🤖 Gemini AI đang bóc tách, bổ sung đáp án & kiểm lỗi...', 'color: #2563eb');
 
-    // 1. Gửi sang AI phân tích
     const aiResult = await aiExamParserService.parseAndEnrichExam(rawText);
 
-    // 2. Chuẩn hóa qua ExamModel
     currentExamState = examModel.createStandardExam(
       { title: 'Đề thi phân tích bởi AI' },
       aiResult.questions
     );
 
-    setUploadStatus('✅ Phân tích hoàn tất! Kiểm tra lại thông tin bên dưới.', 'color: #10b981');
+    setUploadStatus('✅ Phân tích hoàn tất! Bạn có thể chỉnh sửa nội dung và chọn lại đáp án bên dưới trước khi xuất bản.', 'color: #10b981');
     renderQuestionListForReview(currentExamState.questions);
 
   } catch (err) {
@@ -215,7 +213,7 @@ async function handleProcessExamWithAI() {
 }
 
 /**
- * Render danh sách câu hỏi AI vừa bóc tách kèm cờ cảnh báo duyệt
+ * Render danh sách câu hỏi hỗ trợ chỉnh sửa trực tiếp & chọn đáp án
  */
 function renderQuestionListForReview(questions = []) {
   const reviewSection = document.getElementById('aiReviewSection');
@@ -234,28 +232,55 @@ function renderQuestionListForReview(questions = []) {
     const isWarning = q.flags?.needsUserConfirmation;
     const card = document.createElement('div');
     card.className = `question-card ${isWarning ? 'card-needs-review' : ''}`;
+    card.style.cssText = 'border: 1px solid #e5e7eb; border-radius: 8px; padding: 16px; margin-bottom: 16px; background: #fff;';
     card.id = `review-card-${q.id}`;
 
+    let optionsHtml = '';
+    (q.options || []).forEach((opt, oIdx) => {
+      const optLetter = String.fromCharCode(65 + oIdx);
+      const isCorrect = q.correctAnswer === oIdx;
+
+      optionsHtml += `
+        <div style="display: flex; align-items: center; gap: 8px; margin-top: 8px;">
+          <input type="radio" 
+                 name="correct_opt_${q.id}" 
+                 id="opt_radio_${q.id}_${oIdx}" 
+                 value="${oIdx}" 
+                 ${isCorrect ? 'checked' : ''} 
+                 onchange="window.updateCorrectAnswer('${q.id}', ${oIdx})">
+          <label for="opt_radio_${q.id}_${oIdx}" style="font-weight: bold; width: 24px;">${optLetter}.</label>
+          <input type="text" 
+                 style="flex: 1; padding: 6px 10px; border: 1px solid ${isCorrect ? '#10b981' : '#d1d5db'}; border-radius: 4px; background-color: ${isCorrect ? '#f0fdf4' : '#fff'};" 
+                 value="${escapeHtml(opt)}" 
+                 onchange="window.updateOptionText('${q.id}', ${oIdx}, this.value)">
+        </div>
+      `;
+    });
+
     card.innerHTML = `
-      <div style="display:flex; justify-content:space-between; align-items:center;">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 8px;">
         <strong>Câu ${idx + 1}:</strong>
         ${isWarning 
-          ? `<span class="badge-warning">⚠️ AI Tự Điền / Cần Duyệt</span>` 
-          : `<span class="badge-success">✓ Hoàn Thiện</span>`}
+          ? `<span style="background:#fef3c7; color:#d97706; padding: 2px 8px; border-radius: 4px; font-size: 12px; font-weight:600;">⚠️ AI Tự Điền / Cần Duyệt</span>` 
+          : `<span style="background:#d1fae5; color:#059669; padding: 2px 8px; border-radius: 4px; font-size: 12px; font-weight:600;">✓ Hoàn Thiện</span>`}
       </div>
-      <p style="margin: 8px 0; font-weight: 500;">${q.stem}</p>
+
+      <div style="margin-bottom: 12px;">
+        <label style="display:block; font-size: 12px; color: #6b7280; margin-bottom: 4px;">Nội dung câu hỏi:</label>
+        <textarea style="width: 100%; padding: 8px; border: 1px solid #d1d5db; border-radius: 4px; font-family: inherit; resize: vertical;" 
+                  rows="2" 
+                  onchange="window.updateQuestionStem('${q.id}', this.value)">${escapeHtml(q.stem)}</textarea>
+      </div>
       
-      <div style="margin-left: 12px;">
-        ${(q.options || []).map((opt, oIdx) => `
-          <div style="${q.correctAnswer === oIdx ? 'color: #059669; font-weight: bold;' : ''}">
-            ${String.fromCharCode(65 + oIdx)}. ${opt} ${q.correctAnswer === oIdx ? '✓ (Đáp án)' : ''}
-          </div>
-        `).join('')}
+      <div>
+        <label style="display:block; font-size: 12px; color: #6b7280; margin-bottom: 4px;">Các phương án (Tích nút tròn để chọn đáp án đúng):</label>
+        ${optionsHtml}
       </div>
 
       ${isWarning ? `
-        <div class="ai-note">💡 <strong>Ghi chú từ AI:</strong> ${q.flags?.note || 'Kiểm tra lại phương án và đáp án đúng.'}</div>
-        <button class="btn-confirm" onclick="window.confirmQuestionItem('${q.id}')">✓ Đã Kiểm Tra & Đúng</button>
+        <div style="margin-top: 12px; padding: 8px; background: #fffbeb; border-left: 3px solid #f59e0b; font-size: 13px;">💡 <strong>Ghi chú từ AI:</strong> ${q.flags?.note || 'Kiểm tra lại phương án và đáp án đúng.'}</div>
+        <button style="margin-top: 8px; background: #059669; color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer;" 
+                onclick="window.confirmQuestionItem('${q.id}')">✓ Đã Kiểm Tra & Đúng</button>
       ` : ''}
     `;
 
@@ -265,12 +290,31 @@ function renderQuestionListForReview(questions = []) {
   renderKaTeX(container);
 }
 
-/**
- * Đánh dấu đã kiểm tra xong 1 câu hỏi
- */
-window.confirmQuestionItem = function(questionId) {
+// Handler cập nhật dữ liệu khi người dùng sửa trên giao diện
+window.updateQuestionStem = (qId, val) => {
   if (!currentExamState) return;
-  const q = currentExamState.questions.find(item => item.id === questionId);
+  const q = currentExamState.questions.find(item => item.id === qId);
+  if (q) q.stem = val;
+};
+
+window.updateOptionText = (qId, optIdx, val) => {
+  if (!currentExamState) return;
+  const q = currentExamState.questions.find(item => item.id === qId);
+  if (q && q.options) q.options[optIdx] = val;
+};
+
+window.updateCorrectAnswer = (qId, optIdx) => {
+  if (!currentExamState) return;
+  const q = currentExamState.questions.find(item => item.id === qId);
+  if (q) {
+    q.correctAnswer = parseInt(optIdx, 10);
+    renderQuestionListForReview(currentExamState.questions);
+  }
+};
+
+window.confirmQuestionItem = (qId) => {
+  if (!currentExamState) return;
+  const q = currentExamState.questions.find(item => item.id === qId);
   if (q && q.flags) {
     q.flags.needsUserConfirmation = false;
     renderQuestionListForReview(currentExamState.questions);
@@ -278,7 +322,7 @@ window.confirmQuestionItem = function(questionId) {
 };
 
 /**
- * Xuất bản đề thi (Tách Master Key và đẩy dữ liệu lên Cloud/GitHub)
+ * Xuất bản đề thi (Tách Master Key và đăng đề lên GitHub)
  */
 async function handlePublishExam() {
   if (!currentExamState) return;
@@ -292,9 +336,12 @@ async function handlePublishExam() {
   try {
     setUploadStatus('Đang phân tách Master Key và đăng đề lên GitHub...', 'color: #2563eb');
     
-    // Tách đề thi thành bản dành cho Học sinh & Bảng đáp án Master Key
     const { studentExam, masterKey } = examModel.splitExamForPublishing(currentExamState);
-    const fileNameOnGithub = `exam_${studentExam.examId.slice(0, 8)}.json`;
+    
+    // Chuẩn hóa mã đề để tránh lỗi lặp tiền tố exam_
+    const rawId = String(studentExam.examId || `exam_${Date.now()}`);
+    const cleanExamCode = rawId.replace(/^exam_/, '');
+    const fileNameOnGithub = `exam_${cleanExamCode.slice(0, 8)}.json`;
 
     await appsScriptService.saveAndPublishExam(
       studentExam.examId,
@@ -331,4 +378,13 @@ function setUploadStatus(text, style) {
     el.innerHTML = text;
     el.setAttribute('style', `margin-top: 12px; font-weight: 600; ${style}`);
   }
+}
+
+function escapeHtml(str = '') {
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
 }
