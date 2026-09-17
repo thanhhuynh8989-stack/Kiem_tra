@@ -21,14 +21,16 @@ export class DocxParser {
     const arrayBuffer = await file.arrayBuffer();
     const imagesExtracted = [];
 
-    // Mammoth.js configuration for image handling and HTML transformation
+    if (typeof mammoth === 'undefined') {
+      throw new Error('Thư viện Mammoth.js chưa được nạp vào trang.');
+    }
+
     const options = {
       convertImage: mammoth.images.imgElement((image) => {
         return image.read("base64").then(async (imageBuffer) => {
           const mimeType = image.contentType || "image/png";
           const rawBase64 = `data:${mimeType};base64,${imageBuffer}`;
 
-          // Compress embedded images immediately
           const compressed = await ImageCompressor.compressBase64Image(rawBase64);
           imagesExtracted.push(compressed);
           const imageIndex = imagesExtracted.length - 1;
@@ -40,10 +42,6 @@ export class DocxParser {
         });
       })
     };
-
-    if (typeof mammoth === 'undefined') {
-      throw new Error('Thư viện Mammoth.js chưa được nạp vào trang.');
-    }
 
     const result = await mammoth.convertToHtml({ arrayBuffer }, options);
     const htmlContent = result.value;
@@ -58,9 +56,6 @@ export class DocxParser {
 
   /**
    * Converts raw DOCX HTML string to an array of standardized question objects.
-   * @param {string} htmlContent - HTML string from Mammoth
-   * @param {boolean} enableAIKaTeX - Enable KaTeX processing via AI
-   * @returns {Promise<Array>}
    */
   static async parseHTMLToQuestions(htmlContent, enableAIKaTeX = true) {
     const tempDiv = document.createElement('div');
@@ -75,15 +70,14 @@ export class DocxParser {
 
       if (!text && !node.querySelector('img')) continue;
 
-      // Check if current line marks the start of a new question
-      const isQuestionHeader = REGEX_PATTERNS.QUESTION_START.test(text);
+      const isQuestionHeader = REGEX_PATTERNS.QUESTION_START ? REGEX_PATTERNS.QUESTION_START.test(text) : /^Câu\s+\d+/i.test(text);
 
       if (isQuestionHeader) {
         if (currentQuestion) {
           questions.push(currentQuestion);
         }
 
-        const stemClean = text.replace(REGEX_PATTERNS.QUESTION_START, '').trim();
+        const stemClean = text.replace(REGEX_PATTERNS.QUESTION_START || /^Câu\s+\d+[:.]?\s*/i, '').trim();
         const images = this._extractImagesFromNode(node);
 
         currentQuestion = {
@@ -96,11 +90,10 @@ export class DocxParser {
         continue;
       }
 
-      // Check if line represents an option choice (e.g. "A. ", "B) ")
-      const isOption = REGEX_PATTERNS.OPTION_START.test(text);
+      const isOption = REGEX_PATTERNS.OPTION_START ? REGEX_PATTERNS.OPTION_START.test(text) : /^[A-D]\.\s*/i.test(text);
 
       if (isOption && currentQuestion) {
-        const optionClean = text.replace(REGEX_PATTERNS.OPTION_START, '').trim();
+        const optionClean = text.replace(REGEX_PATTERNS.OPTION_START || /^[A-D]\.\s*/i, '').trim();
         const optionImages = this._extractImagesFromNode(node);
         
         currentQuestion.options.push(optionClean);
@@ -108,19 +101,17 @@ export class DocxParser {
           currentQuestion.images.push(...optionImages);
         }
 
-        // Check if option is explicitly marked correct (e.g., contains asterisk or [X])
         if (text.includes('*') || text.toLowerCase().includes('[x]')) {
           currentQuestion.correctAnswer = currentQuestion.options.length - 1;
         }
         continue;
       }
 
-      // Check for answer keys or explanation markers
       if (currentQuestion) {
-        const ansMatch = text.match(REGEX_PATTERNS.ANSWER_KEY);
+        const ansMatch = REGEX_PATTERNS.ANSWER_KEY ? text.match(REGEX_PATTERNS.ANSWER_KEY) : null;
         if (ansMatch) {
           const letter = ansMatch[1].toUpperCase();
-          currentQuestion.correctAnswer = letter.charCodeAt(0) - 65; // 'A' -> 0, 'B' -> 1
+          currentQuestion.correctAnswer = letter.charCodeAt(0) - 65;
         } else if (text.toLowerCase().startsWith('lời giải:') || text.toLowerCase().startsWith('mô tả:')) {
           currentQuestion.explanation = text.replace(/^(lời giải|mô tả)\s*:\s*/i, '').trim();
         } else {
@@ -133,7 +124,6 @@ export class DocxParser {
       questions.push(currentQuestion);
     }
 
-    // Convert math equations to KaTeX using Gemini AI if enabled
     if (enableAIKaTeX) {
       for (const q of questions) {
         if (q.stem.includes('$') || q.stem.includes('\\')) {
@@ -145,9 +135,6 @@ export class DocxParser {
     return questions;
   }
 
-  /**
-   * Helper extracting Base64 image sources from a DOM element.
-   */
   static _extractImagesFromNode(node) {
     const imgs = node.querySelectorAll('img');
     const imageList = [];
@@ -159,3 +146,6 @@ export class DocxParser {
     return imageList;
   }
 }
+
+// Export named function để tương thích với import { parseDocxFile } từ app.js
+export const parseDocxFile = DocxParser.parseDocxFile.bind(DocxParser);
