@@ -44,7 +44,7 @@ export class ExamModel {
   }
 
   /**
-   * Phân tách danh sách câu hỏi thành 2 phần: Nội dung câu hỏi & Bảng đáp án
+   * Phân tách danh sách câu hỏi hoặc đề thi thành 2 phần: Câu hỏi & Bảng đáp án
    */
   splitExamAndKey(input = []) {
     if (Array.isArray(input)) {
@@ -118,7 +118,7 @@ export class ExamModel {
   }
 
   /**
-   * Tách đề thi thành 2 phần độc lập khi xuất bản (Publish).
+   * Tách đề thi thành 2 phần độc lập khi xuất bản (Publish)
    */
   splitExamForPublishing(fullExam) {
     if (!fullExam || !fullExam.examId) {
@@ -164,7 +164,7 @@ export class ExamModel {
   }
 
   /**
-   * Trộn thứ tự câu hỏi và phương án.
+   * Trộn thứ tự câu hỏi và phương án (Thuật toán Fisher-Yates).
    */
   shuffleExamQuestions(questions = [], shuffleOptionsFlag = true) {
     const clonedQuestions = JSON.parse(JSON.stringify(questions));
@@ -187,7 +187,24 @@ export class ExamModel {
 
     return clonedQuestions;
   }
+
+  // --- Hỗ trợ gọi Static trực tiếp từ Lớp ExamModel.method() ---
+  static generateUUID(...args) { return new ExamModel().generateUUID(...args); }
+  static sanitizeContent(...args) { return new ExamModel().sanitizeContent(...args); }
+  static shouldDisableShuffle(...args) { return new ExamModel().shouldDisableShuffle(...args); }
+  static splitExamAndKey(...args) { return new ExamModel().splitExamAndKey(...args); }
+  static createStandardExam(...args) { return new ExamModel().createStandardExam(...args); }
+  static splitExamForPublishing(...args) { return new ExamModel().splitExamForPublishing(...args); }
+  static shuffleExamQuestions(...args) { return new ExamModel().shuffleExamQuestions(...args); }
 }
 
-// Xuất instance chuẩn phục vụ import { examModel } từ app.js
+// 1. Export Instance Singleton
 export const examModel = new ExamModel();
+
+// 2. Export Hàm lẻ (Destructuring)
+export const splitExamAndKey = examModel.splitExamAndKey.bind(examModel);
+export const splitExamForPublishing = examModel.splitExamForPublishing.bind(examModel);
+export const createStandardExam = examModel.createStandardExam.bind(examModel);
+
+// 3. Export Default (Cho phép: import examModel from './examModel.js')
+export default examModel;
