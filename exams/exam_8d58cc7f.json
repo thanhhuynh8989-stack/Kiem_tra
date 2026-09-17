@@ -1,0 +1,81 @@
+{
+  "examId": "exam_8d58cc7f-15fd-43ab-8cb6-57e2060dffd4",
+  "title": "Đề thi phân tích bởi AI",
+  "subject": "Chưa phân loại",
+  "durationMinutes": 45,
+  "totalQuestions": 10,
+  "createdAt": "2026-09-17T04:33:37.203Z",
+  "updatedAt": "2026-09-17T04:33:37.203Z",
+  "questions": [
+    {
+      "id": "q_1_5fe07c62",
+      "stem": "Bào quan của tế bào được định vị trong ?",
+      "images": [],
+      "options": [],
+      "disableShuffle": true
+    },
+    {
+      "id": "q_2_b28dd49b",
+      "stem": "Đặc điểm khác biệt của tế bào nhân sơ (prokaryote) và tế bào nhân chuẩn (eukaryote) là:",
+      "images": [],
+      "options": [],
+      "disableShuffle": true
+    },
+    {
+      "id": "q_3_a8980c4e",
+      "stem": "Ty thể KHÔNG có mặt ở ?",
+      "images": [],
+      "options": [],
+      "disableShuffle": true
+    },
+    {
+      "id": "q_4_f25a1632",
+      "stem": "Hợp chất nào sau đây KHÔNG có trong thành phần màng tế bào ?",
+      "images": [],
+      "options": [],
+      "disableShuffle": true
+    },
+    {
+      "id": "q_5_da2262da",
+      "stem": "Thực bào và ẩm bào là các thuật ngữ của hiện tượng được mô tả sau:",
+      "images": [],
+      "options": [],
+      "disableShuffle": true
+    },
+    {
+      "id": "q_6_f698bf9f",
+      "stem": "Phát biểu nào sau đây về lục lạp là KHÔNG đúng ?",
+      "images": [],
+      "options": [],
+      "disableShuffle": true
+    },
+    {
+      "id": "q_7_62b02b7c",
+      "stem": "Vai trò chính của màng sinh chất:",
+      "images": [],
+      "options": [],
+      "disableShuffle": true
+    },
+    {
+      "id": "q_8_fcd4ee6e",
+      "stem": "Thành phần chính cấu tạo nên thành tế bào vi khuẩn Gram dương ?",
+      "images": [],
+      "options": [],
+      "disableShuffle": true
+    },
+    {
+      "id": "q_9_c82d6303",
+      "stem": "Thể nhân của tế bào Prokaryote KHÔNG có đặc điểm ?",
+      "images": [],
+      "options": [],
+      "disableShuffle": true
+    },
+    {
+      "id": "q_10_3b5d2b87",
+      "stem": "Ở tế bào Eukaryote, ribosome có mặt nhiều nhất tại:",
+      "images": [],
+      "options": [],
+      "disableShuffle": true
+    }
+  ]
+}
