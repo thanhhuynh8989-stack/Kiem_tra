@@ -29,6 +29,9 @@ export function renderMathInContainer(containerElement) {
   }
 }
 
+// Alias hỗ trợ import { renderKaTeX } từ app.js
+export const renderKaTeX = renderMathInContainer;
+
 /**
  * Escapes unsafe HTML characters to prevent XSS attacks.
  */
