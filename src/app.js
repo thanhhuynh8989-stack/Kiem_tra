@@ -381,17 +381,32 @@ async function handlePublishExam() {
 }
 
 /**
- * Đọc nội dung tệp .docx hoặc .pdf
+ * Đọc nội dung tệp .docx hoặc .pdf (Đã sửa lỗi mất phương án)
  */
 async function extractTextFromFile(file) {
+  let parsed;
   if (file.name.endsWith('.docx')) {
-    const parsed = await parseDocxFile(file);
-    return Array.isArray(parsed) ? parsed.map(q => q.raw || q.stem).join('\n') : parsed;
+    parsed = await parseDocxFile(file);
   } else if (file.name.endsWith('.pdf')) {
-    const parsed = await parsePdfFile(file);
-    return Array.isArray(parsed) ? parsed.map(q => q.raw || q.stem).join('\n') : parsed;
+    parsed = await parsePdfFile(file);
+  } else {
+    throw new Error('Định dạng tệp không được hỗ trợ. Chỉ nhận .docx hoặc .pdf');
   }
-  throw new Error('Định dạng tệp không được hỗ trợ. Chỉ nhận .docx hoặc .pdf');
+
+  // Nếu trình đọc tệp trả về chuỗi văn bản thô
+  if (typeof parsed === 'string') return parsed;
+
+  // Nếu trả về mảng đối tượng, nối cả stem và options thành văn bản hoàn chỉnh
+  if (Array.isArray(parsed)) {
+    return parsed.map(q => {
+      if (typeof q === 'string') return q;
+      const stemText = q.raw || q.stem || '';
+      const optsText = Array.isArray(q.options) ? q.options.join('\n') : '';
+      return `${stemText}\n${optsText}`.trim();
+    }).join('\n\n');
+  }
+
+  return String(parsed || '');
 }
 
 function setUploadStatus(text, style) {
