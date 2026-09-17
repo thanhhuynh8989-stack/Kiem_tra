@@ -3,12 +3,14 @@ import { githubService } from './services/githubService.js';
 import { parseDocxFile } from './parsers/docxParser.js';
 import { parsePdfFile } from './parsers/pdfParser.js';
 import { renderKaTeX } from './utils/domHelper.js';
+import { aiExamParserService } from './services/aiExamParserService.js';
 import { ExamModel } from './models/examModel.js';
 const examModel = new ExamModel();
 import { splitExamAndKey } from './models/examModel.js';
 import { logger } from './utils/logger.js';
 
 let currentUser = null;
+let currentExamState = null;
 let currentExamData = null;
 const studentAnswers = {};
 
@@ -190,3 +192,39 @@ async function handleProcessFile() {
     statusDiv.innerHTML = `<span style="color: red;">Lỗi: ${err.message}</span>`;
   }
 }
+
+/**
+ * Xử lý sự kiện khi người dùng bấm nút "Phân tích đề bằng AI"
+ */
+async function handleParseExamWithAI(rawText) {
+  try {
+    // 1. Hiển thị Loading trên giao diện
+    showLoading('AI đang phân tích và hoàn thiện câu hỏi...');
+
+    // 2. Gọi AI Service để bóc tách và tự điền đáp án/phương án thiếu
+    const aiResult = await aiExamParserService.parseAndEnrichExam(rawText);
+
+    // 3. Chuẩn hóa dữ liệu câu hỏi qua ExamModel
+    currentExamState = examModel.createStandardExam(
+      { title: 'Đề thi phân tích bởi AI' },
+      aiResult.questions
+    );
+
+    // 4. Render danh sách câu hỏi ra giao diện cho người dùng kiểm duyệt
+    renderQuestionListForReview(currentExamState.questions);
+
+    logger.info('Đã tải câu hỏi lên giao diện kiểm duyệt.');
+  } catch (error) {
+    logger.error('Lỗi phân tích AI:', error);
+    alert(`Không thể phân tích đề: ${error.message}`);
+  } finally {
+    hideLoading();
+  }
+}
+
+// Bắt sự kiện Click nút phân tích
+document.getElementById('btn-parse-ai')?.addEventListener('click', () => {
+  const rawText = document.getElementById('raw-exam-input')?.value;
+  if (!rawText) return alert('Vui lòng nhập hoặc tải nội dung đề thi!');
+  handleParseExamWithAI(rawText);
+});
