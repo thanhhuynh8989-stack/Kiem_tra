@@ -5,6 +5,7 @@ import { parsePdfFile } from './parsers/pdfParser.js';
 import { renderKaTeX } from './utils/domHelper.js';
 import { ExamModel } from './models/examModel.js';
 const examModel = new ExamModel();
+import { splitExamAndKey } from './models/examModel.js';
 import { logger } from './utils/logger.js';
 
 let currentUser = null;
