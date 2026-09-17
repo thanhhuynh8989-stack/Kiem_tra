@@ -27,6 +27,15 @@
     .question-card { border: 1px solid #e2e8f0; border-radius: 8px; padding: 16px; margin-bottom: 16px; }
     .logout-btn { background: #ef4444; width: auto; padding: 6px 16px; }
   </style>
+
+  <style>
+    /* CSS bổ sung cho thẻ duyệt AI */
+    .badge-warning { background: #f59e0b; color: #fff; padding: 3px 8px; border-radius: 4px; font-size: 12px; font-weight: bold; }
+    .badge-success { background: #10b981; color: #fff; padding: 3px 8px; border-radius: 4px; font-size: 12px; font-weight: bold; }
+    .card-needs-review { border-left: 4px solid #f59e0b !important; background-color: #fffbe3; }
+    .ai-note { font-size: 13px; color: #b45309; margin-top: 8px; padding: 6px; background: #fef3c7; border-radius: 4px; }
+    .btn-confirm { background: #10b981; width: auto; padding: 4px 12px; font-size: 13px; margin-top: 8px; }
+  </style>
 </head>
 <body>
 
@@ -88,15 +97,30 @@
     </div>
   </div>
 
-  <!-- 3. GIAO DIỆN GIẢNG VIÊN -->
+  <!-- 3. GIAO DIỆN GIẢNG VIÊN (Thay thế phần cũ) -->
   <div id="lecturerView" class="view-section">
-    <h3>Cổng Giảng Viên - Bóc Tách & Tải Đề Thi</h3>
+    <h3>Cổng Giảng Viên - Bóc Tách & Tải Đề Thi AI</h3>
+    
     <div class="form-group">
-      <label>Chọn file đề thi (.docx hoặc .pdf)</label>
-      <input type="file" id="examFileInput" accept=".docx,.pdf">
+      <label>Chọn file đề thi (.docx hoặc .pdf) hoặc Dán văn bản thô</label>
+      <input type="file" id="examFileInput" accept=".docx,.pdf" style="margin-bottom: 10px;">
+      <textarea id="rawExamText" rows="5" placeholder="Hoặc dán trực tiếp nội dung đề thi vào đây..." style="width:100%; padding:10px; border:1px solid #cbd5e1; border-radius:6px; box-sizing:border-box;"></textarea>
     </div>
-    <button id="processExamBtn">Phân Tích Đề & Xuất Bản</button>
-    <div id="uploadStatus" style="margin-top: 16px; font-weight: 600;"></div>
+    
+    <button id="processExamBtn">Phân Tích Đề Bằng AI</button>
+    <div id="uploadStatus" style="margin-top: 12px; font-weight: 600;"></div>
+  
+    <!-- VÙNG HIỂN THỊ KẾT QUẢ PHÂN TÍCH VÀ XÁC NHẬN CỦA USER -->
+    <div id="aiReviewSection" style="display: none; margin-top: 24px;">
+      <hr style="border: 0; border-top: 1px solid #e2e8f0; margin-bottom: 16px;">
+      <h4>Kết Quả Phân Tích & Duyệt Đề Thi</h4>
+      <p id="reviewSummaryText" style="font-size: 14px; color: #64748b;"></p>
+      
+      <!-- Danh sách câu hỏi AI vừa bóc tách -->
+      <div id="questionsReviewList"></div>
+  
+      <button id="publishExamBtn" style="background: #059669; margin-top: 16px;">Xác Nhận & Xuất Bản Đề Thi</button>
+    </div>
   </div>
 
   <!-- 4. GIAO DIỆN ADMIN -->
