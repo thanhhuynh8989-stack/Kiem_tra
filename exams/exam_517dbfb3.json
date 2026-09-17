@@ -1,0 +1,131 @@
+{
+  "examId": "exam_517dbfb3-e542-4630-bdc7-34afebd870bd",
+  "title": "Đề thi phân tích bởi AI",
+  "subject": "Chưa phân loại",
+  "durationMinutes": 45,
+  "totalQuestions": 10,
+  "createdAt": "2026-09-17T04:01:31.595Z",
+  "updatedAt": "2026-09-17T04:01:31.595Z",
+  "questions": [
+    {
+      "id": "q_1_98f7131a",
+      "stem": "Bào quan của tế bào được định vị trong ?",
+      "images": [],
+      "options": [
+        "Tế bào chất",
+        "Nhân tế bào",
+        "Màng sinh chất",
+        "Thành tế bào"
+      ],
+      "disableShuffle": false
+    },
+    {
+      "id": "q_2_30ccfadb",
+      "stem": "Đặc điểm khác biệt của tế bào nhân sơ (prokaryote) và tế bào nhân chuẩn (eukaryote) là:",
+      "images": [],
+      "options": [
+        "Tế bào nhân sơ chưa có màng nhân bao bọc khối vật chất di truyền",
+        "Tế bào nhân sơ có ty thể và thể Golgi",
+        "Tế bào nhân sơ có kích thước lớn hơn tế bào nhân chuẩn",
+        "Tế bào nhân sơ có hệ thống nội màng chia tế bào chất thành các xoang"
+      ],
+      "disableShuffle": false
+    },
+    {
+      "id": "q_3_39a80c3e",
+      "stem": "Ty thể KHÔNG có mặt ở ?",
+      "images": [],
+      "options": [
+        "Tế bào hồng cầu trưởng thành ở người",
+        "Tế bào cơ tim",
+        "Tế bào gan",
+        "Tế bào thực vật"
+      ],
+      "disableShuffle": false
+    },
+    {
+      "id": "q_4_96d0ce50",
+      "stem": "Hợp chất nào sau đây KHÔNG có trong thành phần màng tế bào ?",
+      "images": [],
+      "options": [
+        "Peptidoglycan",
+        "Phospholipid",
+        "Protein",
+        "Cholesterol"
+      ],
+      "disableShuffle": false
+    },
+    {
+      "id": "q_5_3ce9df58",
+      "stem": "Thực bào và ẩm bào là các thuật ngữ của hiện tượng được mô tả sau:",
+      "images": [],
+      "options": [
+        "Nhập bào",
+        "Xuất bào",
+        "Khuếch tán thụ động",
+        "Vận chuyển chủ động qua kênh protein"
+      ],
+      "disableShuffle": false
+    },
+    {
+      "id": "q_6_d6760e9c",
+      "stem": "Phát biểu nào sau đây về lục lạp là KHÔNG đúng ?",
+      "images": [],
+      "options": [
+        "Có mặt ở cả tế bào động vật và tế bào thực vật",
+        "Chứa hệ sắc tố thực hiện chức năng quang hợp",
+        "Sở hữu ADN dạng vòng kép và ribosome riêng",
+        "Được bao bọc bởi lớp màng kép"
+      ],
+      "disableShuffle": false
+    },
+    {
+      "id": "q_7_7df9304c",
+      "stem": "Vai trò chính của màng sinh chất:",
+      "images": [],
+      "options": [
+        "Trao đổi chất có chọn lọc và bảo vệ tế bào",
+        "Nơi diễn ra quá trình tổng hợp protein",
+        "Lưu trữ và bảo quản thông tin di truyền",
+        "Cung cấp năng lượng chủ yếu cho các hoạt động sống"
+      ],
+      "disableShuffle": false
+    },
+    {
+      "id": "q_8_6fae4748",
+      "stem": "Thành phần chính cấu tạo nên thành tế bào vi khuẩn Gram dương ?",
+      "images": [],
+      "options": [
+        "Lớp Peptidoglycan dày",
+        "Lớp Peptidoglycan mỏng và màng ngoài",
+        "Cellulose",
+        "Chitin"
+      ],
+      "disableShuffle": false
+    },
+    {
+      "id": "q_9_996debab",
+      "stem": "Thể nhân của tế bào Prokaryote KHÔNG có đặc điểm ?",
+      "images": [],
+      "options": [
+        "Được bao bọc bởi lớp màng nhân",
+        "Chứa một phân tử ADN dạng vòng kép",
+        "Không có màng bao bọc ngăn cách với tế bào chất",
+        "Nằm ở vùng tế bào chất"
+      ],
+      "disableShuffle": true
+    },
+    {
+      "id": "q_10_e2722384",
+      "stem": "Ở tế bào Eukaryote, ribosome có mặt nhiều nhất tại:",
+      "images": [],
+      "options": [
+        "Màng lưới nội chất hạt",
+        "Màng lưới nội chất trơn",
+        "Bộ máy Golgi",
+        "Không bào"
+      ],
+      "disableShuffle": false
+    }
+  ]
+}
