@@ -215,6 +215,9 @@ async function handleProcessExamWithAI() {
 /**
  * Render danh sách câu hỏi hỗ trợ chỉnh sửa trực tiếp & chọn đáp án
  */
+/**
+ * Render danh sách câu hỏi AI bóc tách (Đã sửa lỗi vỡ khung & mất chữ phương án)
+ */
 function renderQuestionListForReview(questions = []) {
   const reviewSection = document.getElementById('aiReviewSection');
   const container = document.getElementById('questionsReviewList');
@@ -232,54 +235,58 @@ function renderQuestionListForReview(questions = []) {
     const isWarning = q.flags?.needsUserConfirmation;
     const card = document.createElement('div');
     card.className = `question-card ${isWarning ? 'card-needs-review' : ''}`;
-    card.style.cssText = 'border: 1px solid #e5e7eb; border-radius: 8px; padding: 16px; margin-bottom: 16px; background: #fff;';
+    card.style.cssText = 'border: 1px solid #e5e7eb; border-radius: 8px; padding: 16px; margin-bottom: 16px; background: #fff; width: 100%; box-sizing: border-box;';
     card.id = `review-card-${q.id}`;
 
     let optionsHtml = '';
     (q.options || []).forEach((opt, oIdx) => {
       const optLetter = String.fromCharCode(65 + oIdx);
-      const isCorrect = q.correctAnswer === oIdx;
+      const isCorrect = Number(q.correctAnswer) === oIdx;
+
+      // Bóc tách văn bản an toàn dù opt là String hay Object ({ text: "..." })
+      const optText = typeof opt === 'string' ? opt : (opt?.text || opt?.content || String(opt || ''));
 
       optionsHtml += `
-        <div style="display: flex; align-items: center; gap: 8px; margin-top: 8px;">
+        <div style="display: flex; align-items: center; gap: 10px; margin-top: 8px; width: 100%;">
           <input type="radio" 
                  name="correct_opt_${q.id}" 
                  id="opt_radio_${q.id}_${oIdx}" 
                  value="${oIdx}" 
                  ${isCorrect ? 'checked' : ''} 
+                 style="flex-shrink: 0; cursor: pointer; width: 16px; height: 16px;"
                  onchange="window.updateCorrectAnswer('${q.id}', ${oIdx})">
-          <label for="opt_radio_${q.id}_${oIdx}" style="font-weight: bold; width: 24px;">${optLetter}.</label>
+          <label for="opt_radio_${q.id}_${oIdx}" style="font-weight: bold; min-width: 20px; flex-shrink: 0; cursor: pointer;">${optLetter}.</label>
           <input type="text" 
-                 style="flex: 1; padding: 6px 10px; border: 1px solid ${isCorrect ? '#10b981' : '#d1d5db'}; border-radius: 4px; background-color: ${isCorrect ? '#f0fdf4' : '#fff'};" 
-                 value="${escapeHtml(opt)}" 
+                 style="flex: 1; min-width: 0; width: 100%; padding: 8px 12px; border: 1px solid ${isCorrect ? '#10b981' : '#d1d5db'}; border-radius: 6px; background-color: ${isCorrect ? '#f0fdf4' : '#fff'}; font-size: 14px; box-sizing: border-box;" 
+                 value="${escapeHtml(optText)}" 
                  onchange="window.updateOptionText('${q.id}', ${oIdx}, this.value)">
         </div>
       `;
     });
 
     card.innerHTML = `
-      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 8px;">
-        <strong>Câu ${idx + 1}:</strong>
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 10px;">
+        <strong style="font-size: 15px;">Câu ${idx + 1}:</strong>
         ${isWarning 
-          ? `<span style="background:#fef3c7; color:#d97706; padding: 2px 8px; border-radius: 4px; font-size: 12px; font-weight:600;">⚠️ AI Tự Điền / Cần Duyệt</span>` 
-          : `<span style="background:#d1fae5; color:#059669; padding: 2px 8px; border-radius: 4px; font-size: 12px; font-weight:600;">✓ Hoàn Thiện</span>`}
+          ? `<span style="background:#fef3c7; color:#d97706; padding: 4px 10px; border-radius: 4px; font-size: 12px; font-weight:600;">⚠️ AI Tự Điền / Cần Duyệt</span>` 
+          : `<span style="background:#d1fae5; color:#059669; padding: 4px 10px; border-radius: 4px; font-size: 12px; font-weight:600;">✓ Hoàn Thiện</span>`}
       </div>
 
       <div style="margin-bottom: 12px;">
-        <label style="display:block; font-size: 12px; color: #6b7280; margin-bottom: 4px;">Nội dung câu hỏi:</label>
-        <textarea style="width: 100%; padding: 8px; border: 1px solid #d1d5db; border-radius: 4px; font-family: inherit; resize: vertical;" 
+        <label style="display:block; font-size: 12px; color: #6b7280; margin-bottom: 4px; font-weight: 500;">Nội dung câu hỏi:</label>
+        <textarea style="width: 100%; padding: 8px 12px; border: 1px solid #d1d5db; border-radius: 6px; font-family: inherit; font-size: 14px; resize: vertical; box-sizing: border-box;" 
                   rows="2" 
                   onchange="window.updateQuestionStem('${q.id}', this.value)">${escapeHtml(q.stem)}</textarea>
       </div>
       
       <div>
-        <label style="display:block; font-size: 12px; color: #6b7280; margin-bottom: 4px;">Các phương án (Tích nút tròn để chọn đáp án đúng):</label>
+        <label style="display:block; font-size: 12px; color: #6b7280; margin-bottom: 6px; font-weight: 500;">Các phương án (Tích nút tròn để chọn đáp án đúng):</label>
         ${optionsHtml}
       </div>
 
       ${isWarning ? `
-        <div style="margin-top: 12px; padding: 8px; background: #fffbeb; border-left: 3px solid #f59e0b; font-size: 13px;">💡 <strong>Ghi chú từ AI:</strong> ${q.flags?.note || 'Kiểm tra lại phương án và đáp án đúng.'}</div>
-        <button style="margin-top: 8px; background: #059669; color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer;" 
+        <div style="margin-top: 12px; padding: 10px; background: #fffbeb; border-left: 4px solid #f59e0b; border-radius: 4px; font-size: 13px;">💡 <strong>Ghi chú từ AI:</strong> ${q.flags?.note || 'Kiểm tra lại phương án và đáp án đúng.'}</div>
+        <button style="margin-top: 10px; background: #059669; color: white; border: none; padding: 8px 14px; border-radius: 6px; cursor: pointer; font-weight: 500;" 
                 onclick="window.confirmQuestionItem('${q.id}')">✓ Đã Kiểm Tra & Đúng</button>
       ` : ''}
     `;
@@ -289,7 +296,6 @@ function renderQuestionListForReview(questions = []) {
 
   renderKaTeX(container);
 }
-
 // Handler cập nhật dữ liệu khi người dùng sửa trên giao diện
 window.updateQuestionStem = (qId, val) => {
   if (!currentExamState) return;
