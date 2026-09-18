@@ -523,7 +523,7 @@ async function handlePublishExam() {
 }
 
 /**
- * Đọc nội dung tệp .docx hoặc .pdf
+ * Trích xuất văn bản từ tệp .docx hoặc .pdf an toàn & chuẩn hóa mảng câu hỏi
  */
 async function extractTextFromFile(file) {
   let parsed;
@@ -535,15 +535,38 @@ async function extractTextFromFile(file) {
     throw new Error('Định dạng tệp không được hỗ trợ. Chỉ nhận .docx hoặc .pdf');
   }
 
+  if (!parsed) return '';
+
+  // Giải bọc nếu parser trả về object { value: "..." } từ Mammoth
+  if (typeof parsed === 'object' && parsed !== null && !Array.isArray(parsed) && 'value' in parsed) {
+    parsed = parsed.value;
+  }
+
+  // Nếu dữ liệu đã là chuỗi văn bản thô
   if (typeof parsed === 'string') return parsed;
 
+  // Nếu dữ liệu trả về là mảng câu hỏi (từ DocxParser)
   if (Array.isArray(parsed)) {
-    return parsed.map(q => {
+    return parsed.map((q, idx) => {
       if (typeof q === 'string') return q;
-      const stemText = q.raw || q.stem || '';
-      const optsText = Array.isArray(q.options) ? q.options.join('\n') : '';
+
+      // Ép kiểu chuỗi an toàn cho phần câu hỏi (stem)
+      const stemRaw = q.raw || q.stem || q.value || '';
+      const stemText = typeof stemRaw === 'string' ? stemRaw : (stemRaw?.text || String(stemRaw || ''));
+
+      // Chuẩn hóa và nối các phương án A, B, C, D
+      let optsText = '';
+      if (Array.isArray(q.options) && q.options.length > 0) {
+        optsText = q.options.map((opt, oIdx) => {
+          const optStr = typeof opt === 'string' ? opt : (opt?.text || opt?.content || String(opt || ''));
+          const letter = String.fromCharCode(65 + oIdx);
+          const cleanOpt = optStr.replace(/^[A-D]\.\s*/i, '').trim();
+          return `${letter}. ${cleanOpt}`;
+        }).join('\n');
+      }
+
       return `${stemText}\n${optsText}`.trim();
-    }).join('\n\n');
+    }).filter(text => text.length > 0).join('\n\n');
   }
 
   return String(parsed || '');
