@@ -26,6 +26,7 @@ document.addEventListener('DOMContentLoaded', () => {
   // Logic Giảng viên & AI Parsing
   document.getElementById('processExamBtn')?.addEventListener('click', handleProcessExamWithAI);
   document.getElementById('publishExamBtn')?.addEventListener('click', handlePublishExam);
+  document.getElementById('loadMyExamsBtn')?.addEventListener('click', handleLoadMyExams);
 
   // Logic Admin
   document.getElementById('loadUsersBtn')?.addEventListener('click', handleLoadUsers);
@@ -45,6 +46,9 @@ function showView(viewId) {
   if (currentUser) {
     userInfo.style.display = 'flex';
     userBadge.textContent = `${currentUser.fullName} (${currentUser.role})`;
+    if (viewId === 'lecturerView') {
+      handleLoadMyExams(); // Tự động nạp danh sách đề thi cá nhân khi chuyển vào cổng Giảng viên
+    }
   } else if (viewId === 'studentView') {
     userInfo.style.display = 'flex';
     userBadge.textContent = 'HỌC SINH';
@@ -131,13 +135,18 @@ async function handleLoadExam() {
   }
 }
 
+/**
+ * Render đề thi cho Học sinh (Nút tick radio nằm phía trước đáp án)
+ */
 function renderQuestions(questions = []) {
   const container = document.getElementById('questionsList');
   container.innerHTML = '';
   questions.forEach((q, index) => {
     const card = document.createElement('div');
     card.className = 'question-card';
-    let html = `<p><strong>Câu ${index + 1}:</strong> ${q.stem}</p>`;
+    card.style.cssText = 'border: 1px solid #e2e8f0; border-radius: 8px; padding: 16px; margin-bottom: 16px; background: #fff;';
+
+    let html = `<p style="font-weight: 600; font-size: 15px; margin-bottom: 12px;"><strong>Câu ${index + 1}:</strong> ${q.stem}</p>`;
 
     if (q.imageUrl) {
       html += `<div style="margin: 8px 0;"><img src="${q.imageUrl}" style="max-width: 100%; max-height: 200px; border-radius: 6px; border: 1px solid #e2e8f0;" /></div>`;
@@ -146,9 +155,22 @@ function renderQuestions(questions = []) {
     (q.options || []).forEach((opt, oIdx) => {
       const optKey = String.fromCharCode(65 + oIdx);
       const optText = typeof opt === 'string' ? opt : (opt?.text || opt?.content || String(opt || ''));
-      html += `<div style="margin: 6px 0;">
-        <label><input type="radio" name="q_${q.id}" value="${optKey}" onchange="window.saveAns('${q.id}', '${optKey}')"> <strong>${optKey}.</strong> ${optText}</label>
-      </div>`;
+      const inputId = `q_${q.id}_opt_${oIdx}`;
+
+      // Đặt ô radio tick trước nhãn A, B, C, D
+      html += `
+        <div style="display: flex; align-items: center; gap: 8px; margin: 8px 0; cursor: pointer;">
+          <input type="radio" 
+                 id="${inputId}" 
+                 name="q_${q.id}" 
+                 value="${optKey}" 
+                 style="width: 18px; height: 18px; cursor: pointer; flex-shrink: 0;"
+                 onchange="window.saveAns('${q.id}', '${optKey}')">
+          <label for="${inputId}" style="cursor: pointer; font-size: 14px; line-height: 1.4;">
+            <strong>${optKey}.</strong> ${optText}
+          </label>
+        </div>
+      `;
     });
     card.innerHTML = html;
     container.appendChild(card);
@@ -176,12 +198,9 @@ async function handleSubmitExam() {
 }
 
 /* ==========================================================================
-   HÀM TIỆN ÍCH TRÍCH XUẤT ẢNH VÀ CẮT ẢNH CANVAS (HYBRID APPROACH)
+   HÀM TIỆN ÍCH TRÍCH XUẤT ẢNH VÀ CẮT ẢNH CANVAS
    ========================================================================== */
 
-/**
- * Trích xuất ảnh nguyên bản từ file .docx (Sử dụng JSZip)
- */
 async function extractImagesFromDocx(file) {
   if (!window.JSZip) return [];
   try {
@@ -204,9 +223,6 @@ async function extractImagesFromDocx(file) {
   }
 }
 
-/**
- * Render trang PDF thành HTML5 Canvas
- */
 async function renderPdfPageToCanvas(file, pageNum = 1) {
   if (!window.pdfjsLib) return null;
   window.pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
@@ -224,9 +240,6 @@ async function renderPdfPageToCanvas(file, pageNum = 1) {
   return canvas;
 }
 
-/**
- * Cắt ảnh từ Canvas theo tọa độ Bounding Box [ymin, xmin, ymax, xmax] (0-1000)
- */
 function cropImageFromBox(sourceCanvas, box) {
   if (!box || !Array.isArray(box) || box.length !== 4) return null;
 
@@ -256,7 +269,7 @@ function cropImageFromBox(sourceCanvas, box) {
 }
 
 /**
- * Giảng viên: Phân tích tệp hoặc văn bản đề thi bằng Gemini AI (Multimodal & Hybrid Approach)
+ * Giảng viên: Phân tích tệp hoặc văn bản đề thi bằng Gemini AI
  */
 async function handleProcessExamWithAI() {
   const fileInput = document.getElementById('examFileInput');
@@ -298,7 +311,6 @@ async function handleProcessExamWithAI() {
   try {
     setUploadStatus('🤖 Gemini AI đang bóc tách, chuẩn hóa công thức toán & phát hiện ảnh...', 'color: #2563eb');
 
-    // Gửi dữ liệu đa phương thức qua Apps Script Backend
     const response = await appsScriptService.request('PARSE_EXAM_AI', {
       rawText,
       imageBase64,
@@ -311,7 +323,6 @@ async function handleProcessExamWithAI() {
 
     let questions = response.data.questions;
 
-    // Nếu là PDF và có Canvas nguồn, tự động cắt ảnh theo Bounding Box
     if (sourceCanvas) {
       questions = questions.map(q => {
         if (q.hasImage && q.imageBox) {
@@ -336,7 +347,7 @@ async function handleProcessExamWithAI() {
 }
 
 /**
- * Render danh sách câu hỏi AI bóc tách (Hỗ trợ chỉnh sửa trực tiếp, xem ảnh & KaTeX)
+ * Render danh sách câu hỏi AI bóc tách (Nút radio đặt phía trước lựa chọn)
  */
 function renderQuestionListForReview(questions = []) {
   const reviewSection = document.getElementById('aiReviewSection');
@@ -360,7 +371,6 @@ function renderQuestionListForReview(questions = []) {
     card.style.cssText = 'border: 1px solid #e5e7eb; border-radius: 8px; padding: 16px; margin-bottom: 16px; background: #fff; width: 100%; box-sizing: border-box;';
     card.id = `review-card-${q.id}`;
 
-    // Đảm bảo luôn có mảng 4 phương án
     const optionsList = (Array.isArray(q.options) && q.options.length > 0) ? q.options : ['', '', '', ''];
     q.options = optionsList;
 
@@ -370,18 +380,19 @@ function renderQuestionListForReview(questions = []) {
       const isCorrect = Number(q.correctAnswer) === oIdx;
       const optText = typeof opt === 'string' ? opt : (opt?.text || opt?.content || String(opt || ''));
 
+      // Đặt ô radio tick lên trước ký tự A, B, C, D
       optionsHtml += `
-        <div style="display: flex; align-items: center; gap: 10px; margin-top: 8px; width: 100%;">
+        <div style="display: flex; align-items: center; gap: 8px; margin-top: 8px; width: 100%;">
           <input type="radio" 
                  name="correct_opt_${q.id}" 
                  id="opt_radio_${q.id}_${oIdx}" 
                  value="${oIdx}" 
                  ${isCorrect ? 'checked' : ''} 
-                 style="flex-shrink: 0; cursor: pointer; width: 16px; height: 16px;"
+                 style="flex-shrink: 0; cursor: pointer; width: 18px; height: 18px;"
                  onchange="window.updateCorrectAnswer('${q.id}', ${oIdx})">
           <label for="opt_radio_${q.id}_${oIdx}" style="font-weight: bold; min-width: 20px; flex-shrink: 0; cursor: pointer;">${optLetter}.</label>
           <input type="text" 
-                 style="flex: 1; min-width: 0; width: 100%; padding: 8px 12px; border: 1px solid ${isCorrect ? '#10b981' : '#d1d5db'}; border-radius: 6px; background-color: ${isCorrect ? '#f0fdf4' : '#fff'}; font-size: 14px; box-sizing: border-box;" 
+                 style="flex: 1; min-width: 0; padding: 8px 12px; border: 1px solid ${isCorrect ? '#10b981' : '#d1d5db'}; border-radius: 6px; background-color: ${isCorrect ? '#f0fdf4' : '#fff'}; font-size: 14px; box-sizing: border-box;" 
                  value="${escapeHtml(optText)}" 
                  onchange="window.updateOptionText('${q.id}', ${oIdx}, this.value)">
         </div>
@@ -418,7 +429,7 @@ function renderQuestionListForReview(questions = []) {
       ${imageSectionHtml}
 
       <div>
-        <label style="display:block; font-size: 12px; color: #6b7280; margin-bottom: 6px; font-weight: 500;">Các phương án (Tích nút tròn để chọn đáp án đúng):</label>
+        <label style="display:block; font-size: 12px; color: #6b7280; margin-bottom: 6px; font-weight: 500;">Các phương án (Tích chọn đáp án đúng):</label>
         ${optionsHtml}
       </div>
 
@@ -432,7 +443,6 @@ function renderQuestionListForReview(questions = []) {
     container.appendChild(card);
   });
 
-  // Render các công thức toán LaTeX trong khung bằng KaTeX
   renderKaTeX(container);
 }
 
@@ -487,10 +497,18 @@ function escapeHtml(str = '') {
 }
 
 /**
- * Xuất bản đề thi (Tách Master Key và đăng đề lên GitHub)
+ * Xuất bản đề thi (Lấy thiết lập Form, gắn Thẻ User và đăng đề)
  */
 async function handlePublishExam() {
-  if (!currentExamState) return;
+  if (!currentExamState) return alert('Chưa có dữ liệu đề thi để xuất bản!');
+
+  const examTitle = document.getElementById('examTitleInput')?.value.trim();
+  const durationMinutes = parseInt(document.getElementById('examDurationInput')?.value || '45', 10);
+  const maxViolations = parseInt(document.getElementById('examMaxViolationsInput')?.value || '3', 10);
+
+  if (!examTitle) {
+    return alert('Vui lòng nhập Tên đề thi trước khi lưu!');
+  }
 
   const unconfirmedCount = currentExamState.questions.filter(q => q.flags?.needsUserConfirmation).length;
   if (unconfirmedCount > 0) {
@@ -499,7 +517,14 @@ async function handlePublishExam() {
   }
 
   try {
-    setUploadStatus('Đang phân tách Master Key và đăng đề lên GitHub...', 'color: #2563eb');
+    setUploadStatus('Đang tạo đề thi và gắn thẻ người dùng...', 'color: #2563eb');
+
+    // Thiết lập thuộc tính cấu hình và thẻ User
+    currentExamState.title = examTitle;
+    currentExamState.durationMinutes = durationMinutes;
+    currentExamState.maxViolations = maxViolations;
+    currentExamState.createdBy = currentUser ? currentUser.username : 'anonymous';
+    currentExamState.createdByName = currentUser ? currentUser.fullName : 'Vô danh';
 
     const { studentExam, masterKey } = examModel.splitExamForPublishing(currentExamState);
 
@@ -515,7 +540,10 @@ async function handlePublishExam() {
     );
 
     setUploadStatus(`🎉 Xuất bản thành công! Mã đề thi: <strong>${fileNameOnGithub}</strong>`, 'color: #10b981');
-    alert(`Xuất bản đề thi thành công! Mã đề: ${fileNameOnGithub}`);
+    alert(`Xuất bản đề thi thành công!\nMã đề: ${fileNameOnGithub}`);
+
+    // Nạp lại danh sách đề thi của giảng viên
+    handleLoadMyExams();
   } catch (err) {
     logger.error('Publish Error:', err);
     setUploadStatus(`❌ Lỗi xuất bản: ${err.message}`, 'color: #ef4444');
@@ -523,7 +551,57 @@ async function handlePublishExam() {
 }
 
 /**
- * Trích xuất văn bản từ tệp .docx hoặc .pdf an toàn & chuẩn hóa mảng câu hỏi
+ * Tải danh sách đề thi do Giảng viên hiện tại tạo
+ */
+async function handleLoadMyExams() {
+  const container = document.getElementById('myExamsListTable');
+  if (!container || !currentUser) return;
+
+  try {
+    container.innerHTML = '<p style="color: #6b7280;">Đang tải danh sách đề thi...</p>';
+    const res = await appsScriptService.request('GET_MY_EXAMS', { username: currentUser.username });
+    const exams = res.data || [];
+
+    if (exams.length === 0) {
+      container.innerHTML = '<p style="color: #6b7280;">Bạn chưa tạo đề thi nào.</p>';
+      return;
+    }
+
+    let html = `
+      <table border="1" style="width:100%; border-collapse:collapse; text-align:left; font-size:14px; margin-top:10px;">
+        <thead style="background:#f1f5f9;">
+          <tr>
+            <th style="padding:8px;">Mã Đề</th>
+            <th style="padding:8px;">Tên Đề Thi</th>
+            <th style="padding:8px;">Thời Gian</th>
+            <th style="padding:8px;">Giới Hạn Vi Phạm</th>
+            <th style="padding:8px;">Ngày Tạo</th>
+          </tr>
+        </thead>
+        <tbody>
+    `;
+
+    exams.forEach(item => {
+      html += `
+        <tr>
+          <td style="padding:8px;"><code>${item.examCode || item.examId}</code></td>
+          <td style="padding:8px; font-weight:600;">${escapeHtml(item.title)}</td>
+          <td style="padding:8px;">${item.durationMinutes || 45} phút</td>
+          <td style="padding:8px;">${item.maxViolations || 3} lần</td>
+          <td style="padding:8px;">${item.createdAt || 'N/A'}</td>
+        </tr>
+      `;
+    });
+
+    html += '</tbody></table>';
+    container.innerHTML = html;
+  } catch (err) {
+    container.innerHTML = '<p style="color: #ef4444;">Lỗi tải danh sách đề thi!</p>';
+  }
+}
+
+/**
+ * Trích xuất văn bản từ tệp .docx hoặc .pdf
  */
 async function extractTextFromFile(file) {
   let parsed;
@@ -537,24 +615,19 @@ async function extractTextFromFile(file) {
 
   if (!parsed) return '';
 
-  // Giải bọc nếu parser trả về object { value: "..." } từ Mammoth
   if (typeof parsed === 'object' && parsed !== null && !Array.isArray(parsed) && 'value' in parsed) {
     parsed = parsed.value;
   }
 
-  // Nếu dữ liệu đã là chuỗi văn bản thô
   if (typeof parsed === 'string') return parsed;
 
-  // Nếu dữ liệu trả về là mảng câu hỏi (từ DocxParser)
   if (Array.isArray(parsed)) {
     return parsed.map((q, idx) => {
       if (typeof q === 'string') return q;
 
-      // Ép kiểu chuỗi an toàn cho phần câu hỏi (stem)
       const stemRaw = q.raw || q.stem || q.value || '';
       const stemText = typeof stemRaw === 'string' ? stemRaw : (stemRaw?.text || String(stemRaw || ''));
 
-      // Chuẩn hóa và nối các phương án A, B, C, D
       let optsText = '';
       if (Array.isArray(q.options) && q.options.length > 0) {
         optsText = q.options.map((opt, oIdx) => {
