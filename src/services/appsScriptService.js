@@ -7,9 +7,15 @@ export const appsScriptService = {
    * Sử dụng 'text/plain;charset=utf-8' để BỎ QUA kiểm tra CORS Preflight (OPTIONS) của trình duyệt.
    */
   async request(action, payload = {}) {
-    const endpoint = APP_CONFIG.APPS_SCRIPT_URL;
-    if (!endpoint) {
-      throw new Error('Chưa cấu hình APPS_SCRIPT_URL trong APP_CONFIG');
+    let endpoint = APP_CONFIG.APPS_SCRIPT_URL;
+
+    if (!endpoint || endpoint.includes('YOUR_APPS_SCRIPT')) {
+      throw new Error('Chưa cấu hình APPS_SCRIPT_URL trong APP_CONFIG. Hãy cập nhật URL vào appConfig.js!');
+    }
+
+    // Cảnh báo nếu đang dùng URL kết thúc bằng /dev thay vì /exec
+    if (endpoint.endsWith('/dev')) {
+      logger.warn('⚠️ Bạn đang dùng URL kết thúc bằng /dev. Hãy đổi thành /exec khi Triển khai (Deploy) để không bị lỗi phân quyền!');
     }
 
     const bodyData = JSON.stringify({ action, ...payload });
@@ -20,10 +26,14 @@ export const appsScriptService = {
         headers: {
           'Content-Type': 'text/plain;charset=utf-8'
         },
-        body: bodyData
+        body: bodyData,
+        redirect: 'follow' // BẮT BỘC: Bật chuyển hướng tự động cho luồng redirect của Google Apps Script
       });
 
       if (!response.ok) {
+        if (response.status === 404) {
+          throw new Error('Lỗi 404: Không tìm thấy Web App! Kiểm tra lại URL trong appConfig.js hoặc Deploy bản mới trên Apps Script với quyền "Anyone".');
+        }
         throw new Error(`Apps Script HTTP Error: ${response.status}`);
       }
 
