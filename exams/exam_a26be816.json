@@ -1,0 +1,71 @@
+{
+  "examId": "exam_a26be816-0746-4011-842e-07f78e2f3fbb",
+  "title": "Đề thi phân tích bởi AI",
+  "subject": "Chưa phân loại",
+  "durationMinutes": 45,
+  "totalQuestions": 5,
+  "createdAt": "2026-09-18T10:56:12.578Z",
+  "updatedAt": "2026-09-18T10:56:12.578Z",
+  "questions": [
+    {
+      "id": "q_1",
+      "stem": "A phosphate bond is considered high-energy when its hydrolysis releases energy in the range of:",
+      "images": [],
+      "options": [
+        "$1000 - 5000\\text{ calories}$",
+        "$5000 - 7000\\text{ calories}$",
+        "$> 5000\\text{ calories}$",
+        "$> 7000\\text{ calories}$"
+      ],
+      "disableShuffle": false
+    },
+    {
+      "id": "q_2",
+      "stem": "The final products of the electron transport chain (ETC) are typically:",
+      "images": [],
+      "options": [
+        "$\\text{H}_2\\text{O}$ and $\\text{CO}_2$",
+        "$\\text{H}_2\\text{O}_2$ and $\\text{CO}_2$",
+        "$\\text{H}_2\\text{O}$ and $\\text{O}_2$",
+        "$\\text{H}_2\\text{O}_2$ and $\\text{O}_2$"
+      ],
+      "disableShuffle": false
+    },
+    {
+      "id": "q_3",
+      "stem": "At which stage of the Krebs cycle is $1\\text{ ATP}$ accumulated from GTP?",
+      "images": [],
+      "options": [
+        "Succinate - Fumarate",
+        "Citrate - Isocitrate",
+        "Fumarate - Malate",
+        "Succinyl-CoA - Succinate"
+      ],
+      "disableShuffle": false
+    },
+    {
+      "id": "q_4",
+      "stem": "In the Krebs cycle, the product transformed from oxaloacetate is:",
+      "images": [],
+      "options": [
+        "Malic acid",
+        "Citric acid",
+        "Pyruvic acid",
+        "Isocitric acid"
+      ],
+      "disableShuffle": false
+    },
+    {
+      "id": "q_5",
+      "stem": "Where does the Krebs cycle take place in the cell?",
+      "images": [],
+      "options": [
+        "Cytoplasm",
+        "Mitochondrial matrix",
+        "Nucleoplasm",
+        "Lysosome"
+      ],
+      "disableShuffle": false
+    }
+  ]
+}
