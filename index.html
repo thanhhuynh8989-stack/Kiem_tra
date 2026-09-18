@@ -124,8 +124,39 @@
       
       <!-- Danh sách câu hỏi AI vừa bóc tách -->
       <div id="questionsReviewList"></div>
+
+      <!-- Bảng Thiết Lập Đề Thi trước khi xuất bản -->
+      <div id="aiReviewSection" style="display:none; margin-top: 20px;">
+        <div style="background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 8px; padding: 16px; margin-bottom: 20px;">
+          <h3 style="margin-top: 0; color: #1e293b;">⚙️ Cấu Hình Đề Thi</h3>
+          <div style="display: grid; grid-template-columns: 2fr 1fr 1fr; gap: 12px;">
+            <div>
+              <label style="font-weight: 600; font-size: 13px;">Tên bài kiểm tra:</label>
+              <input type="text" id="examTitleInput" placeholder="Ví dụ: Kiểm tra giữa kỳ Sinh học 10" style="width: 100%; padding: 8px; margin-top: 4px; border: 1px solid #ccc; border-radius: 4px;">
+            </div>
+            <div>
+              <label style="font-weight: 600; font-size: 13px;">Thời gian (Phút):</label>
+              <input type="number" id="examDurationInput" value="45" min="5" max="180" style="width: 100%; padding: 8px; margin-top: 4px; border: 1px solid #ccc; border-radius: 4px;">
+            </div>
+            <div>
+              <label style="font-weight: 600; font-size: 13px;">Số vi phạm tối đa:</label>
+              <input type="number" id="examMaxViolationsInput" value="3" min="0" max="10" style="width: 100%; padding: 8px; margin-top: 4px; border: 1px solid #ccc; border-radius: 4px;">
+            </div>
+          </div>
+        </div>
+      
+        <div id="reviewSummaryText" style="margin-bottom: 12px;"></div>
+        <div id="questionsReviewList"></div>
   
       <button id="publishExamBtn" style="background: #059669; margin-top: 16px;">Xác Nhận & Xuất Bản Đề Thi</button>
+    </div>
+    <!-- Khung Danh sách đề thi do User tạo -->
+    <div style="margin-top: 30px; border-top: 2px dashed #e2e8f0; padding-top: 20px;">
+      <div style="display: flex; justify-content: space-between; align-items: center;">
+        <h3>📚 Danh Sách Đề Thi Đã Tạo</h3>
+        <button id="loadMyExamsBtn" style="background: #3b82f6; color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer;">🔄 Tải lại</button>
+      </div>
+      <div id="myExamsListTable"></div>
     </div>
   </div>
 
