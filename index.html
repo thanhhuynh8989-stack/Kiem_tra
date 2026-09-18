@@ -10,11 +10,11 @@
   <!-- 1. JSZip: Trích xuất ảnh nguyên bản từ file .docx -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 
-  <!-- 2. PDF.js: Render trang PDF thành Canvas cắt ảnh -->
+  <!-- 2. PDF.js & Mammoth: Render trang PDF thành Canvas cắt ảnh & đọc docx -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js"></script>
 
-  <!-- 3. KaTeX (Core & Auto-render Extension): Hiển thị công thức toán LaTeX -->
+  <!-- 3. KaTeX: Hiển thị công thức toán LaTeX -->
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
   <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
   <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js"></script>
@@ -29,18 +29,15 @@
     .view-section.active { display: block; }
     .form-group { margin-bottom: 16px; }
     label { display: block; font-weight: 600; margin-bottom: 6px; }
-    input, button { width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 6px; box-sizing: border-box; }
+    input, button, textarea { width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 6px; box-sizing: border-box; }
     button { background: var(--primary); color: white; border: none; font-weight: 600; cursor: pointer; }
     button:hover { opacity: 0.9; }
     .question-card { border: 1px solid #e2e8f0; border-radius: 8px; padding: 16px; margin-bottom: 16px; }
     .logout-btn { background: #ef4444; width: auto; padding: 6px 16px; }
     
-    /* CSS bổ sung cho thẻ duyệt AI & hiển thị ảnh */
     .badge-warning { background: #f59e0b; color: #fff; padding: 3px 8px; border-radius: 4px; font-size: 12px; font-weight: bold; }
     .badge-success { background: #10b981; color: #fff; padding: 3px 8px; border-radius: 4px; font-size: 12px; font-weight: bold; }
     .card-needs-review { border-left: 4px solid #f59e0b !important; background-color: #fffbe3; }
-    .ai-note { font-size: 13px; color: #b45309; margin-top: 8px; padding: 6px; background: #fef3c7; border-radius: 4px; }
-    .btn-confirm { background: #10b981; width: auto; padding: 4px 12px; font-size: 13px; margin-top: 8px; }
   </style>
 </head>
 <body>
@@ -110,7 +107,7 @@
     <div class="form-group">
       <label>Chọn file đề thi (.docx hoặc .pdf) hoặc Dán văn bản thô</label>
       <input type="file" id="examFileInput" accept=".docx,.pdf" style="margin-bottom: 10px;">
-      <textarea id="rawExamText" rows="5" placeholder="Hoặc dán trực tiếp nội dung đề thi vào đây..." style="width:100%; padding:10px; border:1px solid #cbd5e1; border-radius:6px; box-sizing:border-box;"></textarea>
+      <textarea id="rawExamText" rows="5" placeholder="Hoặc dán trực tiếp nội dung đề thi vào đây..."></textarea>
     </div>
     
     <button id="processExamBtn">Phân Tích Đề Bằng AI</button>
@@ -119,37 +116,35 @@
     <!-- VÙNG HIỂN THỊ KẾT QUẢ PHÂN TÍCH VÀ XÁC NHẬN CỦA USER -->
     <div id="aiReviewSection" style="display: none; margin-top: 24px;">
       <hr style="border: 0; border-top: 1px solid #e2e8f0; margin-bottom: 16px;">
+      
+      <!-- Bảng Thiết Lập Cấu Hình Đề Thi -->
+      <div style="background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 8px; padding: 16px; margin-bottom: 20px;">
+        <h3 style="margin-top: 0; color: #1e293b;">⚙️ Cấu Hình Đề Thi</h3>
+        <div style="display: grid; grid-template-columns: 2fr 1fr 1fr; gap: 12px;">
+          <div>
+            <label style="font-weight: 600; font-size: 13px;">Tên bài kiểm tra:</label>
+            <input type="text" id="examTitleInput" placeholder="Ví dụ: Kiểm tra giữa kỳ Sinh học 10" style="width: 100%; padding: 8px; margin-top: 4px; border: 1px solid #ccc; border-radius: 4px;">
+          </div>
+          <div>
+            <label style="font-weight: 600; font-size: 13px;">Thời gian (Phút):</label>
+            <input type="number" id="examDurationInput" value="45" min="5" max="180" style="width: 100%; padding: 8px; margin-top: 4px; border: 1px solid #ccc; border-radius: 4px;">
+          </div>
+          <div>
+            <label style="font-weight: 600; font-size: 13px;">Số vi phạm tối đa:</label>
+            <input type="number" id="examMaxViolationsInput" value="3" min="0" max="10" style="width: 100%; padding: 8px; margin-top: 4px; border: 1px solid #ccc; border-radius: 4px;">
+          </div>
+        </div>
+      </div>
+
       <h4>Kết Quả Phân Tích & Duyệt Đề Thi</h4>
       <p id="reviewSummaryText" style="font-size: 14px; color: #64748b;"></p>
       
       <!-- Danh sách câu hỏi AI vừa bóc tách -->
       <div id="questionsReviewList"></div>
 
-      <!-- Bảng Thiết Lập Đề Thi trước khi xuất bản -->
-      <div id="aiReviewSection" style="display:none; margin-top: 20px;">
-        <div style="background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 8px; padding: 16px; margin-bottom: 20px;">
-          <h3 style="margin-top: 0; color: #1e293b;">⚙️ Cấu Hình Đề Thi</h3>
-          <div style="display: grid; grid-template-columns: 2fr 1fr 1fr; gap: 12px;">
-            <div>
-              <label style="font-weight: 600; font-size: 13px;">Tên bài kiểm tra:</label>
-              <input type="text" id="examTitleInput" placeholder="Ví dụ: Kiểm tra giữa kỳ Sinh học 10" style="width: 100%; padding: 8px; margin-top: 4px; border: 1px solid #ccc; border-radius: 4px;">
-            </div>
-            <div>
-              <label style="font-weight: 600; font-size: 13px;">Thời gian (Phút):</label>
-              <input type="number" id="examDurationInput" value="45" min="5" max="180" style="width: 100%; padding: 8px; margin-top: 4px; border: 1px solid #ccc; border-radius: 4px;">
-            </div>
-            <div>
-              <label style="font-weight: 600; font-size: 13px;">Số vi phạm tối đa:</label>
-              <input type="number" id="examMaxViolationsInput" value="3" min="0" max="10" style="width: 100%; padding: 8px; margin-top: 4px; border: 1px solid #ccc; border-radius: 4px;">
-            </div>
-          </div>
-        </div>
-      
-        <div id="reviewSummaryText" style="margin-bottom: 12px;"></div>
-        <div id="questionsReviewList"></div>
-  
       <button id="publishExamBtn" style="background: #059669; margin-top: 16px;">Xác Nhận & Xuất Bản Đề Thi</button>
     </div>
+
     <!-- Khung Danh sách đề thi do User tạo -->
     <div style="margin-top: 30px; border-top: 2px dashed #e2e8f0; padding-top: 20px;">
       <div style="display: flex; justify-content: space-between; align-items: center;">
@@ -177,6 +172,6 @@
   </div>
 </div>
 
-<script type="module" src="src/app.js"></script>
+<script type="module" src="./app.js"></script>
 </body>
 </html>
