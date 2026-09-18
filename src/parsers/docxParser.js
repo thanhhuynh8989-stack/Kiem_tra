@@ -8,10 +8,20 @@ import { geminiService } from '../services/geminiService.js';
  */
 export class DocxParser {
   /**
+   * Ép kiểu dữ liệu sang chuỗi an toàn, chống lỗi value.replace is not a function
+   */
+  static _safeString(val) {
+    if (typeof val === 'string') return val;
+    if (val && typeof val === 'object') {
+      if (typeof val.value === 'string') return val.value;
+      if (typeof val.src === 'string') return val.src;
+      if (typeof val.text === 'string') return val.text;
+    }
+    return String(val || '');
+  }
+
+  /**
    * Reads a DOCX file, extracts HTML, embedded images, and parses into raw question structures.
-   * @param {File} file - DOCX file from file input
-   * @param {boolean} enableAIKaTeX - Automatically convert formulas to KaTeX via Gemini
-   * @returns {Promise<Array>} Parsed raw questions array
    */
   static async parseDocxFile(file, enableAIKaTeX = true) {
     if (!file) throw new Error('Không tìm thấy file DOCX cần bóc tách.');
@@ -24,7 +34,6 @@ export class DocxParser {
     }
 
     const arrayBuffer = await file.arrayBuffer();
-    const imagesExtracted = [];
 
     const options = {
       convertImage: mammothLib.images.imgElement((image) => {
@@ -35,32 +44,27 @@ export class DocxParser {
 
           try {
             if (ImageCompressor && typeof ImageCompressor.compressBase64Image === 'function') {
-              compressed = await ImageCompressor.compressBase64Image(rawBase64);
+              const safeBase64 = DocxParser._safeString(rawBase64);
+              compressed = await ImageCompressor.compressBase64Image(safeBase64);
             }
           } catch (compressErr) {
             logger.warn('Nén ảnh thất bại, giữ nguyên ảnh gốc:', compressErr);
           }
 
-          imagesExtracted.push(compressed);
-          const imageIndex = imagesExtracted.length - 1;
-
           return {
-            src: compressed,
-            'data-img-index': imageIndex
+            src: DocxParser._safeString(compressed)
           };
         });
       })
     };
 
     const result = await mammothLib.convertToHtml({ arrayBuffer }, options);
-    const htmlContent = result && result.value ? result.value : '';
+    const htmlContent = DocxParser._safeString(result?.value);
 
     if (!htmlContent.trim()) {
       logger.warn('Không trích xuất được nội dung HTML từ file DOCX.');
       return [];
     }
-
-    logger.debug('Nội dung HTML thô từ DOCX đã được chuyển đổi.');
 
     const parsedQuestions = await this.parseHTMLToQuestions(htmlContent, enableAIKaTeX);
     logger.info(`Bóc tách DOCX thành công: Tìm thấy ${parsedQuestions.length} câu hỏi.`);
@@ -69,7 +73,7 @@ export class DocxParser {
   }
 
   /**
-   * Converts raw DOCX HTML string to an array of standardized question objects.
+   * Bóc tách danh sách câu hỏi từ chuỗi HTML
    */
   static async parseHTMLToQuestions(htmlContent, enableAIKaTeX = true) {
     const tempDiv = document.createElement('div');
@@ -79,11 +83,13 @@ export class DocxParser {
     const questions = [];
     let currentQuestion = null;
 
-    const questionStartRegex = REGEX_PATTERNS?.QUESTION_START || /^Câu\s+\d+/i;
-    const optionStartRegex = REGEX_PATTERNS?.OPTION_START || /^[A-D]\.\s*/i;
+    // Regex linh hoạt: Nhận diện cả "1. ", "1) ", "Câu 1:", "Question 1.", "Bài 1:"
+    const questionStartRegex = /^(?:Câu\s+\d+|Question\s+\d+|Bài\s+\d+|\d+[\.\)])[\s:.]*/i;
+    // Regex nhận diện đáp án: "A. ", "A) ", "B. ", "B) "
+    const optionStartRegex = /^[A-D][\.\)]\s*/i;
 
     for (const node of children) {
-      const text = node.textContent.trim();
+      const text = DocxParser._safeString(node.textContent).trim();
 
       if (!text && !node.querySelector('img')) continue;
 
@@ -94,7 +100,7 @@ export class DocxParser {
           questions.push(currentQuestion);
         }
 
-        const stemClean = text.replace(questionStartRegex, '').replace(/^[:.]?\s*/, '').trim();
+        const stemClean = text.replace(questionStartRegex, '').trim();
         const images = this._extractImagesFromNode(node);
 
         currentQuestion = {
@@ -132,11 +138,7 @@ export class DocxParser {
       }
 
       if (currentQuestion) {
-        const ansMatch = REGEX_PATTERNS?.ANSWER_KEY ? text.match(REGEX_PATTERNS.ANSWER_KEY) : null;
-        if (ansMatch) {
-          const letter = ansMatch[1].toUpperCase();
-          currentQuestion.correctAnswer = letter.charCodeAt(0) - 65;
-        } else if (text.toLowerCase().startsWith('lời giải:') || text.toLowerCase().startsWith('mô tả:')) {
+        if (text.toLowerCase().startsWith('lời giải:') || text.toLowerCase().startsWith('mô tả:')) {
           currentQuestion.explanation = text.replace(/^(lời giải|mô tả)\s*:\s*/i, '').trim();
         } else {
           currentQuestion.stem += (currentQuestion.stem ? '\n' : '') + text;
@@ -176,13 +178,14 @@ export class DocxParser {
     const imgs = node.querySelectorAll('img');
     const imageList = [];
     imgs.forEach((img) => {
-      if (img.src && img.src.startsWith('data:image')) {
-        imageList.push(img.src);
+      let src = img.getAttribute('src') || img.src;
+      src = DocxParser._safeString(src);
+      if (src && src.startsWith('data:image')) {
+        imageList.push(src);
       }
     });
     return imageList;
   }
 }
 
-// Export named function để tương thích với import { parseDocxFile } từ app.js
 export const parseDocxFile = DocxParser.parseDocxFile.bind(DocxParser);
