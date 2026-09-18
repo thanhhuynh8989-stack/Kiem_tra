@@ -138,9 +138,14 @@ function renderQuestions(questions = []) {
     const card = document.createElement('div');
     card.className = 'question-card';
     let html = `<p><strong>Câu ${index + 1}:</strong> ${q.stem}</p>`;
+
+    if (q.imageUrl) {
+      html += `<div style="margin: 8px 0;"><img src="${q.imageUrl}" style="max-width: 100%; max-height: 200px; border-radius: 6px; border: 1px solid #e2e8f0;" /></div>`;
+    }
+
     (q.options || []).forEach((opt, oIdx) => {
       const optKey = String.fromCharCode(65 + oIdx);
-      const optText = typeof opt === 'string' ? opt : opt.text;
+      const optText = typeof opt === 'string' ? opt : (opt?.text || opt?.content || String(opt || ''));
       html += `<div style="margin: 6px 0;">
         <label><input type="radio" name="q_${q.id}" value="${optKey}" onchange="window.saveAns('${q.id}', '${optKey}')"> <strong>${optKey}.</strong> ${optText}</label>
       </div>`;
@@ -170,40 +175,158 @@ async function handleSubmitExam() {
   }
 }
 
+/* ==========================================================================
+   HÀM TIỆN ÍCH TRÍCH XUẤT ẢNH VÀ CẮT ẢNH CANVAS (HYBRID APPROACH)
+   ========================================================================== */
+
 /**
- * Giảng viên: Phân tích tệp hoặc văn bản đề thi bằng Gemini AI
+ * Trích xuất ảnh nguyên bản từ file .docx (Sử dụng JSZip)
+ */
+async function extractImagesFromDocx(file) {
+  if (!window.JSZip) return [];
+  try {
+    const zip = await JSZip.loadAsync(file);
+    const images = [];
+    const mediaFiles = Object.keys(zip.files).filter(fileName =>
+      fileName.startsWith('word/media/') && !zip.files[fileName].dir
+    );
+
+    for (const fileName of mediaFiles) {
+      const base64 = await zip.files[fileName].async('base64');
+      const ext = fileName.split('.').pop().toLowerCase();
+      const mimeType = (ext === 'png') ? 'image/png' : 'image/jpeg';
+      images.push({ imageBase64: base64, mimeType });
+    }
+    return images;
+  } catch (e) {
+    logger.error('Lỗi trích xuất ảnh DOCX:', e);
+    return [];
+  }
+}
+
+/**
+ * Render trang PDF thành HTML5 Canvas
+ */
+async function renderPdfPageToCanvas(file, pageNum = 1) {
+  if (!window.pdfjsLib) return null;
+  window.pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+  const arrayBuffer = await file.arrayBuffer();
+  const pdf = await window.pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+  const page = await pdf.getPage(pageNum);
+
+  const viewport = page.getViewport({ scale: 1.5 });
+  const canvas = document.createElement('canvas');
+  const context = canvas.getContext('2d');
+  canvas.height = viewport.height;
+  canvas.width = viewport.width;
+
+  await page.render({ canvasContext: context, viewport }).promise;
+  return canvas;
+}
+
+/**
+ * Cắt ảnh từ Canvas theo tọa độ Bounding Box [ymin, xmin, ymax, xmax] (0-1000)
+ */
+function cropImageFromBox(sourceCanvas, box) {
+  if (!box || !Array.isArray(box) || box.length !== 4) return null;
+
+  const [ymin, xmin, ymax, xmax] = box;
+  const imgWidth = sourceCanvas.width;
+  const imgHeight = sourceCanvas.height;
+
+  const cropX = Math.max(0, (xmin / 1000) * imgWidth);
+  const cropY = Math.max(0, (ymin / 1000) * imgHeight);
+  const cropWidth = Math.min(imgWidth - cropX, ((xmax - xmin) / 1000) * imgWidth);
+  const cropHeight = Math.min(imgHeight - cropY, ((ymax - ymin) / 1000) * imgHeight);
+
+  if (cropWidth <= 10 || cropHeight <= 10) return null;
+
+  const cropCanvas = document.createElement('canvas');
+  cropCanvas.width = cropWidth;
+  cropCanvas.height = cropHeight;
+
+  const ctx = cropCanvas.getContext('2d');
+  ctx.drawImage(
+    sourceCanvas,
+    cropX, cropY, cropWidth, cropHeight,
+    0, 0, cropWidth, cropHeight
+  );
+
+  return cropCanvas.toDataURL('image/png');
+}
+
+/**
+ * Giảng viên: Phân tích tệp hoặc văn bản đề thi bằng Gemini AI (Multimodal & Hybrid Approach)
  */
 async function handleProcessExamWithAI() {
   const fileInput = document.getElementById('examFileInput');
   const rawTextarea = document.getElementById('rawExamText');
   let rawText = rawTextarea?.value.trim() || '';
+  let imageBase64 = null;
+  let mimeType = 'image/jpeg';
+  let sourceCanvas = null;
 
   if (fileInput?.files.length > 0) {
     const file = fileInput.files[0];
-    setUploadStatus('Đang đọc nội dung tệp...', 'color: #2563eb');
+    setUploadStatus('Đang đọc tệp và trích xuất hình ảnh...', 'color: #2563eb');
     try {
       rawText = await extractTextFromFile(file);
+
+      if (file.name.endsWith('.docx')) {
+        const docxImages = await extractImagesFromDocx(file);
+        if (docxImages.length > 0) {
+          imageBase64 = docxImages[0].imageBase64;
+          mimeType = docxImages[0].mimeType;
+        }
+      } else if (file.name.endsWith('.pdf')) {
+        sourceCanvas = await renderPdfPageToCanvas(file, 1);
+        if (sourceCanvas) {
+          imageBase64 = sourceCanvas.toDataURL('image/jpeg').split(',')[1];
+          mimeType = 'image/jpeg';
+        }
+      }
     } catch (err) {
       setUploadStatus(`Lỗi đọc tệp: ${err.message}`, 'color: #ef4444');
       return;
     }
   }
 
-  if (!rawText) {
+  if (!rawText && !imageBase64) {
     return alert('Vui lòng chọn tệp (.docx, .pdf) hoặc dán văn bản đề thi vào ô nhập!');
   }
 
   try {
-    setUploadStatus('🤖 Gemini AI đang bóc tách, bổ sung đáp án & kiểm lỗi...', 'color: #2563eb');
+    setUploadStatus('🤖 Gemini AI đang bóc tách, chuẩn hóa công thức toán & phát hiện ảnh...', 'color: #2563eb');
 
-    const aiResult = await aiExamParserService.parseAndEnrichExam(rawText);
+    // Gửi dữ liệu đa phương thức qua Apps Script Backend
+    const response = await appsScriptService.request('PARSE_EXAM_AI', {
+      rawText,
+      imageBase64,
+      mimeType
+    });
+
+    if (!response.data || !response.data.questions) {
+      throw new Error('Dữ liệu trả về từ AI không hợp lệ.');
+    }
+
+    let questions = response.data.questions;
+
+    // Nếu là PDF và có Canvas nguồn, tự động cắt ảnh theo Bounding Box
+    if (sourceCanvas) {
+      questions = questions.map(q => {
+        if (q.hasImage && q.imageBox) {
+          q.imageUrl = cropImageFromBox(sourceCanvas, q.imageBox);
+        }
+        return q;
+      });
+    }
 
     currentExamState = examModel.createStandardExam(
       { title: 'Đề thi phân tích bởi AI' },
-      aiResult.questions
+      questions
     );
 
-    setUploadStatus('✅ Phân tích hoàn tất! Bạn có thể chỉnh sửa nội dung và chọn lại đáp án bên dưới trước khi xuất bản.', 'color: #10b981');
+    setUploadStatus('✅ Phân tích hoàn tất! Bạn có thể chỉnh sửa nội dung, công thức và chọn đáp án bên dưới.', 'color: #10b981');
     renderQuestionListForReview(currentExamState.questions);
 
   } catch (err) {
@@ -213,10 +336,7 @@ async function handleProcessExamWithAI() {
 }
 
 /**
- * Render danh sách câu hỏi hỗ trợ chỉnh sửa trực tiếp & chọn đáp án
- */
-/**
- * Render danh sách câu hỏi AI bóc tách (Đã tối ưu hiển thị phương án & chỉnh sửa trực tiếp)
+ * Render danh sách câu hỏi AI bóc tách (Hỗ trợ chỉnh sửa trực tiếp, xem ảnh & KaTeX)
  */
 function renderQuestionListForReview(questions = []) {
   const reviewSection = document.getElementById('aiReviewSection');
@@ -240,15 +360,14 @@ function renderQuestionListForReview(questions = []) {
     card.style.cssText = 'border: 1px solid #e5e7eb; border-radius: 8px; padding: 16px; margin-bottom: 16px; background: #fff; width: 100%; box-sizing: border-box;';
     card.id = `review-card-${q.id}`;
 
-    // Xử lý render danh sách các phương án A, B, C, D
-    let optionsHtml = '';
-    const optionsList = Array.isArray(q.options) ? q.options : [];
+    // Đảm bảo luôn có mảng 4 phương án
+    const optionsList = (Array.isArray(q.options) && q.options.length > 0) ? q.options : ['', '', '', ''];
+    q.options = optionsList;
 
+    let optionsHtml = '';
     optionsList.forEach((opt, oIdx) => {
       const optLetter = String.fromCharCode(65 + oIdx);
       const isCorrect = Number(q.correctAnswer) === oIdx;
-
-      // Bóc tách chuỗi an toàn
       const optText = typeof opt === 'string' ? opt : (opt?.text || opt?.content || String(opt || ''));
 
       optionsHtml += `
@@ -269,6 +388,18 @@ function renderQuestionListForReview(questions = []) {
       `;
     });
 
+    const imageSectionHtml = q.imageUrl ? `
+      <div style="margin-top: 10px; margin-bottom: 10px;">
+        <label style="display:block; font-size: 12px; color: #6b7280; margin-bottom: 4px; font-weight: 500;">Hình ảnh minh họa:</label>
+        <div style="display: flex; align-items: flex-start; gap: 10px;">
+          <img src="${q.imageUrl}" style="max-width: 100%; max-height: 200px; border: 1px solid #d1d5db; border-radius: 6px; padding: 4px; background: #fafafa;" />
+          <button type="button" 
+                  style="background: #ef4444; color: white; border: none; padding: 6px 10px; border-radius: 4px; font-size: 12px; cursor: pointer;"
+                  onclick="window.removeQuestionImage('${q.id}')">🗑️ Xóa ảnh</button>
+        </div>
+      </div>
+    ` : '';
+
     card.innerHTML = `
       <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 10px;">
         <strong style="font-size: 15px;">Câu ${idx + 1}:</strong>
@@ -283,10 +414,12 @@ function renderQuestionListForReview(questions = []) {
                   rows="2" 
                   onchange="window.updateQuestionStem('${q.id}', this.value)">${escapeHtml(q.stem || '')}</textarea>
       </div>
-      
+
+      ${imageSectionHtml}
+
       <div>
         <label style="display:block; font-size: 12px; color: #6b7280; margin-bottom: 6px; font-weight: 500;">Các phương án (Tích nút tròn để chọn đáp án đúng):</label>
-        ${optionsHtml || '<p style="color: #ef4444; font-size: 13px;">Không tìm thấy danh sách phương án.</p>'}
+        ${optionsHtml}
       </div>
 
       ${isWarning ? `
@@ -299,10 +432,11 @@ function renderQuestionListForReview(questions = []) {
     container.appendChild(card);
   });
 
+  // Render các công thức toán LaTeX trong khung bằng KaTeX
   renderKaTeX(container);
 }
 
-// Handler cập nhật dữ liệu khi người dùng sửa trên giao diện
+// HANDLERS CẬP NHẬT TRẠNG THÁI GIAO DIỆN
 window.updateQuestionStem = (qId, val) => {
   if (!currentExamState) return;
   const q = currentExamState.questions.find(item => item.id === qId);
@@ -333,7 +467,16 @@ window.confirmQuestionItem = (qId) => {
   }
 };
 
-// Hàm hỗ trợ escape chuỗi ký tự đặc biệt HTML
+window.removeQuestionImage = (qId) => {
+  if (!currentExamState) return;
+  const q = currentExamState.questions.find(item => item.id === qId);
+  if (q) {
+    q.imageUrl = null;
+    q.hasImage = false;
+    renderQuestionListForReview(currentExamState.questions);
+  }
+};
+
 function escapeHtml(str = '') {
   return String(str)
     .replace(/&/g, '&amp;')
@@ -357,10 +500,9 @@ async function handlePublishExam() {
 
   try {
     setUploadStatus('Đang phân tách Master Key và đăng đề lên GitHub...', 'color: #2563eb');
-    
+
     const { studentExam, masterKey } = examModel.splitExamForPublishing(currentExamState);
-    
-    // Chuẩn hóa mã đề để tránh lỗi lặp tiền tố exam_
+
     const rawId = String(studentExam.examId || `exam_${Date.now()}`);
     const cleanExamCode = rawId.replace(/^exam_/, '');
     const fileNameOnGithub = `exam_${cleanExamCode.slice(0, 8)}.json`;
@@ -381,7 +523,7 @@ async function handlePublishExam() {
 }
 
 /**
- * Đọc nội dung tệp .docx hoặc .pdf (Đã sửa lỗi mất phương án)
+ * Đọc nội dung tệp .docx hoặc .pdf
  */
 async function extractTextFromFile(file) {
   let parsed;
@@ -393,10 +535,8 @@ async function extractTextFromFile(file) {
     throw new Error('Định dạng tệp không được hỗ trợ. Chỉ nhận .docx hoặc .pdf');
   }
 
-  // Nếu trình đọc tệp trả về chuỗi văn bản thô
   if (typeof parsed === 'string') return parsed;
 
-  // Nếu trả về mảng đối tượng, nối cả stem và options thành văn bản hoàn chỉnh
   if (Array.isArray(parsed)) {
     return parsed.map(q => {
       if (typeof q === 'string') return q;
