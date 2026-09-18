@@ -12,6 +12,10 @@ let currentExamState = null; // Lưu trạng thái đề thi AI đang phân tíc
 let currentExamData = null;  // Lưu đề thi sinh viên đang làm
 const studentAnswers = {};
 
+// Biến quản lý trạng thái vi phạm của Học sinh
+let violationCount = 0;
+let isExamActive = false;
+
 document.addEventListener('DOMContentLoaded', () => {
   // Lắng nghe sự kiện chuyển trang & Đăng nhập
   document.getElementById('loginBtn')?.addEventListener('click', handleLogin);
@@ -21,7 +25,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Logic Sinh viên
   document.getElementById('loadExamBtn')?.addEventListener('click', handleLoadExam);
-  document.getElementById('submitExamBtn')?.addEventListener('click', handleSubmitExam);
+  document.getElementById('submitExamBtn')?.addEventListener('click', () => handleSubmitExam(false));
 
   // Logic Giảng viên & AI Parsing
   document.getElementById('processExamBtn')?.addEventListener('click', handleProcessExamWithAI);
@@ -90,6 +94,7 @@ async function handleLogin() {
 
 function handleLogout() {
   currentUser = null;
+  stopViolationTracking();
   document.getElementById('loginUsername').value = '';
   document.getElementById('loginPassword').value = '';
   showView('authView');
@@ -113,8 +118,59 @@ async function handleLoadUsers() {
   }
 }
 
+/* ==========================================================================
+   CƠ CHẾ GIÁM SÁT VI PHẠM (RỜI TAB / BLUR TRÌNH DUYỆT)
+   ========================================================================== */
+
+function startViolationTracking() {
+  violationCount = 0;
+  isExamActive = true;
+
+  document.addEventListener('visibilitychange', handleVisibilityChange);
+  window.addEventListener('blur', handleWindowBlur);
+}
+
+function stopViolationTracking() {
+  isExamActive = false;
+  document.removeEventListener('visibilitychange', handleVisibilityChange);
+  window.removeEventListener('blur', handleWindowBlur);
+}
+
+function handleVisibilityChange() {
+  if (document.hidden && isExamActive) {
+    processViolation();
+  }
+}
+
+function handleWindowBlur() {
+  if (isExamActive) {
+    processViolation();
+  }
+}
+
+function processViolation() {
+  if (!isExamActive) return;
+  violationCount++;
+
+  const max = parseInt(currentExamData?.maxViolations || 3, 10);
+
+  // Nếu chỉ cho phép 1 lần vi phạm HOẶC số lần vi phạm đã vượt quá maxViolations
+  if (max <= 1 || violationCount >= max) {
+    alert(`⚠️ VI PHẠM QUY CHẾ (${violationCount}/${max}): Bạn đã rời khỏi màn hình làm bài!\nHệ thống TỰ ĐỘNG NỘP BÀI TỨC THỜI.`);
+    stopViolationTracking();
+    handleSubmitExam(true); // Ép nộp bài ngay
+  } 
+  // Cảnh báo ở lần vi phạm kế cuối (maxViolations - 1)
+  else if (violationCount === max - 1) {
+    alert(`⚠️ CẢNH BÁO VI PHẠM (${violationCount}/${max}): Bạn vừa rời khỏi màn hình thi!\nNếu vi phạm thêm 1 lần nữa, bài thi của bạn sẽ bị TỰ ĐỘNG NỘP NGAY LẬP TỨC.`);
+  } 
+  else {
+    alert(`⚠️ VI PHẠM (${violationCount}/${max}): Vui lòng không chuyển tab hoặc rời khỏi giao diện làm bài!`);
+  }
+}
+
 /**
- * Sinh viên: Tải đề thi từ GitHub
+ * Sinh viên: Tải đề thi từ GitHub & Kích hoạt giám sát
  */
 async function handleLoadExam() {
   const code = document.getElementById('examCodeInput').value.trim();
@@ -130,6 +186,9 @@ async function handleLoadExam() {
     document.getElementById('examSearchSection').style.display = 'none';
     document.getElementById('examContainer').style.display = 'block';
     renderKaTeX(document.getElementById('questionsList'));
+
+    // Bắt đầu giám sát vi phạm khi vào bài thi
+    startViolationTracking();
   } catch (err) {
     alert('Không tìm thấy đề thi!');
   }
@@ -180,18 +239,37 @@ function renderQuestions(questions = []) {
 window.saveAns = (qId, key) => { studentAnswers[qId] = key; };
 
 /**
- * Sinh viên: Nộp bài thi
+ * Sinh viên: Nộp bài thi (Hỗ trợ nộp thủ công và tự động nộp do vi phạm)
  */
-async function handleSubmitExam() {
-  const name = document.getElementById('studentName').value.trim();
-  const code = document.getElementById('studentCode').value.trim();
-  if (!name || !code) return alert('Vui lòng điền đủ thông tin!');
+async function handleSubmitExam(isAutoSubmit = false) {
+  const nameInput = document.getElementById('studentName');
+  const codeInput = document.getElementById('studentCode');
+  const name = nameInput?.value.trim() || (isAutoSubmit ? 'Học sinh' : '');
+  const code = codeInput?.value.trim() || (isAutoSubmit ? 'KĐC' : '');
+
+  if (!isAutoSubmit && (!name || !code)) {
+    return alert('Vui lòng điền đầy đủ Họ tên và Mã số học sinh!');
+  }
+
+  stopViolationTracking(); // Dừng đếm vi phạm ngay khi bắt đầu tiến trình nộp bài
 
   try {
-    const response = await appsScriptService.submitExamAnswers(currentExamData.examId || currentExamData.id, { name, code }, studentAnswers);
+    const violationInfo = {
+      violationCount,
+      isAutoSubmitted: isAutoSubmit,
+      reason: isAutoSubmit ? 'Tự động nộp do vượt quá số lần vi phạm cho phép' : 'Nộp bài thủ công'
+    };
+
+    const response = await appsScriptService.submitExamAnswers(
+      currentExamData.examId || currentExamData.id, 
+      { name, code }, 
+      studentAnswers,
+      violationInfo
+    );
+
     document.getElementById('examContainer').style.display = 'none';
     document.getElementById('resultContainer').style.display = 'block';
-    document.getElementById('scoreText').textContent = `Điểm số: ${response.data.finalGrade} / 10`;
+    document.getElementById('scoreText').textContent = `Điểm số: ${response.data.finalGrade} / 10 ${isAutoSubmit ? ' (Bài bị ép nộp do vi phạm)' : ''}`;
   } catch (err) {
     alert('Lỗi nộp bài!');
   }
@@ -536,7 +614,8 @@ async function handlePublishExam() {
       studentExam.examId,
       masterKey,
       studentExam,
-      `exams/${fileNameOnGithub}`
+      `exams/${fileNameOnGithub}`,
+      currentUser?.username
     );
 
     setUploadStatus(`🎉 Xuất bản thành công! Mã đề thi: <strong>${fileNameOnGithub}</strong>`, 'color: #10b981');
