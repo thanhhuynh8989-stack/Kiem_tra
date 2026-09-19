@@ -53,14 +53,16 @@ export const appsScriptService = {
     return await this.request('SUBMIT_EXAM', { examId, studentInfo, answers });
   },
 
-  async saveAndPublishExam(examId, masterKey, publicExamData, filePath) {
+  async saveAndPublishExam(examId, masterKey, publicExamData, filePath, username) {
+    // Bắt buộc phải gọi request gửi action 'SAVE_AND_PUBLISH_EXAM'
     return await this.request('SAVE_AND_PUBLISH_EXAM', {
       examId,
       masterKey,
       publicExamData,
-      filePath
+      filePath,
+      username
     });
-  },
+  }
 
   async callGeminiVisionProxy(prompt, imageBase64, mimeType = 'image/jpeg') {
     return await this.request('GEMINI_PROXY', { prompt, imageBase64, mimeType });
