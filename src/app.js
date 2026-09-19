@@ -17,6 +17,14 @@ let violationCount = 0;
 let isExamActive = false;
 
 document.addEventListener('DOMContentLoaded', () => {
+  const savedUser = sessionStorage.getItem('currentUser');
+  if (savedUser) {
+    try {
+      currentUser = JSON.parse(savedUser);
+    } catch (e) {
+      sessionStorage.removeItem('currentUser');
+    }
+  }
   // Lắng nghe sự kiện chuyển trang & Đăng nhập
   document.getElementById('loginBtn')?.addEventListener('click', handleLogin);
   document.getElementById('logoutBtn')?.addEventListener('click', handleLogout);
@@ -74,6 +82,8 @@ async function handleLogin() {
     const res = await appsScriptService.request('AUTH_USER', { username, password });
     if (res.data?.authenticated) {
       currentUser = res.data;
+      // Lưu phiên đăng nhập vào sessionStorage
+      sessionStorage.setItem('currentUser', JSON.stringify(currentUser));
       alert(`Xin chào ${currentUser.fullName}!`);
 
       if (currentUser.role === 'ADMIN') {
@@ -90,13 +100,20 @@ async function handleLogin() {
     logger.error('Login Error:', err);
     alert('Lỗi kết nối xác thực Server!');
   }
+  
 }
 
 function handleLogout() {
   currentUser = null;
+  sessionStorage.removeItem('currentUser'); // Xóa phiên đăng nhập khỏi bộ nhớ trình duyệt
   stopViolationTracking();
-  document.getElementById('loginUsername').value = '';
-  document.getElementById('loginPassword').value = '';
+
+  // Reset các ô nhập liệu an toàn
+  const usernameInput = document.getElementById('loginUsername');
+  const passwordInput = document.getElementById('loginPassword');
+  if (usernameInput) usernameInput.value = '';
+  if (passwordInput) passwordInput.value = '';
+
   showView('authView');
 }
 
