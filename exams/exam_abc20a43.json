@@ -1,0 +1,131 @@
+{
+  "examId": "exam_abc20a43-fdcf-49ec-95d2-1594b7b8f1fa",
+  "title": "Kiểm tra SHĐC1",
+  "subject": "Chưa phân loại",
+  "durationMinutes": 10,
+  "totalQuestions": 10,
+  "createdAt": "2026-09-19T00:23:09.067Z",
+  "updatedAt": "2026-09-19T00:23:09.067Z",
+  "questions": [
+    {
+      "id": "q_1",
+      "stem": "Bào quan của tế bào được định vị trong ?",
+      "images": [],
+      "options": [
+        "Nhân con",
+        "Tế bào chất",
+        "Lục lạp",
+        "Ty thể"
+      ],
+      "disableShuffle": false
+    },
+    {
+      "id": "q_2",
+      "stem": "Đặc điểm khác biệt của tế bào nhân sơ (prokaryote) và tế bào nhân chuẩn (eukaryote) là:",
+      "images": [],
+      "options": [
+        "Protein",
+        "Nhân",
+        "Ribosome",
+        "Màng sinh chất"
+      ],
+      "disableShuffle": false
+    },
+    {
+      "id": "q_3",
+      "stem": "Ty thể KHÔNG có mặt ở ?",
+      "images": [],
+      "options": [
+        "Vi khuẩn",
+        "Thực vật",
+        "Nấm",
+        "Động vật có xương sống"
+      ],
+      "disableShuffle": false
+    },
+    {
+      "id": "q_4",
+      "stem": "Hợp chất nào sau đây KHÔNG có trong thành phần màng tế bào ?",
+      "images": [],
+      "options": [
+        "Phospholipids",
+        "Cholesterol",
+        "Glycolipid",
+        "Proline"
+      ],
+      "disableShuffle": false
+    },
+    {
+      "id": "q_5",
+      "stem": "Thực bào và ẩm bào là các thuật ngữ của hiện tượng được mô tả sau:",
+      "images": [],
+      "options": [
+        "Ăn các chất lơ lửng",
+        "Nhập bào",
+        "Động vật ăn cỏ",
+        "Bẫy mô"
+      ],
+      "disableShuffle": false
+    },
+    {
+      "id": "q_6",
+      "stem": "Phát biểu nào sau đây về lục lạp là KHÔNG đúng ?",
+      "images": [],
+      "options": [
+        "Lục lạp có một chồng các lớp màng trong và được bao bọc bởi lớp màng kép",
+        "Lục lạp có chứa ADN của riêng nó",
+        "Lục lạp được xem là bắt nguồn từ vi khuẩn",
+        "Lục lạp có mặt ở tất cả các tế bào nhân chuẩn"
+      ],
+      "disableShuffle": true
+    },
+    {
+      "id": "q_7",
+      "stem": "Vai trò chính của màng sinh chất:",
+      "images": [],
+      "options": [
+        "Chống lại áp suất thẩm thấu của môi trường bên ngoài.",
+        "Trao đổi chất, thông tin giữa tế bào và môi trường",
+        "Tạo khung vững, cứng cho tế bào",
+        "Bảo vệ, duy trì hình dạng tế bào"
+      ],
+      "disableShuffle": false
+    },
+    {
+      "id": "q_8",
+      "stem": "Thành phần chính cấu tạo nên thành tế bào vi khuẩn Gram dương ?",
+      "images": [],
+      "options": [
+        "Phospholipid kép",
+        "Peptidoglycan",
+        "Polysaccharide",
+        "Lipopolysaccharide"
+      ],
+      "disableShuffle": false
+    },
+    {
+      "id": "q_9",
+      "stem": "Thể nhân của tế bào Prokaryote KHÔNG có đặc điểm ?",
+      "images": [],
+      "options": [
+        "Chưa có màng nhân bao bọc thể nhân",
+        "ADN xoắn kép, dạng trần liên kết với protein.",
+        "Chỉ có một nhiễm sắc thể duy nhất",
+        "Là nơi chứa đựng thông tin di truyền"
+      ],
+      "disableShuffle": false
+    },
+    {
+      "id": "q_10",
+      "stem": "Ở tế bào Eukaryote, ribosome có mặt nhiều nhất tại:",
+      "images": [],
+      "options": [
+        "Màng nhân",
+        "Ty thể",
+        "Nhân con",
+        "Lưới nội chất có hạt"
+      ],
+      "disableShuffle": false
+    }
+  ]
+}
