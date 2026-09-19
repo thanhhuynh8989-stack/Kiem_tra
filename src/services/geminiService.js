@@ -9,7 +9,7 @@ import { ImageCompressor } from '../utils/imageCompressor.js';
 export class GeminiService {
   constructor(apiKey = null, model = null) {
     this.apiKey = apiKey || localStorage.getItem('gemini_api_key');
-    const defaultModel = (API_ENDPOINTS.GEMINI && API_ENDPOINTS.GEMINI.DEFAULT_MODEL) || 'gemini-1.5-flash';
+    const defaultModel = (API_ENDPOINTS.GEMINI && API_ENDPOINTS.GEMINI.DEFAULT_MODEL) || 'gemini-3.6-flash';
     this.model = model || localStorage.getItem('gemini_model') || defaultModel;
   }
 
