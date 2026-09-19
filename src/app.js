@@ -346,6 +346,22 @@ function cropImageFromBox(sourceCanvas, box) {
   return cropCanvas.toDataURL('image/png');
 }
 
+async function createCanvasFromBase64(base64Data, mimeType = 'image/jpeg') {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => {
+      const canvas = document.createElement('canvas');
+      canvas.width = img.width;
+      canvas.height = img.height;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(img, 0, 0);
+      resolve(canvas);
+    };
+    img.onerror = (err) => reject(err);
+    img.src = `data:${mimeType};base64,${base64Data}`;
+  });
+}
+
 /**
  * Giảng viên: Phân tích tệp hoặc văn bản đề thi bằng Gemini AI
  */
@@ -368,6 +384,8 @@ async function handleProcessExamWithAI() {
         if (docxImages.length > 0) {
           imageBase64 = docxImages[0].imageBase64;
           mimeType = docxImages[0].mimeType;
+          // Tự động chuyển ảnh từ DOCX thành sourceCanvas để cắt ảnh từng câu hỏi sau khi AI trả tọa độ
+          sourceCanvas = await createCanvasFromBase64(imageBase64, mimeType);
         }
       } else if (file.name.endsWith('.pdf')) {
         sourceCanvas = await renderPdfPageToCanvas(file, 1);
