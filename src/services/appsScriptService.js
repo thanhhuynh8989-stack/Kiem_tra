@@ -62,7 +62,7 @@ export const appsScriptService = {
       filePath,
       username
     });
-  }
+  },
 
   async callGeminiVisionProxy(prompt, imageBase64, mimeType = 'image/jpeg') {
     return await this.request('GEMINI_PROXY', { prompt, imageBase64, mimeType });
