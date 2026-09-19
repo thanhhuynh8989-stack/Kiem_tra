@@ -13,7 +13,6 @@ export const appsScriptService = {
       throw new Error('Chưa cấu hình APPS_SCRIPT_URL trong APP_CONFIG. Hãy cập nhật URL vào appConfig.js!');
     }
 
-    // Cảnh báo nếu đang dùng URL kết thúc bằng /dev thay vì /exec
     if (endpoint.endsWith('/dev')) {
       logger.warn('⚠️ Bạn đang dùng URL kết thúc bằng /dev. Hãy đổi thành /exec khi Triển khai (Deploy) để không bị lỗi phân quyền!');
     }
@@ -27,7 +26,7 @@ export const appsScriptService = {
           'Content-Type': 'text/plain;charset=utf-8'
         },
         body: bodyData,
-        redirect: 'follow' // BẮT BỘC: Bật chuyển hướng tự động cho luồng redirect của Google Apps Script
+        redirect: 'follow'
       });
 
       if (!response.ok) {
@@ -37,7 +36,15 @@ export const appsScriptService = {
         throw new Error(`Apps Script HTTP Error: ${response.status}`);
       }
 
-      const result = await response.json();
+      // Đọc response dạng Text trước để tránh crash khi Backend trả về HTML trang lỗi của Google
+      const rawText = await response.text();
+      let result;
+      try {
+        result = JSON.parse(rawText);
+      } catch (parseError) {
+        throw new Error('Backend trả về phản hồi không hợp lệ (không phải JSON). Vui lòng kiểm tra lại Deploy trên Apps Script.');
+      }
+
       if (result.status === 'error') {
         throw new Error(result.message || 'Lỗi xử lý tại Server Backend');
       }
@@ -54,7 +61,6 @@ export const appsScriptService = {
   },
 
   async saveAndPublishExam(examId, masterKey, publicExamData, filePath, username) {
-    // Bắt buộc phải gọi request gửi action 'SAVE_AND_PUBLISH_EXAM'
     return await this.request('SAVE_AND_PUBLISH_EXAM', {
       examId,
       masterKey,
@@ -70,5 +76,10 @@ export const appsScriptService = {
 
   async authenticateLecturer(username, password) {
     return await this.request('AUTH_LECTURER', { username, password });
+  },
+
+  // Bổ sung hàm lấy danh sách đề thi phục vụ cho handleLoadMyExams()
+  async getLecturerExams(username) {
+    return await this.request('GET_LECTURER_EXAMS', { username });
   }
 };
