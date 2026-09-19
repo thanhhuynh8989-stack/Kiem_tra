@@ -16,15 +16,38 @@ const studentAnswers = {};
 let violationCount = 0;
 let isExamActive = false;
 
+/**
+ * Hàm gọi API có cơ chế thử lại (Retry) khi Google Apps Script bị trễ/Cold Start
+ */
+async function requestWithRetry(action, payload, retries = 2, delay = 1500) {
+  for (let attempt = 0; attempt <= retries; attempt++) {
+    try {
+      return await appsScriptService.request(action, payload);
+    } catch (err) {
+      if (attempt === retries) throw err;
+      logger.warn(`Lần thử đăng nhập thứ ${attempt + 1} thất bại. Đang thử lại...`);
+      await new Promise(res => setTimeout(res, delay));
+    }
+  }
+}
+
 document.addEventListener('DOMContentLoaded', () => {
   const savedUser = sessionStorage.getItem('currentUser');
   if (savedUser) {
     try {
       currentUser = JSON.parse(savedUser);
+      // Khôi phục màn hình tương ứng với tài khoản đã lưu
+      if (currentUser.role === 'ADMIN') showView('adminView');
+      else if (currentUser.role === 'LECTURER') showView('lecturerView');
+      else showView('studentView');
     } catch (e) {
       sessionStorage.removeItem('currentUser');
+      showView('authView');
     }
+  } else {
+    showView('authView');
   }
+
   // Lắng nghe sự kiện chuyển trang & Đăng nhập
   document.getElementById('loginBtn')?.addEventListener('click', handleLogin);
   document.getElementById('logoutBtn')?.addEventListener('click', handleLogout);
@@ -56,35 +79,50 @@ function showView(viewId) {
   const userBadge = document.getElementById('userBadge');
 
   if (currentUser) {
-    userInfo.style.display = 'flex';
-    userBadge.textContent = `${currentUser.fullName} (${currentUser.role})`;
+    if (userInfo) userInfo.style.display = 'flex';
+    if (userBadge) userBadge.textContent = `${currentUser.fullName} (${currentUser.role})`;
     if (viewId === 'lecturerView') {
-      handleLoadMyExams(); // Tự động nạp danh sách đề thi cá nhân khi chuyển vào cổng Giảng viên
+      handleLoadMyExams();
     }
   } else if (viewId === 'studentView') {
-    userInfo.style.display = 'flex';
-    userBadge.textContent = 'HỌC SINH';
+    if (userInfo) userInfo.style.display = 'flex';
+    if (userBadge) userBadge.textContent = 'HỌC SINH';
   } else {
-    userInfo.style.display = 'none';
+    if (userInfo) userInfo.style.display = 'none';
   }
 }
 
 /**
- * Xử lý Đăng nhập phân quyền
+ * Xử lý Đăng nhập phân quyền (Tự động Retry + Chống Spam Click)
  */
 async function handleLogin() {
-  const username = document.getElementById('loginUsername').value.trim();
-  const password = document.getElementById('loginPassword').value.trim();
+  const usernameInput = document.getElementById('loginUsername');
+  const passwordInput = document.getElementById('loginPassword');
+  const loginBtn = document.getElementById('loginBtn');
+
+  const username = usernameInput?.value.trim();
+  const password = passwordInput?.value.trim();
 
   if (!username || !password) return alert('Vui lòng nhập tên đăng nhập và mật khẩu!');
 
+  // Vô hiệu hóa nút đăng nhập và hiển thị trạng thái chờ
+  const originalBtnText = loginBtn ? loginBtn.innerText : '';
+  if (loginBtn) {
+    loginBtn.disabled = true;
+    loginBtn.innerText = 'Đang kết nối...';
+  }
+
   try {
-    const res = await appsScriptService.request('AUTH_USER', { username, password });
-    if (res.data?.authenticated) {
-      currentUser = res.data;
-      // Lưu phiên đăng nhập vào sessionStorage
+    // 1. Sử dụng action chuẩn 'AUTH_LECTURER' & tự động thử lại 2 lần nếu chập chờn
+    const res = await requestWithRetry('AUTH_LECTURER', { username, password });
+
+    // 2. Bóc tách dữ liệu an toàn (Hỗ trợ cả dạng res.data lẫn res trực tiếp)
+    const userData = res.data || res;
+
+    if (userData && userData.authenticated) {
+      currentUser = userData;
       sessionStorage.setItem('currentUser', JSON.stringify(currentUser));
-      alert(`Xin chào ${currentUser.fullName}!`);
+      alert(`Xin chào ${currentUser.fullName || currentUser.username}!`);
 
       if (currentUser.role === 'ADMIN') {
         showView('adminView');
@@ -94,21 +132,27 @@ async function handleLogin() {
         showView('studentView');
       }
     } else {
-      alert(res.data?.message || 'Đăng nhập thất bại!');
+      alert(res.message || userData.message || 'Tên đăng nhập hoặc mật khẩu không chính xác!');
     }
   } catch (err) {
     logger.error('Login Error:', err);
-    alert('Lỗi kết nối xác thực Server!');
+    alert('Không thể kết nối đến Máy chủ! Vui lòng kiểm tra lại kết nối mạng hoặc thử lại sau vài giây.');
+  } finally {
+    // Khôi phục trạng thái nút bấm
+    if (loginBtn) {
+      loginBtn.disabled = false;
+      loginBtn.innerText = originalBtnText;
+    }
   }
-  
 }
 
 function handleLogout() {
   currentUser = null;
-  sessionStorage.removeItem('currentUser'); // Xóa phiên đăng nhập khỏi bộ nhớ trình duyệt
-  stopViolationTracking();
+  sessionStorage.removeItem('currentUser');
+  if (typeof stopViolationTracking === 'function') {
+    stopViolationTracking();
+  }
 
-  // Reset các ô nhập liệu an toàn
   const usernameInput = document.getElementById('loginUsername');
   const passwordInput = document.getElementById('loginPassword');
   if (usernameInput) usernameInput.value = '';
