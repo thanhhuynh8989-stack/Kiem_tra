@@ -17,6 +17,29 @@ let violationCount = 0;
 let isExamActive = false;
 
 /**
+ * Hàm chuẩn hóa dữ liệu User từ Google Apps Script trả về
+ * Tự động sửa lỗi lệch hoa/thường giữa Google Sheet và JavaScript
+ */
+function normalizeUserData(raw) {
+  if (!raw) return null;
+  
+  // Tìm vai trò từ các trường Role, role, ROLE
+  const rawRole = raw.role || raw.Role || raw.ROLE || '';
+  const normalizedRole = String(rawRole).toUpperCase().trim();
+
+  // Tìm tên hiển thị từ Full name, fullName, User, username
+  const fullName = raw.fullName || raw['Full name'] || raw.fullname || raw.Fullname || raw.User || raw.username || 'Người dùng';
+  const username = raw.username || raw.User || raw.user || '';
+
+  return {
+    authenticated: raw.authenticated !== undefined ? raw.authenticated : true,
+    username: username,
+    fullName: fullName,
+    role: normalizedRole // Luôn trả về 'ADMIN', 'LECTURER', hoặc 'STUDENT'
+  };
+}
+
+/**
  * Hàm gọi API có cơ chế thử lại (Retry) khi Google Apps Script bị trễ/Cold Start
  */
 async function requestWithRetry(action, payload, retries = 2, delay = 1500) {
@@ -34,27 +57,22 @@ async function requestWithRetry(action, payload, retries = 2, delay = 1500) {
 }
 
 document.addEventListener('DOMContentLoaded', () => {
-  // 1. Đồng bộ & Khôi phục phiên làm việc từ cả 2 Key để tránh lệch dữ liệu
+  // 1. Khôi phục & Đồng bộ phiên làm việc từ cả 2 Key trong sessionStorage
   const rawSession = sessionStorage.getItem('currentUser') || sessionStorage.getItem('userSession');
   
   if (rawSession) {
     try {
-      currentUser = JSON.parse(rawSession);
+      // 💥 Chuẩn hóa dữ liệu bằng normalizeUserData ngay từ khi F5 / nạp trang
+      currentUser = normalizeUserData(JSON.parse(rawSession));
 
-      // Chuẩn hóa chuỗi Role (loại bỏ khoảng trắng thừa, đưa về dạng chữ HOA)
-      if (currentUser && currentUser.role) {
-        currentUser.role = String(currentUser.role).toUpperCase().trim();
-      }
-
-      // Lưu đồng bộ vào cả 2 key để các module khác (config.js, library.js) đều đọc được
+      // Lưu đồng bộ vào cả 2 key
       sessionStorage.setItem('currentUser', JSON.stringify(currentUser));
       sessionStorage.setItem('userSession', JSON.stringify(currentUser));
 
-      // 2. Khôi phục màn hình tương ứng với vai trò
+      // 2. Khôi phục màn hình tương ứng với vai trò đã chuẩn hóa
       const role = currentUser.role;
       if (role === 'ADMIN') {
         if (!document.getElementById('adminView') && window.location.pathname.includes('exam.html')) {
-          // Nếu ADMIN lỡ ở trang thi exam.html, chuyển hướng về index.html
           window.location.href = 'index.html';
           return;
         }
@@ -80,7 +98,7 @@ document.addEventListener('DOMContentLoaded', () => {
     showView('authView');
   }
 
-  // 3. Lắng nghe sự kiện chuyển trang & Đăng nhập (An toàn kiểm tra sự tồn tại của nút)
+  // 3. Lắng nghe sự kiện chuyển trang & Đăng nhập (An toàn với kiểm tra null/optional chaining)
   document.getElementById('loginBtn')?.addEventListener('click', handleLogin);
   document.getElementById('logoutBtn')?.addEventListener('click', handleLogout);
   document.getElementById('gotoStudentBtn')?.addEventListener('click', () => showView('studentView'));
@@ -101,12 +119,11 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 /**
- * Hiển thị View theo quyền truy cập (Được tối ưu an toàn)
+ * Hiển thị View theo quyền truy cập (Chuẩn hóa nhãn hiển thị UI)
  */
 function showView(viewId) {
   const targetView = document.getElementById(viewId);
   
-  // Nếu viewId không tồn tại trên trang hiện tại, bỏ qua để tránh lỗi JS
   if (targetView) {
     document.querySelectorAll('.view-section').forEach(el => el.classList.remove('active'));
     targetView.classList.add('active');
@@ -118,12 +135,12 @@ function showView(viewId) {
   if (currentUser) {
     if (userInfo) userInfo.style.display = 'flex';
     
-    // Hiển thị tên & vai trò chuẩn hóa
-    const roleTitle = currentUser.role === 'ADMIN' ? 'QUẢN TRỊ VIÊN' : 
-                      currentUser.role === 'LECTURER' ? 'GIẢNG VIÊN' : 'SINH VIÊN';
+    // Hiển thị vai trò tiếng Việt rõ ràng
+    const roleTitle = currentUser.role === 'ADMIN' ? 'Quản trị hệ thống' : 
+                      currentUser.role === 'LECTURER' ? 'Giảng viên' : 'Sinh viên';
 
     if (userBadge) {
-      userBadge.textContent = `${currentUser.fullName || currentUser.username} (${roleTitle})`;
+      userBadge.textContent = `${currentUser.fullName} (${roleTitle})`;
     }
 
     if (viewId === 'lecturerView' && typeof handleLoadMyExams === 'function') {
@@ -150,7 +167,6 @@ async function handleLogin() {
 
   if (!username || !password) return alert('Vui lòng nhập tên đăng nhập và mật khẩu!');
 
-  // Vô hiệu hóa nút đăng nhập và hiển thị trạng thái chờ
   const originalBtnText = loginBtn ? loginBtn.innerText : '';
   if (loginBtn) {
     loginBtn.disabled = true;
@@ -158,45 +174,39 @@ async function handleLogin() {
   }
 
   try {
-    // 1. Gửi request đăng nhập
     const res = await requestWithRetry('AUTH_LECTURER', { username, password });
-    const userData = res.data || res;
+    const rawData = res.data || res;
 
-    if (userData && userData.authenticated) {
-      currentUser = userData;
+    // Kiểm tra xem đăng nhập thành công hay chưa
+    if (rawData && (rawData.authenticated || rawData.Role || rawData.role || rawData.User)) {
+      
+      // 💥 Chuẩn hóa dữ liệu ngay lập tức
+      currentUser = normalizeUserData(rawData);
 
-      // 💥 SỬA LỖI 1: Lưu đồng bộ cả 2 key Session để các file JS khác đọc không bị lỗi
-      sessionStorage.setItem('userSession', JSON.stringify(currentUser));
+      // Lưu đồng bộ vào cả 2 key Session
       sessionStorage.setItem('currentUser', JSON.stringify(currentUser));
+      sessionStorage.setItem('userSession', JSON.stringify(currentUser));
 
-      alert(`Xin chào ${currentUser.fullName || currentUser.username}!`);
+      alert(`Xin chào ${currentUser.fullName}!`);
 
-      // 💥 SỬA LỖI 2: Chuẩn hóa chuỗi Role (viết hoa và xóa khoảng trắng thừa)
-      const userRole = String(currentUser.role || '').toUpperCase().trim();
-
-      // 💥 SỬA LỖI 3: Điều hướng trang thông minh (Chuyển về index.html nếu là Admin/Giảng viên)
-      if (userRole === 'ADMIN' || userRole === 'LECTURER') {
-        // Nếu có adminView trên trang hiện tại thì hiển thị, nếu không chuyển sang trang quản trị index.html
-        if (document.getElementById('adminView') || document.getElementById('lecturerView')) {
-          showView(userRole === 'ADMIN' ? 'adminView' : 'lecturerView');
+      // Kiểm tra quyền và điều hướng View
+      if (currentUser.role === 'ADMIN' || currentUser.role === 'LECTURER') {
+        if (!document.getElementById('adminView') && !document.getElementById('lecturerView')) {
+          window.location.href = 'index.html';
         } else {
-          window.location.href = 'index.html'; // Chuyển sang Trang Quản Trị
+          showView(currentUser.role === 'ADMIN' ? 'adminView' : 'lecturerView');
         }
       } else {
-        // Sinh viên làm bài thi
-        if (typeof showView === 'function') {
-          showView('studentView');
-        }
+        showView('studentView');
       }
+
     } else {
-      alert(res.message || userData.message || 'Tên đăng nhập hoặc mật khẩu không chính xác!');
+      alert(res.message || rawData.message || 'Tên đăng nhập hoặc mật khẩu không chính xác!');
     }
   } catch (err) {
-    if (typeof logger !== 'undefined') logger.error('Login Error:', err);
     console.error('Login Error:', err);
-    alert('Không thể kết nối đến Máy chủ! Vui lòng kiểm tra lại kết nối mạng hoặc thử lại sau vài giây.');
+    alert('Không thể kết nối đến Máy chủ! Vui lòng kiểm tra lại kết nối mạng.');
   } finally {
-    // Khôi phục trạng thái nút bấm
     if (loginBtn) {
       loginBtn.disabled = false;
       loginBtn.innerText = originalBtnText;
@@ -204,9 +214,15 @@ async function handleLogin() {
   }
 }
 
+/**
+ * Xử lý Đăng xuất an toàn
+ */
 function handleLogout() {
   currentUser = null;
+  // 💥 Đảm bảo xóa sạch cả 2 key trong Session Storage
   sessionStorage.removeItem('currentUser');
+  sessionStorage.removeItem('userSession');
+
   if (typeof stopViolationTracking === 'function') {
     stopViolationTracking();
   }
@@ -220,20 +236,29 @@ function handleLogout() {
 }
 
 /**
- * Admin: Tải danh sách tài khoản
+ * Admin: Tải danh sách tài khoản (Chuẩn hóa từng dòng dữ liệu từ Sheet)
  */
 async function handleLoadUsers() {
   try {
     const res = await appsScriptService.request('GET_USERS_LIST');
     const users = res.data || [];
-    let html = '<table border="1" style="width:100%; border-collapse:collapse; text-align:left;"><tr><th>Username</th><th>Họ tên</th><th>Vai trò</th></tr>';
+    
+    let html = '<table border="1" style="width:100%; border-collapse:collapse; text-align:left;"><tr><th style="padding:8px;">Username</th><th style="padding:8px;">Họ tên</th><th style="padding:8px;">Vai trò</th></tr>';
+    
     users.forEach(u => {
-      html += `<tr><td>${u.username}</td><td>${u.fullName}</td><td>${u.role}</td></tr>`;
+      // 💥 Chuẩn hóa từng dòng user để không bị trống dữ liệu nếu tiêu đề cột trong Sheet là "Full name", "Role", "User"
+      const normUser = normalizeUserData(u);
+      html += `<tr><td style="padding:8px;">${normUser.username}</td><td style="padding:8px;">${normUser.fullName}</td><td style="padding:8px;">${normUser.role}</td></tr>`;
     });
+    
     html += '</table>';
-    document.getElementById('usersListTable').innerHTML = html;
+    const usersContainer = document.getElementById('usersListTable');
+    if (usersContainer) {
+      usersContainer.innerHTML = html;
+    }
   } catch (err) {
-    alert('Lỗi tải danh sách người dùng');
+    console.error("Lỗi tải danh sách người dùng:", err);
+    alert('Lỗi tải danh sách người dùng!');
   }
 }
 
