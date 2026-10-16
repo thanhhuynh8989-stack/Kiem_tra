@@ -25,30 +25,62 @@ async function requestWithRetry(action, payload, retries = 2, delay = 1500) {
       return await appsScriptService.request(action, payload);
     } catch (err) {
       if (attempt === retries) throw err;
-      logger.warn(`Lần thử đăng nhập thứ ${attempt + 1} thất bại. Đang thử lại...`);
+      if (typeof logger !== 'undefined' && logger.warn) {
+        logger.warn(`Lần thử action '${action}' thứ ${attempt + 1} thất bại. Đang thử lại...`);
+      }
       await new Promise(res => setTimeout(res, delay));
     }
   }
 }
 
 document.addEventListener('DOMContentLoaded', () => {
-  const savedUser = sessionStorage.getItem('currentUser');
-  if (savedUser) {
+  // 1. Đồng bộ & Khôi phục phiên làm việc từ cả 2 Key để tránh lệch dữ liệu
+  const rawSession = sessionStorage.getItem('currentUser') || sessionStorage.getItem('userSession');
+  
+  if (rawSession) {
     try {
-      currentUser = JSON.parse(savedUser);
-      // Khôi phục màn hình tương ứng với tài khoản đã lưu
-      if (currentUser.role === 'ADMIN') showView('adminView');
-      else if (currentUser.role === 'LECTURER') showView('lecturerView');
-      else showView('studentView');
+      currentUser = JSON.parse(rawSession);
+
+      // Chuẩn hóa chuỗi Role (loại bỏ khoảng trắng thừa, đưa về dạng chữ HOA)
+      if (currentUser && currentUser.role) {
+        currentUser.role = String(currentUser.role).toUpperCase().trim();
+      }
+
+      // Lưu đồng bộ vào cả 2 key để các module khác (config.js, library.js) đều đọc được
+      sessionStorage.setItem('currentUser', JSON.stringify(currentUser));
+      sessionStorage.setItem('userSession', JSON.stringify(currentUser));
+
+      // 2. Khôi phục màn hình tương ứng với vai trò
+      const role = currentUser.role;
+      if (role === 'ADMIN') {
+        if (!document.getElementById('adminView') && window.location.pathname.includes('exam.html')) {
+          // Nếu ADMIN lỡ ở trang thi exam.html, chuyển hướng về index.html
+          window.location.href = 'index.html';
+          return;
+        }
+        showView('adminView');
+      } else if (role === 'LECTURER') {
+        if (!document.getElementById('lecturerView') && window.location.pathname.includes('exam.html')) {
+          window.location.href = 'index.html';
+          return;
+        }
+        showView('lecturerView');
+      } else {
+        showView('studentView');
+      }
+
     } catch (e) {
+      console.error("Lỗi khôi phục session user:", e);
       sessionStorage.removeItem('currentUser');
+      sessionStorage.removeItem('userSession');
+      currentUser = null;
       showView('authView');
     }
   } else {
     showView('authView');
   }
 
-  // Lắng nghe sự kiện chuyển trang & Đăng nhập
+  // 3. Lắng nghe sự kiện chuyển trang & Đăng nhập (An toàn kiểm tra sự tồn tại của nút)
   document.getElementById('loginBtn')?.addEventListener('click', handleLogin);
   document.getElementById('logoutBtn')?.addEventListener('click', handleLogout);
   document.getElementById('gotoStudentBtn')?.addEventListener('click', () => showView('studentView'));
@@ -69,24 +101,37 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 /**
- * Hiển thị View theo quyền truy cập
+ * Hiển thị View theo quyền truy cập (Được tối ưu an toàn)
  */
 function showView(viewId) {
-  document.querySelectorAll('.view-section').forEach(el => el.classList.remove('active'));
-  document.getElementById(viewId)?.classList.add('active');
+  const targetView = document.getElementById(viewId);
+  
+  // Nếu viewId không tồn tại trên trang hiện tại, bỏ qua để tránh lỗi JS
+  if (targetView) {
+    document.querySelectorAll('.view-section').forEach(el => el.classList.remove('active'));
+    targetView.classList.add('active');
+  }
 
   const userInfo = document.getElementById('userInfo');
   const userBadge = document.getElementById('userBadge');
 
   if (currentUser) {
     if (userInfo) userInfo.style.display = 'flex';
-    if (userBadge) userBadge.textContent = `${currentUser.fullName} (${currentUser.role})`;
-    if (viewId === 'lecturerView') {
+    
+    // Hiển thị tên & vai trò chuẩn hóa
+    const roleTitle = currentUser.role === 'ADMIN' ? 'QUẢN TRỊ VIÊN' : 
+                      currentUser.role === 'LECTURER' ? 'GIẢNG VIÊN' : 'SINH VIÊN';
+
+    if (userBadge) {
+      userBadge.textContent = `${currentUser.fullName || currentUser.username} (${roleTitle})`;
+    }
+
+    if (viewId === 'lecturerView' && typeof handleLoadMyExams === 'function') {
       handleLoadMyExams();
     }
   } else if (viewId === 'studentView') {
     if (userInfo) userInfo.style.display = 'flex';
-    if (userBadge) userBadge.textContent = 'HỌC SINH';
+    if (userBadge) userBadge.textContent = 'HỌC SINH / SINH VIÊN';
   } else {
     if (userInfo) userInfo.style.display = 'none';
   }
@@ -113,29 +158,42 @@ async function handleLogin() {
   }
 
   try {
-    // 1. Sử dụng action chuẩn 'AUTH_LECTURER' & tự động thử lại 2 lần nếu chập chờn
+    // 1. Gửi request đăng nhập
     const res = await requestWithRetry('AUTH_LECTURER', { username, password });
-
-    // 2. Bóc tách dữ liệu an toàn (Hỗ trợ cả dạng res.data lẫn res trực tiếp)
     const userData = res.data || res;
 
     if (userData && userData.authenticated) {
       currentUser = userData;
+
+      // 💥 SỬA LỖI 1: Lưu đồng bộ cả 2 key Session để các file JS khác đọc không bị lỗi
+      sessionStorage.setItem('userSession', JSON.stringify(currentUser));
       sessionStorage.setItem('currentUser', JSON.stringify(currentUser));
+
       alert(`Xin chào ${currentUser.fullName || currentUser.username}!`);
 
-      if (currentUser.role === 'ADMIN') {
-        showView('adminView');
-      } else if (currentUser.role === 'LECTURER') {
-        showView('lecturerView');
+      // 💥 SỬA LỖI 2: Chuẩn hóa chuỗi Role (viết hoa và xóa khoảng trắng thừa)
+      const userRole = String(currentUser.role || '').toUpperCase().trim();
+
+      // 💥 SỬA LỖI 3: Điều hướng trang thông minh (Chuyển về index.html nếu là Admin/Giảng viên)
+      if (userRole === 'ADMIN' || userRole === 'LECTURER') {
+        // Nếu có adminView trên trang hiện tại thì hiển thị, nếu không chuyển sang trang quản trị index.html
+        if (document.getElementById('adminView') || document.getElementById('lecturerView')) {
+          showView(userRole === 'ADMIN' ? 'adminView' : 'lecturerView');
+        } else {
+          window.location.href = 'index.html'; // Chuyển sang Trang Quản Trị
+        }
       } else {
-        showView('studentView');
+        // Sinh viên làm bài thi
+        if (typeof showView === 'function') {
+          showView('studentView');
+        }
       }
     } else {
       alert(res.message || userData.message || 'Tên đăng nhập hoặc mật khẩu không chính xác!');
     }
   } catch (err) {
-    logger.error('Login Error:', err);
+    if (typeof logger !== 'undefined') logger.error('Login Error:', err);
+    console.error('Login Error:', err);
     alert('Không thể kết nối đến Máy chủ! Vui lòng kiểm tra lại kết nối mạng hoặc thử lại sau vài giây.');
   } finally {
     // Khôi phục trạng thái nút bấm
