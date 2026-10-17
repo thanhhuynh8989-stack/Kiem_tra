@@ -93,3 +93,7 @@ export const appsScriptService = {
     return await this.request('GET_MY_EXAMS', { username });
   }
 };
+
+async saveUserApiKey(username, apiKey) {
+    return await this.request('SAVE_USER_API_KEY', { username, apiKey });
+  },
