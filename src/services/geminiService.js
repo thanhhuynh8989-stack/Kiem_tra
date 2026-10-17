@@ -1,6 +1,7 @@
-import { API_ENDPOINTS } from '../constants/apiEndpoints.js';
-import { fetchWithRetry, AppError } from '../utils/errorHandler.js';
+import { APP_CONFIG } from '../constants/appConfig.js';
+import { appsScriptService } from './appsScriptService.js';
 import { logger } from '../utils/logger.js';
+import { fetchWithRetry, AppError } from '../utils/errorHandler.js';
 import { ImageCompressor } from '../utils/imageCompressor.js';
 
 /**
