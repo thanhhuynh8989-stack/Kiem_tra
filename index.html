@@ -103,7 +103,31 @@
   <!-- 3. GIAO DIỆN GIẢNG VIÊN -->
   <div id="lecturerView" class="view-section">
     <h3>Cổng Giảng Viên - Bóc Tách & Tải Đề Thi AI</h3>
+
+    <!-- KHUNG CẤU HÌNH API KEY CÁ NHÂN & TRẠNG THÁI LƯỢT DÙNG -->
+    <div style="background: #f8fafc; border: 1px solid #cbd5e1; padding: 14px 18px; border-radius: 10px; margin-bottom: 20px;">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+        <label style="font-weight: 600; font-size: 14px; color: #1e293b; display: flex; align-items: center; gap: 6px;">
+          🔑 Gemini API Key Cá Nhân <span style="font-size: 12px; font-weight: normal; color: #64748b;">(Dùng không giới hạn lượt)</span>
+        </label>
+        <!-- BADGE TRẠNG THÁI LƯỢT DÙNG -->
+        <span id="aiQuotaBadge" style="background: #e2e8f0; color: #475569; padding: 4px 10px; border-radius: 20px; font-size: 12px; font-weight: 600;">
+          ⏳ Đang kiểm tra lượt dùng...
+        </span>
+      </div>
     
+      <div style="display: flex; gap: 10px;">
+        <input type="password" id="userGeminiApiKey" placeholder="Dán Gemini API Key của bạn (AIzaSy...)" 
+               style="flex: 1; padding: 9px 12px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 13px;">
+        <button type="button" onclick="window.saveUserApiKey()" 
+                style="background: #2563eb; color: white; border: none; padding: 9px 16px; border-radius: 6px; cursor: pointer; font-size: 13px; font-weight: 600;">
+          Lưu Key
+        </button>
+      </div>
+      <small style="color: #64748b; font-size: 12px; display: block; margin-top: 6px;">
+        💡 Lấy Key miễn phí tại <a href="https://aistudio.google.com/app/apikey" target="_blank" style="color: #2563eb; font-weight: 500;">aistudio.google.com</a>. Nếu không nhập Key cá nhân, bạn có 1 lượt dùng AI hệ thống miễn phí.
+      </small>
+    </div>
     <div class="form-group">
       <label>Chọn file đề thi (.docx hoặc .pdf) hoặc Dán văn bản thô</label>
       <input type="file" id="examFileInput" accept=".docx,.pdf" style="margin-bottom: 10px;">
