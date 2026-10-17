@@ -111,7 +111,27 @@
     </div>
     
     <button id="processExamBtn">Phân Tích Đề Bằng AI</button>
-    <div id="uploadStatus" style="margin-top: 12px; font-weight: 600;"></div>
+    <!-- KHUNG HIỂN THỊ TIẾN TRÌNH AI ĐANG LÀM VIỆC -->
+    <div id="aiLoadingContainer" style="display: none; margin-top: 16px; background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 8px; padding: 16px;">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+        <span style="font-weight: 600; color: #1e40af; font-size: 14px;">
+          🤖 Gemini AI đang phân tích & chuẩn hóa LaTeX...
+        </span>
+        <span id="aiTimerText" style="font-weight: bold; color: #2563eb; font-size: 14px;">
+          ⏱️ 0s
+        </span>
+      </div>
+      
+      <!-- Thanh Progress Chuyển Động -->
+      <div style="width: 100%; background-color: #dbeafe; border-radius: 99px; height: 10px; overflow: hidden; position: relative;">
+        <div id="aiProgressBar" style="width: 10%; background: linear-gradient(90deg, #3b82f6, #1d4ed8); height: 100%; border-radius: 99px; transition: width 0.4s ease;"></div>
+      </div>
+      <p style="font-size: 12px; color: #64748b; margin-top: 6px; margin-bottom: 0;">
+        Đang bóc tách hình ảnh, công thức toán và trắc nghiệm. Vui lòng giữ nguyên màn hình...
+      </p>
+    </div>
+
+<div id="uploadStatus" style="margin-top: 12px; font-weight: 600;"></div>
   
     <!-- VÙNG HIỂN THỊ KẾT QUẢ PHÂN TÍCH VÀ XÁC NHẬN CỦA USER -->
     <div id="aiReviewSection" style="display: none; margin-top: 24px;">
