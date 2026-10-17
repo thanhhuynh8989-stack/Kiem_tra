@@ -626,7 +626,7 @@ async function createCanvasFromBase64(base64Data, mimeType = 'image/jpeg') {
 }
 
 /**
- * Giảng viên: Phân tích tệp hoặc văn bản đề thi bằng Gemini AI (Hàm duy nhất)
+ * Giảng viên: Phân tích tệp hoặc văn bản đề thi bằng Gemini AI (Sử dụng Code-First)
  */
 async function handleProcessExamWithAI() {
   const fileInput = document.getElementById('examFileInput');
@@ -635,14 +635,16 @@ async function handleProcessExamWithAI() {
   let imageBase64 = null;
   let mimeType = 'image/jpeg';
   let sourceCanvas = null;
+  let parsedQuestionsFromDocx = null;
 
   if (fileInput?.files.length > 0) {
     const file = fileInput.files[0];
-    setUploadStatus('📂 Đang đọc tệp và trích xuất hình ảnh...', 'color: #2563eb');
+    setUploadStatus('📂 Đang bóc tách và phân tích cấu trúc tệp...', 'color: #2563eb');
     try {
-      rawText = await extractTextFromFile(file);
-
       if (file.name.endsWith('.docx')) {
+        // Gọi docxParser đã tích hợp Code-First
+        parsedQuestionsFromDocx = await parseDocxFile(file, false);
+        
         const docxImages = await extractImagesFromDocx(file);
         if (docxImages.length > 0) {
           imageBase64 = docxImages[0].imageBase64;
@@ -650,6 +652,7 @@ async function handleProcessExamWithAI() {
           sourceCanvas = await createCanvasFromBase64(imageBase64, mimeType);
         }
       } else if (file.name.endsWith('.pdf')) {
+        rawText = await extractTextFromFile(file);
         sourceCanvas = await renderPdfPageToCanvas(file, 1);
         if (sourceCanvas) {
           imageBase64 = sourceCanvas.toDataURL('image/jpeg').split(',')[1];
@@ -662,7 +665,7 @@ async function handleProcessExamWithAI() {
     }
   }
 
-  if (!rawText && !imageBase64) {
+  if (!rawText && !imageBase64 && (!parsedQuestionsFromDocx || parsedQuestionsFromDocx.length === 0)) {
     return alert('Vui lòng chọn tệp (.docx, .pdf) hoặc dán văn bản đề thi vào ô nhập!');
   }
 
@@ -670,10 +673,17 @@ async function handleProcessExamWithAI() {
   startAILoading();
 
   try {
-    const response = await appsScriptService.parseExamAI(rawText, imageBase64, mimeType);
+    // Truyền parsedQuestionsFromDocx sang Apps Script
+    const response = await appsScriptService.parseExamAI(
+      rawText, 
+      imageBase64, 
+      mimeType, 
+      'gemini-3.6-flash', 
+      parsedQuestionsFromDocx
+    );
 
     if (!response.data || !response.data.questions) {
-      throw new Error('Dữ liệu trả về từ AI không hợp lệ.');
+      throw new Error('Dữ liệu trả về từ Server không hợp lệ.');
     }
 
     let questions = response.data.questions;
@@ -693,13 +703,14 @@ async function handleProcessExamWithAI() {
     );
 
     stopAILoading(true);
-    setUploadStatus(`✅ Phân tích hoàn tất sau ${aiSecondsElapsed}s! Bóc tách thành công ${questions.length} câu hỏi.`, 'color: #10b981');
+    const needReviewCount = questions.filter(q => q.flags?.needsUserConfirmation).length;
+    setUploadStatus(`✅ Bóc tách hoàn tất sau ${aiSecondsElapsed}s! Tổng ${questions.length} câu hỏi (${needReviewCount} câu cần kiểm tra lại).`, 'color: #10b981');
     renderQuestionListForReview(currentExamState.questions);
 
   } catch (err) {
     stopAILoading(false);
     logger.error('AI Process Error:', err);
-    setUploadStatus(`❌ Lỗi AI: ${err.message}`, 'color: #ef4444');
+    setUploadStatus(`❌ Lỗi xử lý: ${err.message}`, 'color: #ef4444');
   }
 }
 
