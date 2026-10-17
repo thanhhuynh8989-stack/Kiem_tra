@@ -3,26 +3,23 @@ import { logger } from '../utils/logger.js';
 
 export const appsScriptService = {
   /**
-   * Wrapper gọi API sang Google Apps Script với ngắt Timeout chống treo nút
+   * Wrapper gọi API sang Google Apps Script với Timeout linh hoạt theo tác vụ.
    */
-  async request(action, payload = {}) {
+  async request(action, payload = {}, customTimeout = null) {
     let endpoint = APP_CONFIG.APPS_SCRIPT_URL;
 
     if (!endpoint || endpoint.includes('YOUR_APPS_SCRIPT')) {
-      throw new Error('Chưa cấu hình APPS_SCRIPT_URL trong APP_CONFIG. Hãy cập nhật URL trong appConfig.js!');
-    }
-
-    if (endpoint.endsWith('/dev')) {
-      if (typeof logger !== 'undefined') {
-        logger.warn('⚠️ Bạn đang dùng URL kết thúc bằng /dev. Hãy đổi thành /exec khi Deploy!');
-      }
+      throw new Error('Chưa cấu hình APPS_SCRIPT_URL trong APP_CONFIG. Hãy cập nhật URL vào appConfig.js!');
     }
 
     const bodyData = JSON.stringify({ action, ...payload });
 
-    // Tạo bộ đếm thời gian Timeout 12 giây
+    // Tự động nâng Timeout lên 60 giây đối với các tác vụ xử lý AI nặng
+    const isAITask = ['PARSE_EXAM_AI', 'GEMINI_PROXY', 'SAVE_AND_PUBLISH_EXAM'].includes(action);
+    const timeoutMs = customTimeout || (isAITask ? 60000 : 15000); 
+
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 12000);
+    const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
 
     try {
       const response = await fetch(endpoint, {
@@ -49,7 +46,7 @@ export const appsScriptService = {
       try {
         result = JSON.parse(rawText);
       } catch (parseError) {
-        throw new Error('Backend trả về phản hồi không hợp lệ (không phải JSON). Vui lòng kiểm tra lại Deploy trên Apps Script.');
+        throw new Error('Backend trả về phản hồi không phải JSON hợp lệ. Kiểm tra lại kết quả xuất bản Apps Script.');
       }
 
       if (result.status === 'error') {
@@ -61,9 +58,9 @@ export const appsScriptService = {
     } catch (error) {
       clearTimeout(timeoutId);
       if (error.name === 'AbortError') {
-        throw new Error('Kết nối Máy chủ quá thời gian (Timeout 12s). Vui lòng kiểm tra lại mạng!');
+        throw new Error(`AI đang bóc tách nhiều dữ liệu vượt quá ${timeoutMs / 1000}s. Vui lòng bấm "Phân Tích Đề Bằng AI" thử lại lần nữa!`);
       }
-      if (typeof logger !== 'undefined') {
+      if (typeof logger !== 'undefined' && logger.error) {
         logger.error(`AppsScript Request Error [${action}]:`, error);
       }
       throw error;
@@ -81,11 +78,11 @@ export const appsScriptService = {
       publicExamData,
       filePath,
       username
-    });
+    }, 45000);
   },
 
-  async callGeminiVisionProxy(prompt, imageBase64, mimeType = 'image/jpeg', model = 'gemini-3.6-flash') {
-    return await this.request('GEMINI_PROXY', { prompt, imageBase64, mimeType, model });
+  async callGeminiVisionProxy(prompt, imageBase64, mimeType = 'image/jpeg', model = 'gemini-1.5-flash') {
+    return await this.request('GEMINI_PROXY', { prompt, imageBase64, mimeType, model }, 60000);
   },
 
   async authenticateLecturer(username, password) {
@@ -96,7 +93,7 @@ export const appsScriptService = {
     return await this.request('GET_MY_EXAMS', { username });
   },
 
-  async parseExamAI(rawText, imageBase64 = '', mimeType = 'image/png', model = 'gemini-3.6-flash') {
-    return await this.request('PARSE_EXAM_AI', { rawText, imageBase64, mimeType, model });
+  async parseExamAI(rawText, imageBase64 = '', mimeType = 'image/png', model = 'gemini-1.5-flash') {
+    return await this.request('PARSE_EXAM_AI', { rawText, imageBase64, mimeType, model }, 60000);
   }
 };
