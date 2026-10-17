@@ -8,39 +8,67 @@ import { examModel } from './models/examModel.js';
 import { logger } from './utils/logger.js';
 
 let currentUser = null;
-let currentExamState = null; // Lưu trạng thái đề thi AI đang phân tích / duyệt
-let currentExamData = null;  // Lưu đề thi sinh viên đang làm
+let currentExamState = null;
+let currentExamData = null;
 const studentAnswers = {};
 
-// Biến quản lý trạng thái vi phạm của Học sinh
 let violationCount = 0;
 let isExamActive = false;
 
 /**
- * Hàm chuẩn hóa dữ liệu User từ Google Apps Script trả về
- * Tự động sửa lỗi lệch hoa/thường giữa Google Sheet và JavaScript
+ * Hàm chuẩn hóa dữ liệu User thông minh (Bóc tách đa tầng)
  */
 function normalizeUserData(raw) {
   if (!raw) return null;
-  
-  // Tìm vai trò từ các trường Role, role, ROLE
-  const rawRole = raw.role || raw.Role || raw.ROLE || '';
-  const normalizedRole = String(rawRole).toUpperCase().trim();
 
-  // Tìm tên hiển thị từ Full name, fullName, User, username
-  const fullName = raw.fullName || raw['Full name'] || raw.fullname || raw.Fullname || raw.User || raw.username || 'Người dùng';
-  const username = raw.username || raw.User || raw.user || '';
+  let obj = raw;
+  if (obj.data && typeof obj.data === 'object') obj = obj.data;
+  if (obj.user && typeof obj.user === 'object') obj = obj.user;
+  if (obj.userData && typeof obj.userData === 'object') obj = obj.userData;
+  if (obj.userInfo && typeof obj.userInfo === 'object') obj = obj.userInfo;
+  if (Array.isArray(obj)) obj = obj[0] || {};
+
+  let rawRole = obj.role || obj.Role || obj.ROLE || obj.userRole || 
+                raw.role || raw.Role || raw.ROLE || '';
+  let normalizedRole = String(rawRole).toUpperCase().trim();
+
+  let username = obj.username || obj.User || obj.user || 
+                 raw.username || raw.User || '';
+  if (typeof username === 'object') username = '';
+
+  let fullName = obj.fullName || obj['Full name'] || obj.fullname || obj.Fullname || obj['full_name'] ||
+                 obj.name || obj.Name ||
+                 raw.fullName || raw['Full name'] || raw.fullname || '';
+
+  if (typeof fullName === 'object') fullName = '';
+
+  const knownRoles = ['ADMIN', 'LECTURER', 'STUDENT'];
+  
+  if (!fullName || knownRoles.includes(String(fullName).toUpperCase().trim())) {
+    fullName = (username && !knownRoles.includes(String(username).toUpperCase().trim())) 
+               ? username 
+               : (normalizedRole === 'ADMIN' ? 'Quản trị hệ thống' : 
+                  normalizedRole === 'LECTURER' ? 'Giảng viên' : 'Sinh viên');
+  }
+
+  if (!normalizedRole || !knownRoles.includes(normalizedRole)) {
+    if (knownRoles.includes(String(obj.Role || raw.Role).toUpperCase().trim())) {
+      normalizedRole = String(obj.Role || raw.Role).toUpperCase().trim();
+    } else if (knownRoles.includes(String(username).toUpperCase().trim())) {
+      normalizedRole = String(username).toUpperCase().trim();
+    }
+  }
 
   return {
     authenticated: raw.authenticated !== undefined ? raw.authenticated : true,
-    username: username,
-    fullName: fullName,
-    role: normalizedRole // Luôn trả về 'ADMIN', 'LECTURER', hoặc 'STUDENT'
+    username: String(username),
+    fullName: String(fullName),
+    role: normalizedRole
   };
 }
 
 /**
- * Hàm gọi API có cơ chế thử lại (Retry) khi Google Apps Script bị trễ/Cold Start
+ * Gọi API có cơ chế thử lại (Retry)
  */
 async function requestWithRetry(action, payload, retries = 2, delay = 1500) {
   for (let attempt = 0; attempt <= retries; attempt++) {
@@ -57,19 +85,15 @@ async function requestWithRetry(action, payload, retries = 2, delay = 1500) {
 }
 
 document.addEventListener('DOMContentLoaded', () => {
-  // 1. Khôi phục & Đồng bộ phiên làm việc từ cả 2 Key trong sessionStorage
   const rawSession = sessionStorage.getItem('currentUser') || sessionStorage.getItem('userSession');
   
   if (rawSession) {
     try {
-      // 💥 Chuẩn hóa dữ liệu bằng normalizeUserData ngay từ khi F5 / nạp trang
       currentUser = normalizeUserData(JSON.parse(rawSession));
 
-      // Lưu đồng bộ vào cả 2 key
       sessionStorage.setItem('currentUser', JSON.stringify(currentUser));
       sessionStorage.setItem('userSession', JSON.stringify(currentUser));
 
-      // 2. Khôi phục màn hình tương ứng với vai trò đã chuẩn hóa
       const role = currentUser.role;
       if (role === 'ADMIN') {
         if (!document.getElementById('adminView') && window.location.pathname.includes('exam.html')) {
@@ -98,28 +122,24 @@ document.addEventListener('DOMContentLoaded', () => {
     showView('authView');
   }
 
-  // 3. Lắng nghe sự kiện chuyển trang & Đăng nhập (An toàn với kiểm tra null/optional chaining)
   document.getElementById('loginBtn')?.addEventListener('click', handleLogin);
   document.getElementById('logoutBtn')?.addEventListener('click', handleLogout);
   document.getElementById('gotoStudentBtn')?.addEventListener('click', () => showView('studentView'));
   document.querySelectorAll('.backToAuthLink').forEach(el => el.addEventListener('click', () => showView('authView')));
 
-  // Logic Sinh viên
   document.getElementById('loadExamBtn')?.addEventListener('click', handleLoadExam);
   document.getElementById('submitExamBtn')?.addEventListener('click', () => handleSubmitExam(false));
 
-  // Logic Giảng viên & AI Parsing
   document.getElementById('processExamBtn')?.addEventListener('click', handleProcessExamWithAI);
   document.getElementById('publishExamBtn')?.addEventListener('click', handlePublishExam);
   document.getElementById('loadMyExamsBtn')?.addEventListener('click', handleLoadMyExams);
 
-  // Logic Admin
   document.getElementById('loadUsersBtn')?.addEventListener('click', handleLoadUsers);
   document.getElementById('gotoLecturerPortalBtn')?.addEventListener('click', () => showView('lecturerView'));
 });
 
 /**
- * Hiển thị View theo quyền truy cập (Chuẩn hóa nhãn hiển thị UI)
+ * Hiển thị View theo quyền truy cập
  */
 function showView(viewId) {
   const targetView = document.getElementById(viewId);
@@ -135,7 +155,6 @@ function showView(viewId) {
   if (currentUser) {
     if (userInfo) userInfo.style.display = 'flex';
     
-    // Hiển thị vai trò tiếng Việt rõ ràng
     const roleTitle = currentUser.role === 'ADMIN' ? 'Quản trị hệ thống' : 
                       currentUser.role === 'LECTURER' ? 'Giảng viên' : 'Sinh viên';
 
@@ -155,7 +174,7 @@ function showView(viewId) {
 }
 
 /**
- * Xử lý Đăng nhập phân quyền (Tự động Retry + Chống Spam Click)
+ * Xử lý Đăng nhập
  */
 async function handleLogin() {
   const usernameInput = document.getElementById('loginUsername');
@@ -175,21 +194,19 @@ async function handleLogin() {
 
   try {
     const res = await requestWithRetry('AUTH_LECTURER', { username, password });
-    const rawData = res.data || res;
 
-    // Kiểm tra xem đăng nhập thành công hay chưa
-    if (rawData && (rawData.authenticated || rawData.Role || rawData.role || rawData.User)) {
-      
-      // 💥 Chuẩn hóa dữ liệu ngay lập tức
-      currentUser = normalizeUserData(rawData);
+    // Xóa session cũ trước khi nạp dữ liệu mới
+    sessionStorage.removeItem('currentUser');
+    sessionStorage.removeItem('userSession');
 
-      // Lưu đồng bộ vào cả 2 key Session
+    currentUser = normalizeUserData(res);
+
+    if (currentUser && currentUser.role) {
       sessionStorage.setItem('currentUser', JSON.stringify(currentUser));
       sessionStorage.setItem('userSession', JSON.stringify(currentUser));
 
       alert(`Xin chào ${currentUser.fullName}!`);
 
-      // Kiểm tra quyền và điều hướng View
       if (currentUser.role === 'ADMIN' || currentUser.role === 'LECTURER') {
         if (!document.getElementById('adminView') && !document.getElementById('lecturerView')) {
           window.location.href = 'index.html';
@@ -199,9 +216,8 @@ async function handleLogin() {
       } else {
         showView('studentView');
       }
-
     } else {
-      alert(res.message || rawData.message || 'Tên đăng nhập hoặc mật khẩu không chính xác!');
+      alert(res.message || 'Tên đăng nhập hoặc mật khẩu không chính xác!');
     }
   } catch (err) {
     console.error('Login Error:', err);
@@ -214,12 +230,8 @@ async function handleLogin() {
   }
 }
 
-/**
- * Xử lý Đăng xuất an toàn
- */
 function handleLogout() {
   currentUser = null;
-  // 💥 Đảm bảo xóa sạch cả 2 key trong Session Storage
   sessionStorage.removeItem('currentUser');
   sessionStorage.removeItem('userSession');
 
@@ -235,18 +247,15 @@ function handleLogout() {
   showView('authView');
 }
 
-/**
- * Admin: Tải danh sách tài khoản (Chuẩn hóa từng dòng dữ liệu từ Sheet)
- */
 async function handleLoadUsers() {
   try {
     const res = await appsScriptService.request('GET_USERS_LIST');
-    const users = res.data || [];
+    const users = res.data || res || [];
     
     let html = '<table border="1" style="width:100%; border-collapse:collapse; text-align:left;"><tr><th style="padding:8px;">Username</th><th style="padding:8px;">Họ tên</th><th style="padding:8px;">Vai trò</th></tr>';
     
-    users.forEach(u => {
-      // 💥 Chuẩn hóa từng dòng user để không bị trống dữ liệu nếu tiêu đề cột trong Sheet là "Full name", "Role", "User"
+    const userArray = Array.isArray(users) ? users : [users];
+    userArray.forEach(u => {
       const normUser = normalizeUserData(u);
       html += `<tr><td style="padding:8px;">${normUser.username}</td><td style="padding:8px;">${normUser.fullName}</td><td style="padding:8px;">${normUser.role}</td></tr>`;
     });
