@@ -36,7 +36,6 @@ export const appsScriptService = {
         throw new Error(`Apps Script HTTP Error: ${response.status}`);
       }
 
-      // Đọc response dạng Text trước để tránh crash khi Backend trả về HTML trang lỗi của Google
       const rawText = await response.text();
       let result;
       try {
@@ -70,16 +69,22 @@ export const appsScriptService = {
     });
   },
 
-  async callGeminiVisionProxy(prompt, imageBase64, mimeType = 'image/jpeg') {
-    return await this.request('GEMINI_PROXY', { prompt, imageBase64, mimeType });
+  // Hỗ trợ truyền tên model linh hoạt cho Gemini Vision
+  async callGeminiVisionProxy(prompt, imageBase64, mimeType = 'image/jpeg', model = 'gemini-3.6-flash') {
+    return await this.request('GEMINI_PROXY', { prompt, imageBase64, mimeType, model });
   },
 
   async authenticateLecturer(username, password) {
     return await this.request('AUTH_LECTURER', { username, password });
   },
 
-  // Bổ sung hàm lấy danh sách đề thi phục vụ cho handleLoadMyExams()
+  // Đã sửa tên action thành 'GET_MY_EXAMS' để khớp với xử lý trong Code.gs
   async getLecturerExams(username) {
-    return await this.request('GET_LECTURER_EXAMS', { username });
+    return await this.request('GET_MY_EXAMS', { username });
+  },
+
+  // Hàm gọi phân tích đề bằng AI
+  async parseExamAI(rawText, imageBase64 = '', mimeType = 'image/png', model = 'gemini-3.6-flash') {
+    return await this.request('PARSE_EXAM_AI', { rawText, imageBase64, mimeType, model });
   }
 };
