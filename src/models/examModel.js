@@ -35,19 +35,16 @@ export class ExamModel {
   normalizeCorrectAnswer(correctAnswer, options = []) {
     if (correctAnswer === null || correctAnswer === undefined) return null;
 
-    // Nếu dạng chữ cái 'A', 'B', 'C', 'D' -> chuyển thành index 0, 1, 2, 3
     if (typeof correctAnswer === 'string') {
       const trimmed = correctAnswer.trim().toUpperCase();
       const letterMap = { 'A': 0, 'B': 1, 'C': 2, 'D': 3 };
       if (trimmed in letterMap) return letterMap[trimmed];
       
-      // Nếu là chuỗi số "0", "1", "2"
       if (!isNaN(parseInt(trimmed, 10)) && parseInt(trimmed, 10) < options.length) {
         return parseInt(trimmed, 10);
       }
 
-      // Nếu correctAnswer trùng khớp với nội dung văn bản trong options
-      const foundIdx = options.findIndex(opt => opt.trim() === correctAnswer.trim());
+      const foundIdx = options.findIndex(opt => opt && opt.trim() === correctAnswer.trim());
       if (foundIdx !== -1) return foundIdx;
     }
 
@@ -55,61 +52,87 @@ export class ExamModel {
     return null;
   }
 
+  /**
+   * Tạo cấu trúc đề thi chuẩn hóa (Bảo toàn cờ flags & originalOptionCount)
+   */
   createStandardExam(metadata = {}, rawQuestions = []) {
-    const examId = metadata.examId || `exam_${this.generateUUID()}`;
+    const examId = metadata.examId || metadata.id || `exam_${this.generateUUID()}`;
     const timestamp = new Date().toISOString();
 
     const formattedQuestions = rawQuestions.map((q, idx) => {
       const qId = q.id || `q_${idx + 1}_${this.generateUUID().slice(0, 8)}`;
-      const options = (q.options || []).map((opt) => this.sanitizeContent(opt));
+      const rawOpts = Array.isArray(q.options) ? q.options : ['', '', '', ''];
+      const options = rawOpts.map((opt) => this.sanitizeContent(opt));
+      while (options.length < 4) options.push('');
+
       const disableShuffle = q.disableShuffle || this.shouldDisableShuffle(options);
-      
-      // Chuẩn hóa chỉ số đáp án đúng về kiểu Number (0, 1, 2, 3)
       const normalizedAnswer = this.normalizeCorrectAnswer(q.correctAnswer, options);
+      const origCount = q.originalOptionCount !== undefined ? q.originalOptionCount : 4;
 
       return {
         id: qId,
         stem: this.sanitizeContent(q.stem || q.questionText || ''),
         images: Array.isArray(q.images) ? q.images : [],
-        options: options,
-        correctAnswer: normalizedAnswer,
+        hasImage: Boolean(q.hasImage || (Array.isArray(q.images) && q.images.length > 0)),
+        imageUrl: q.imageUrl || null,
+        imageBox: q.imageBox || null,
+        options: options.slice(0, 4),
+        correctAnswer: normalizedAnswer !== null ? normalizedAnswer : 0,
         explanation: this.sanitizeContent(q.explanation || ''),
         points: typeof q.points === 'number' ? q.points : 1.0,
-        disableShuffle: disableShuffle
+        disableShuffle: disableShuffle,
+        originalOptionCount: origCount,
+        flags: q.flags || {
+          needsUserConfirmation: origCount < 4 || options.some(o => !o.trim()),
+          isMissingOptions: origCount < 4 || options.some(o => !o.trim()),
+          isMissingAnswer: normalizedAnswer === null,
+          note: 'Cần kiểm tra lại.'
+        }
       };
     });
 
     const examData = {
+      id: examId,
       examId: examId,
       title: metadata.title || 'Đề thi trắc nghiệm',
       subject: metadata.subject || 'Chưa phân loại',
       durationMinutes: metadata.durationMinutes || 45,
       passScore: metadata.passScore || 5.0,
+      maxViolations: metadata.maxViolations || 3,
       status: metadata.status || (EXAM_STATUS && EXAM_STATUS.DRAFT) || 'DRAFT',
+      createdBy: metadata.createdBy || 'system',
+      createdByName: metadata.createdByName || 'Hệ thống',
       createdAt: metadata.createdAt || timestamp,
       updatedAt: timestamp,
       questions: formattedQuestions
     };
 
-    logger.info(`Khởi tạo đề thi thành công: ${examData.title} (${examData.examId})`);
+    if (typeof logger !== 'undefined' && logger.info) {
+      logger.info(`Khởi tạo đề thi thành công: ${examData.title} (${examData.examId})`);
+    }
     return examData;
   }
 
   splitExamForPublishing(fullExam) {
-    if (!fullExam || !fullExam.examId) {
+    if (!fullExam || (!fullExam.examId && !fullExam.id)) {
       throw new Error('Đề thi không hợp lệ để phân tách.');
     }
+
+    const examId = fullExam.examId || fullExam.id;
 
     const studentQuestions = (fullExam.questions || []).map((q) => ({
       id: q.id,
       stem: q.stem,
-      images: q.images,
+      images: q.images || [],
+      hasImage: Boolean(q.hasImage),
+      imageUrl: q.imageUrl || null,
       options: q.options,
       disableShuffle: q.disableShuffle
     }));
 
     const studentExam = {
-      examId: fullExam.examId,
+      id: examId,
+      examId: examId,
       title: fullExam.title,
       subject: fullExam.subject,
       durationMinutes: fullExam.durationMinutes,
@@ -121,8 +144,8 @@ export class ExamModel {
 
     const keys = (fullExam.questions || []).reduce((acc, q) => {
       acc[q.id] = {
-        correctAnswer: q.correctAnswer, // Chỉ số index chuẩn 0, 1, 2, 3
-        correctOptionText: q.options[q.correctAnswer] || null, // Lưu thêm nội dung đáp án để đối chiếu an toàn
+        correctAnswer: q.correctAnswer,
+        correctOptionText: q.options[q.correctAnswer] || null,
         points: q.points || 1.0,
         explanation: q.explanation || ''
       };
@@ -130,41 +153,36 @@ export class ExamModel {
     }, {});
 
     const masterKey = {
-      examId: fullExam.examId,
+      id: examId,
+      examId: examId,
       updatedAt: new Date().toISOString(),
       keys: keys
     };
 
-    logger.info(`Đã phân tách thành công đề thi ${fullExam.examId}.`);
+    if (typeof logger !== 'undefined' && logger.info) {
+      logger.info(`Đã phân tách thành công đề thi ${examId}.`);
+    }
     return { studentExam, masterKey, questions: studentQuestions, answerKey: keys };
   }
 
-  /**
-   * Trộn câu hỏi & phương án (ĐÃ CẬP NHẬT: Tự động cập nhật lại vị trí đáp án đúng)
-   */
   shuffleExamQuestions(questions = [], shuffleOptionsFlag = true) {
     const clonedQuestions = JSON.parse(JSON.stringify(questions));
 
-    // 1. Trộn thứ tự các câu hỏi
     for (let i = clonedQuestions.length - 1; i > 0; i--) {
       const j = Math.floor(Math.random() * (i + 1));
       [clonedQuestions[i], clonedQuestions[j]] = [clonedQuestions[j], clonedQuestions[i]];
     }
 
-    // 2. Trộn thứ tự các phương án và cập nhật lại correctAnswer
     if (shuffleOptionsFlag) {
       clonedQuestions.forEach((q) => {
         if (!q.disableShuffle && Array.isArray(q.options) && q.options.length > 1) {
-          // Lưu lại nội dung văn bản của đáp án đúng trước khi đảo
           const originalCorrectText = (typeof q.correctAnswer === 'number') ? q.options[q.correctAnswer] : null;
 
-          // Xáo trộn mảng phương án
           for (let i = q.options.length - 1; i > 0; i--) {
             const j = Math.floor(Math.random() * (i + 1));
             [q.options[i], q.options[j]] = [q.options[j], q.options[i]];
           }
 
-          // Cập nhật lại chỉ số correctAnswer theo vị trí mới sau khi đảo
           if (originalCorrectText !== null) {
             q.correctAnswer = q.options.indexOf(originalCorrectText);
           }
@@ -174,45 +192,14 @@ export class ExamModel {
 
     return clonedQuestions;
   }
-
-  static generateUUID(...args) { return new ExamModel().generateUUID(...args); }
-  static sanitizeContent(...args) { return new ExamModel().sanitizeContent(...args); }
-  static shouldDisableShuffle(...args) { return new ExamModel().shouldDisableShuffle(...args); }
-  static createStandardExam(...args) { return new ExamModel().createStandardExam(...args); }
-  static splitExamForPublishing(...args) { return new ExamModel().splitExamForPublishing(...args); }
-  static shuffleExamQuestions(...args) { return new ExamModel().shuffleExamQuestions(...args); }
 }
 
-export const examModel = {
-  createStandardExam(meta = {}, questions = []) {
-    return {
-      id: meta.id || `exam_${Date.now()}`,
-      title: meta.title || 'Đề thi phân tích',
-      durationMinutes: meta.durationMinutes || 45,
-      maxViolations: meta.maxViolations || 3,
-      createdBy: meta.createdBy || 'system',
-      createdByName: meta.createdByName || 'Hệ thống',
-      createdAt: new Date().toISOString(),
-      questions: questions.map((q, idx) => ({
-        id: q.id || `q_${idx + 1}`,
-        stem: q.stem || `Câu ${idx + 1}`,
-        options: Array.isArray(q.options) ? q.options : ['', '', '', ''],
-        correctAnswer: Number(q.correctAnswer) || 0,
-        hasImage: Boolean(q.hasImage),
-        imageUrl: q.imageUrl || null,
-        imageBox: q.imageBox || null,
-        originalOptionCount: q.originalOptionCount !== undefined ? q.originalOptionCount : 4,
-        flags: q.flags || {
-          needsUserConfirmation: true,
-          isMissingOptions: true,
-          isMissingAnswer: false,
-          note: 'Cần kiểm tra lại.'
-        }
-      }))
-    };
-  }
-};
-export const splitExamForPublishing = examModel.splitExamForPublishing.bind(examModel);
-export const createStandardExam = examModel.createStandardExam.bind(examModel);
+// Khởi tạo Instance Singleton duy nhất
+export const examModel = new ExamModel();
+
+// Export rời các phương thức để hỗ trợ Import trực tiếp
+export const createStandardExam = (meta, questions) => examModel.createStandardExam(meta, questions);
+export const splitExamForPublishing = (fullExam) => examModel.splitExamForPublishing(fullExam);
+export const shuffleExamQuestions = (questions, flag) => examModel.shuffleExamQuestions(questions, flag);
 
 export default examModel;
