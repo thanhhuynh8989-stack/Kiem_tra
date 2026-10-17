@@ -86,22 +86,26 @@ export class DocxParser {
         }
       }
 
-      // ĐỂ TRỐNG Ô PHƯƠNG ÁN NẾU ĐỀ GỐC THIẾU (Dành cho Giảng viên tự điền)
+      // ĐIỀN CHUỖI RỖNG CHỜ GIẢNG VIÊN BỔ SUNG
       while (finalOptions.length < 4) {
         finalOptions.push('');
       }
 
-      const isMissingOptions = originalOptionCount < 4;
+      finalOptions = finalOptions.slice(0, 4);
+
+      // BẮT BẮT BUỘC ĐÁNH DẤU CẦN DUYỆT NẾU CÓ Ô PHƯƠNG ÁN RỖNG
+      const hasEmptyOptions = finalOptions.some(opt => !String(opt).trim());
+      const isMissingOptions = originalOptionCount < 4 || hasEmptyOptions;
 
       let notes = [];
       if (isMissingOptions) {
-        notes.push(`Đề gốc chỉ có ${originalOptionCount}/4 phương án. Ô phương án thiếu đã được để trống.`);
+        notes.push(`Đề gốc thiếu phương án hoặc có ô lựa chọn rỗng.`);
       }
       if (isMissingAnswer) {
         notes.push(`Chưa nhận diện được đáp án đúng từ đề gốc (Đang tạm chọn A).`);
       }
 
-      q.options = finalOptions.slice(0, 4);
+      q.options = finalOptions;
       q.originalOptionCount = originalOptionCount;
       q.correctAnswer = finalCorrectAnswer;
       q.flags = {
@@ -141,33 +145,38 @@ export class DocxParser {
         continue;
       }
 
-      const optionMatch = text.match(optionStartRegex);
-      if (optionMatch && currentQuestion) {
-        const optionClean = text.replace(optionStartRegex, '').trim();
-        const optionImages = this._extractImagesFromNode(node);
+      // KĨ THUẬT TÁCH CÁC PHƯƠNG ÁN NẰM CÙNG TRÊN 1 DÒNG (VD: "A. xác chết B. ăn trực tiếp")
+      const inlineOptionChunks = text.split(/(?=\b\*?\s*[A-E][\.\)]\s+)/i).map(s => s.trim()).filter(Boolean);
 
-        currentQuestion.rawOptions.push(optionClean);
+      for (const chunk of inlineOptionChunks) {
+        const optionMatch = chunk.match(optionStartRegex);
+        if (optionMatch && currentQuestion) {
+          const optionClean = chunk.replace(optionStartRegex, '').trim();
+          const optionImages = this._extractImagesFromNode(node);
 
-        if (optionImages.length > 0 && !currentQuestion.imageUrl) {
-          currentQuestion.imageUrl = optionImages[0];
-          currentQuestion.hasImage = true;
+          currentQuestion.rawOptions.push(optionClean);
+
+          if (optionImages.length > 0 && !currentQuestion.imageUrl) {
+            currentQuestion.imageUrl = optionImages[0];
+            currentQuestion.hasImage = true;
+          }
+
+          const isMarkedWithStarOrX = chunk.startsWith('*') || chunk.includes('[x]') || chunk.includes('[X]');
+          const isBoldOrUnderlinedOpt = /<(b|strong|u)>\s*\*?\s*[A-E][\.\)]/i.test(innerHtml) || 
+                                       /<(b|strong|u)>[A-E]<\/\1>/i.test(innerHtml);
+
+          if (isMarkedWithStarOrX || isBoldOrUnderlinedOpt) {
+            currentQuestion.detectedAnswerIndex = currentQuestion.rawOptions.length - 1;
+          }
+          continue;
         }
 
-        const isMarkedWithStarOrX = text.startsWith('*') || text.includes('[x]') || text.includes('[X]');
-        const isBoldOrUnderlinedOpt = /<(b|strong|u)>\s*\*?\s*[A-E][\.\)]/i.test(innerHtml) || 
-                                     /<(b|strong|u)>[A-E]<\/\1>/i.test(innerHtml);
-
-        if (isMarkedWithStarOrX || isBoldOrUnderlinedOpt) {
-          currentQuestion.detectedAnswerIndex = currentQuestion.rawOptions.length - 1;
-        }
-        continue;
-      }
-
-      if (currentQuestion) {
-        if (text.toLowerCase().startsWith('lời giải:') || text.toLowerCase().startsWith('mô tả:')) {
-          currentQuestion.explanation = text.replace(/^(lời giải|mô tả)\s*:\s*/i, '').trim();
-        } else {
-          currentQuestion.stem += (currentQuestion.stem ? '\n' : '') + text;
+        if (currentQuestion && chunk === inlineOptionChunks[0]) {
+          if (chunk.toLowerCase().startsWith('lời giải:') || chunk.toLowerCase().startsWith('mô tả:')) {
+            currentQuestion.explanation = chunk.replace(/^(lời giải|mô tả)\s*:\s*/i, '').trim();
+          } else if (!optionMatch && !questionStartRegex.test(chunk)) {
+            currentQuestion.stem += (currentQuestion.stem ? '\n' : '') + chunk;
+          }
         }
       }
     }
