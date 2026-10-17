@@ -392,39 +392,81 @@ function renderQuestions(questions = []) {
 window.saveAns = (qId, key) => { studentAnswers[qId] = key; };
 
 /**
- * Sinh viên: Nộp bài thi (Hỗ trợ nộp thủ công và tự động nộp do vi phạm)
+ * Thu thập đáp án hiện tại và Nộp bài (Hỗ trợ cả Nộp tự do & Ép nộp bài do vi phạm)
  */
-async function handleSubmitExam(isAutoSubmit = false) {
-  const nameInput = document.getElementById('studentName');
-  const codeInput = document.getElementById('studentCode');
-  const name = nameInput?.value.trim() || (isAutoSubmit ? 'Học sinh' : '');
-  const code = codeInput?.value.trim() || (isAutoSubmit ? 'KĐC' : '');
-
-  if (!isAutoSubmit && (!name || !code)) {
-    return alert('Vui lòng điền đầy đủ Họ tên và Mã số học sinh!');
+async function handleSubmitExam(isAutoSubmitted = false) {
+  if (!currentExamData || !currentExamData.questions) {
+    return alert('Không tìm thấy dữ liệu bài thi!');
   }
 
-  stopViolationTracking(); // Dừng đếm vi phạm ngay khi bắt đầu tiến trình nộp bài
+  const studentNameInput = document.getElementById('studentName');
+  const studentCodeInput = document.getElementById('studentCode');
+  
+  const studentName = studentNameInput?.value.trim() || 'Thí sinh';
+  const studentCode = studentCodeInput?.value.trim() || 'N/A';
+
+  if (!isAutoSubmitted && (!studentName || !studentCode)) {
+    return alert('Vui lòng điền đầy đủ Họ tên và Mã sinh viên trước khi nộp bài!');
+  }
+
+  // 💥 QUÉT TRỰC TIẾP TẤT CẢ CÁC CÂU ĐÃ CHỌN TRÊN GIAO DIỆN DOM
+  const collectedAnswers = {};
+  currentExamData.questions.forEach((q, idx) => {
+    const qId = q.id || `q_${idx + 1}`;
+    // Tìm radio button được chọn trong câu hỏi này
+    const selectedRadio = document.querySelector(`input[name="${qId}"]:checked`) || 
+                          document.querySelector(`input[name="q_${idx}"]:checked`);
+    
+    if (selectedRadio) {
+      collectedAnswers[qId] = selectedRadio.value;
+    } else if (studentAnswers[qId] !== undefined) {
+      collectedAnswers[qId] = studentAnswers[qId];
+    }
+  });
+
+  const btnSubmit = document.getElementById('submitExamBtn');
+  if (btnSubmit) {
+    btnSubmit.disabled = true;
+    btnSubmit.textContent = '⏳ Đang chấm điểm & gửi bài...';
+  }
+
+  // Tắt bộ giám sát vi phạm
+  stopViolationTracking();
 
   try {
+    const examId = currentExamData.id || currentExamData.examId;
+    const studentInfo = { name: studentName, code: studentCode };
     const violationInfo = {
-      violationCount,
-      isAutoSubmitted: isAutoSubmit,
-      reason: isAutoSubmit ? 'Tự động nộp do vượt quá số lần vi phạm cho phép' : 'Nộp bài thủ công'
+      violationCount: violationCount,
+      isAutoSubmitted: isAutoSubmitted,
+      reason: isAutoSubmitted ? 'Tự động nộp do vi phạm quy chế rời màn hình' : 'Nộp bài tự nguyện'
     };
 
-    const response = await appsScriptService.submitExamAnswers(
-      currentExamData.examId || currentExamData.id, 
-      { name, code }, 
-      studentAnswers,
-      violationInfo
-    );
+    // Gửi sang Backend chấm điểm
+    const result = await appsScriptService.submitExamAnswers(examId, studentInfo, collectedAnswers, violationInfo);
 
+    // Hiển thị kết quả lên màn hình
     document.getElementById('examContainer').style.display = 'none';
-    document.getElementById('resultContainer').style.display = 'block';
-    document.getElementById('scoreText').textContent = `Điểm số: ${response.data.finalGrade} / 10 ${isAutoSubmit ? ' (Bài bị ép nộp do vi phạm)' : ''}`;
+    const resultContainer = document.getElementById('resultContainer');
+    if (resultContainer) {
+      resultContainer.style.display = 'block';
+      const scoreText = document.getElementById('scoreText');
+      if (scoreText) {
+        scoreText.innerHTML = `
+          ${isAutoSubmitted ? '<p style="color:#dc2626; font-size:16px;">⚠️ BÀI THI BỊ ÉP NỘP DO VI PHẠM MÀN HÌNH</p>' : ''}
+          Điểm số: <span style="color:#2563eb; font-size:32px;">${result.data?.finalGrade || result.finalGrade || '0.00'}</span> / 10<br>
+          <small style="font-size:16px; color:#475569;">(Đúng ${result.data?.score || result.score || 0}/${result.data?.totalQuestions || result.totalQuestions || 0} câu)</small>
+        `;
+      }
+    }
+
   } catch (err) {
-    alert('Lỗi nộp bài!');
+    alert('Lỗi khi nộp bài: ' + err.message);
+  } finally {
+    if (btnSubmit) {
+      btnSubmit.disabled = false;
+      btnSubmit.textContent = 'Nộp Bài Thi';
+    }
   }
 }
 
