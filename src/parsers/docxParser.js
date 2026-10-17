@@ -58,6 +58,7 @@ export class DocxParser {
       })
     };
 
+    // Xuất HTML để giữ các thẻ <b>, <u>, <strong> từ file Word
     const result = await mammothLib.convertToHtml({ arrayBuffer }, options);
     const htmlContent = DocxParser._safeString(result?.value);
 
@@ -73,7 +74,7 @@ export class DocxParser {
   }
 
   /**
-   * Bóc tách danh sách câu hỏi từ chuỗi HTML
+   * Bóc tách danh sách câu hỏi từ chuỗi HTML bằng thuật toán Code-First
    */
   static async parseHTMLToQuestions(htmlContent, enableAIKaTeX = true) {
     const tempDiv = document.createElement('div');
@@ -83,13 +84,82 @@ export class DocxParser {
     const questions = [];
     let currentQuestion = null;
 
-    // Regex linh hoạt: Nhận diện cả "1. ", "1) ", "Câu 1:", "Question 1.", "Bài 1:"
+    // Regex nhận diện đầu câu hỏi: "1. ", "Câu 1:", "Question 1.", "Bài 1:"
     const questionStartRegex = /^(?:Câu\s+\d+|Question\s+\d+|Bài\s+\d+|\d+[\.\)])[\s:.]*/i;
-    // Regex nhận diện đáp án: "A. ", "A) ", "B. ", "B) "
-    const optionStartRegex = /^[A-D][\.\)]\s*/i;
+    // Regex nhận diện phương án (A đến E): "A. ", "A) ", "*A. ", "B. "
+    const optionStartRegex = /^\s*\*?\s*([A-E])[\.\)]\s*/i;
+    // Regex quét chữ "Đáp án: B", "ĐA: C", "Đáp án đúng: A" trong văn bản
+    const ansInTextRegex = /(?:Đáp\s*án|ĐA|Đáp\s*án\s*đúng)\s*[:=]?\s*([A-E])/i;
+
+    /**
+     * Hàm chốt dữ liệu, đếm phương án và cắm cờ cảnh báo (Code-First)
+     */
+    const finalizeQuestion = (q) => {
+      if (!q) return;
+
+      // 1. Quét tìm "Đáp án: X" trong Stem hoặc Explanation nếu chưa bắt được từ phương án
+      let foundAnsIdx = q.detectedAnswerIndex;
+      if (foundAnsIdx === null || foundAnsIdx === undefined || foundAnsIdx === -1) {
+        const textToSearch = `${q.stem} ${q.explanation}`;
+        const stemAnsMatch = textToSearch.match(ansInTextRegex);
+        if (stemAnsMatch) {
+          const letter = stemAnsMatch[1].toUpperCase();
+          foundAnsIdx = letter.charCodeAt(0) - 65; // A=0, B=1, C=2, D=3, E=4
+        }
+      }
+
+      const rawOptions = q.rawOptions || [];
+      const originalOptionCount = rawOptions.length;
+
+      let finalOptions = [...rawOptions];
+      let finalCorrectAnswer = (foundAnsIdx !== null && foundAnsIdx !== undefined && foundAnsIdx >= 0) ? foundAnsIdx : 0;
+      let isMissingAnswer = (foundAnsIdx === null || foundAnsIdx === undefined || foundAnsIdx === -1);
+
+      // 2. Xử lý chuẩn hóa câu có 5 phương án (A-E) về 4 phương án (A-D)
+      if (originalOptionCount === 5) {
+        if (foundAnsIdx === 4) { 
+          // Nếu E là đáp án đúng -> Giữ lại A, B, C và E (E chuyển thành vị trí D, index 3)
+          finalOptions = [rawOptions[0], rawOptions[1], rawOptions[2], rawOptions[4]];
+          finalCorrectAnswer = 3;
+        } else {
+          // Đáp án nằm trong A-D hoặc chưa có đáp án -> Lấy 4 phương án đầu (0, 1, 2, 3)
+          finalOptions = rawOptions.slice(0, 4);
+          if (finalCorrectAnswer > 3) finalCorrectAnswer = 0;
+        }
+      } else if (originalOptionCount > 5) {
+        finalOptions = rawOptions.slice(0, 4);
+        if (finalCorrectAnswer >= 4) finalCorrectAnswer = 0;
+      }
+
+      // 3. Đếm & cắm cờ cảnh báo bằng Code thuần
+      const isMissingOptions = originalOptionCount < 4;
+
+      let notes = [];
+      if (isMissingOptions) {
+        notes.push(`Đề gốc chỉ có ${originalOptionCount}/4 phương án lựa chọn.`);
+      }
+      if (isMissingAnswer) {
+        notes.push(`Chưa nhận diện được đáp án đúng từ đề gốc (Đang tạm chọn A).`);
+      }
+
+      q.options = finalOptions;
+      q.originalOptionCount = originalOptionCount;
+      q.correctAnswer = finalCorrectAnswer;
+      q.flags = {
+        needsUserConfirmation: isMissingOptions || isMissingAnswer,
+        isMissingOptions: isMissingOptions,
+        isMissingAnswer: isMissingAnswer,
+        note: notes.join(' ') || 'Đã kiểm tra hoàn thiện.'
+      };
+
+      delete q.rawOptions;
+      delete q.detectedAnswerIndex;
+      questions.push(q);
+    };
 
     for (const node of children) {
       const text = DocxParser._safeString(node.textContent).trim();
+      const innerHtml = node.innerHTML || '';
 
       if (!text && !node.querySelector('img')) continue;
 
@@ -97,7 +167,7 @@ export class DocxParser {
 
       if (isQuestionHeader) {
         if (currentQuestion) {
-          questions.push(currentQuestion);
+          finalizeQuestion(currentQuestion);
         }
 
         const stemClean = text.replace(questionStartRegex, '').trim();
@@ -106,8 +176,8 @@ export class DocxParser {
         currentQuestion = {
           id: `q_${questions.length + 1}`,
           stem: stemClean,
-          options: [],
-          correctAnswer: 0,
+          rawOptions: [],
+          detectedAnswerIndex: -1,
           explanation: '',
           images: images,
           imageUrl: images.length > 0 ? images[0] : null,
@@ -116,13 +186,14 @@ export class DocxParser {
         continue;
       }
 
-      const isOption = optionStartRegex.test(text);
+      const optionMatch = text.match(optionStartRegex);
 
-      if (isOption && currentQuestion) {
+      if (optionMatch && currentQuestion) {
         const optionClean = text.replace(optionStartRegex, '').trim();
         const optionImages = this._extractImagesFromNode(node);
-        
-        currentQuestion.options.push(optionClean);
+
+        currentQuestion.rawOptions.push(optionClean);
+
         if (optionImages.length > 0) {
           currentQuestion.images.push(...optionImages);
           if (!currentQuestion.imageUrl) {
@@ -131,8 +202,15 @@ export class DocxParser {
           }
         }
 
-        if (text.includes('*') || text.toLowerCase().includes('[x]')) {
-          currentQuestion.correctAnswer = currentQuestion.options.length - 1;
+        // Nhận diện đáp án đúng qua các dấu hiệu trong HTML / Text:
+        // 1. Dấu * hoặc [x]
+        // 2. Thẻ in đậm <b>/<strong> hoặc gạch chân <u> bọc ký tự lựa chọn
+        const isMarkedWithStarOrX = text.startsWith('*') || text.includes('[x]') || text.includes('[X]');
+        const isBoldOrUnderlinedOpt = /<(b|strong|u)>\s*\*?\s*[A-E][\.\)]/i.test(innerHtml) || 
+                                     /<(b|strong|u)>[A-E]<\/\1>/i.test(innerHtml);
+
+        if (isMarkedWithStarOrX || isBoldOrUnderlinedOpt) {
+          currentQuestion.detectedAnswerIndex = currentQuestion.rawOptions.length - 1;
         }
         continue;
       }
@@ -156,9 +234,10 @@ export class DocxParser {
     }
 
     if (currentQuestion) {
-      questions.push(currentQuestion);
+      finalizeQuestion(currentQuestion);
     }
 
+    // Xử lý AI chuyển đổi LaTeX nếu có nhu cầu
     if (enableAIKaTeX && geminiService && typeof geminiService.convertToLaTeX === 'function') {
       for (const q of questions) {
         if (q.stem && (q.stem.includes('$') || q.stem.includes('\\'))) {
