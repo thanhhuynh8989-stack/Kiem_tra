@@ -61,13 +61,15 @@ export const appsScriptService = {
     }
   },
 
-  async parseExamAI(rawText, imageBase64 = '', mimeType = 'image/png', model = 'gemini-3.6-flash', parsedQuestions = null) {
+  async parseExamAI(rawText, imageBase64 = '', mimeType = 'image/png', model = 'gemini-3.6-flash', parsedQuestions = null, customApiKey = '', username = '') {
     return await this.request('PARSE_EXAM_AI', { 
       rawText, 
       imageBase64, 
       mimeType, 
       model, 
-      questions: parsedQuestions 
+      questions: parsedQuestions,
+      customApiKey,
+      username
     }, 300000);
   },
 
