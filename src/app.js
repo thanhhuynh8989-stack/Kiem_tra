@@ -809,6 +809,9 @@ async function handleProcessExamWithAI() {
 /**
  * Render danh sách câu hỏi AI bóc tách (Có đánh dấu chi tiết câu thiếu phương án / thiếu đáp án)
  */
+/**
+ * Render danh sách câu hỏi AI bóc tách (Ràng buộc cứng 100% đánh dấu nếu có ô rỗng)
+ */
 function renderQuestionListForReview(questions = []) {
   const reviewSection = document.getElementById('aiReviewSection');
   const container = document.getElementById('questionsReviewList');
@@ -819,72 +822,66 @@ function renderQuestionListForReview(questions = []) {
   reviewSection.style.display = 'block';
   container.innerHTML = '';
 
-  const needReviewCount = questions.filter(q => q.flags?.needsUserConfirmation).length;
+  const needReviewQuestions = questions.filter(q => {
+    const hasEmptyOpt = Array.isArray(q.options) && q.options.some(opt => !String(opt || '').trim());
+    return Boolean(q.flags?.needsUserConfirmation) || hasEmptyOpt || Boolean(q.flags?.isMissingOptions) || Boolean(q.flags?.isMissingAnswer);
+  });
+
   if (summaryText) {
-    summaryText.innerHTML = `Tổng số <strong>${questions.length}</strong> câu hỏi. Có <strong style="color:#d97706;">${needReviewCount}</strong> câu thiếu dữ liệu cần bạn kiểm tra lại.`;
+    summaryText.innerHTML = `Tổng số <strong>${questions.length}</strong> câu hỏi. Có <strong style="color:#d97706;">${needReviewQuestions.length}</strong> câu chưa hoàn thiện cần bạn bổ sung.`;
   }
 
   questions.forEach((q, idx) => {
-    const isWarning = q.flags?.needsUserConfirmation;
-    const isMissingOpts = q.flags?.isMissingOptions;
-    const isMissingAns = q.flags?.isMissingAnswer;
+    const optionsList = (Array.isArray(q.options) && q.options.length > 0) ? q.options : ['', '', '', ''];
+    q.options = optionsList;
+
+    // RÀNG BUỘC CỨNG: Nếu phương án bị trống ("") -> Bắt buộc bật cờ Cảnh báo
+    const hasEmptyOpt = optionsList.some(opt => !String(opt || '').trim());
+    const isWarning = Boolean(q.flags?.needsUserConfirmation) || hasEmptyOpt || Boolean(q.flags?.isMissingOptions) || Boolean(q.flags?.isMissingAnswer);
+    const isMissingOpts = Boolean(q.flags?.isMissingOptions) || hasEmptyOpt;
+    const isMissingAns = Boolean(q.flags?.isMissingAnswer);
 
     const card = document.createElement('div');
     card.className = `question-card ${isWarning ? 'card-needs-review' : ''}`;
     
-    // Viền màu vàng/cam nếu có cảnh báo
     const cardBorderColor = isWarning ? '#f59e0b' : '#e5e7eb';
     const cardBgColor = isWarning ? '#fffbeb' : '#fff';
     
     card.style.cssText = `border: 2px solid ${cardBorderColor}; border-radius: 8px; padding: 16px; margin-bottom: 16px; background: ${cardBgColor}; width: 100%; box-sizing: border-box;`;
-    card.id = `review-card-${q.id}`;
-
-    const optionsList = (Array.isArray(q.options) && q.options.length > 0) ? q.options : ['', '', '', ''];
-    q.options = optionsList;
+    card.id = `review-card-${q.id || `q_${idx + 1}`}`;
 
     let optionsHtml = '';
     optionsList.forEach((opt, oIdx) => {
       const optLetter = String.fromCharCode(65 + oIdx);
       const isCorrect = Number(q.correctAnswer) === oIdx;
       const optText = typeof opt === 'string' ? opt : (opt?.text || opt?.content || String(opt || ''));
+      const isEmpty = !optText.trim();
 
       optionsHtml += `
         <div style="display: flex; align-items: center; gap: 8px; margin-top: 8px; width: 100%;">
           <input type="radio" 
-                 name="correct_opt_${q.id}" 
-                 id="opt_radio_${q.id}_${oIdx}" 
+                 name="correct_opt_${q.id || idx}" 
+                 id="opt_radio_${q.id || idx}_${oIdx}" 
                  value="${oIdx}" 
                  ${isCorrect ? 'checked' : ''} 
                  style="flex-shrink: 0; cursor: pointer; width: 18px; height: 18px;"
                  onchange="window.updateCorrectAnswer('${q.id}', ${oIdx})">
-          <label for="opt_radio_${q.id}_${oIdx}" style="font-weight: bold; min-width: 20px; flex-shrink: 0; cursor: pointer;">${optLetter}.</label>
+          <label for="opt_radio_${q.id || idx}_${oIdx}" style="font-weight: bold; min-width: 20px; flex-shrink: 0; cursor: pointer;">${optLetter}.</label>
           <input type="text" 
-                 style="flex: 1; min-width: 0; padding: 8px 12px; border: 1px solid ${isCorrect ? '#10b981' : '#d1d5db'}; border-radius: 6px; background-color: ${isCorrect ? '#f0fdf4' : '#fff'}; font-size: 14px; box-sizing: border-box;" 
+                 placeholder="${isEmpty ? '⚠️ Nhập phương án ' + optLetter + ' tại đây...' : ''}"
+                 style="flex: 1; min-width: 0; padding: 8px 12px; border: 1px solid ${isEmpty ? '#f59e0b' : (isCorrect ? '#10b981' : '#d1d5db')}; border-radius: 6px; background-color: ${isEmpty ? '#fff7ed' : (isCorrect ? '#f0fdf4' : '#fff')}; font-size: 14px; box-sizing: border-box;" 
                  value="${escapeHtml(optText)}" 
                  onchange="window.updateOptionText('${q.id}', ${oIdx}, this.value)">
         </div>
       `;
     });
 
-    const imageSectionHtml = q.imageUrl ? `
-      <div style="margin-top: 10px; margin-bottom: 10px;">
-        <label style="display:block; font-size: 12px; color: #6b7280; margin-bottom: 4px; font-weight: 500;">Hình ảnh minh họa:</label>
-        <div style="display: flex; align-items: flex-start; gap: 10px;">
-          <img src="${q.imageUrl}" style="max-width: 100%; max-height: 200px; border: 1px solid #d1d5db; border-radius: 6px; padding: 4px; background: #fafafa;" />
-          <button type="button" 
-                  style="background: #ef4444; color: white; border: none; padding: 6px 10px; border-radius: 4px; font-size: 12px; cursor: pointer;"
-                  onclick="window.removeQuestionImage('${q.id}')">🗑️ Xóa ảnh</button>
-        </div>
-      </div>
-    ` : '';
-
-    // Tạo các nhãn Tag cảnh báo
     let warningBadges = '';
     if (isMissingOpts) {
       warningBadges += `<span style="background:#fee2e2; color:#dc2626; padding: 4px 10px; border-radius: 4px; font-size: 12px; font-weight:600; margin-left: 6px;">⚠️ Thiếu phương án</span>`;
     }
     if (isMissingAns) {
-      warningBadges += `<span style="background:#fef3c7; color:#d97706; padding: 4px 10px; border-radius: 4px; font-size: 12px; font-weight:600; margin-left: 6px;">⚠️ Chưa có đáp án đúng</span>`;
+      warningBadges += `<span style="background:#fef3c7; color:#d97706; padding: 4px 10px; border-radius: 4px; font-size: 12px; font-weight:600; margin-left: 6px;">⚠️ Chưa có đáp án gốc</span>`;
     }
 
     card.innerHTML = `
@@ -903,8 +900,6 @@ function renderQuestionListForReview(questions = []) {
                   onchange="window.updateQuestionStem('${q.id}', this.value)">${escapeHtml(q.stem || '')}</textarea>
       </div>
 
-      ${imageSectionHtml}
-
       <div>
         <label style="display:block; font-size: 12px; color: #6b7280; margin-bottom: 6px; font-weight: 500;">Các phương án (Tích chọn đáp án đúng):</label>
         ${optionsHtml}
@@ -912,7 +907,7 @@ function renderQuestionListForReview(questions = []) {
 
       ${isWarning ? `
         <div style="margin-top: 12px; padding: 10px; background: #fff; border: 1px solid #fcd34d; border-left: 4px solid #f59e0b; border-radius: 4px; font-size: 13px;">
-          <strong>🔍 Ghi chú cảnh báo:</strong> ${q.flags?.note || 'Vui lòng bổ sung phương án hoặc chọn lại đáp án đúng.'}
+          <strong>🔍 Ghi chú:</strong> ${q.flags?.note || 'Vui lòng bổ sung nội dung cho các ô phương án bị trống và kiểm tra lại đáp án.'}
         </div>
         <button style="margin-top: 10px; background: #059669; color: white; border: none; padding: 8px 14px; border-radius: 6px; cursor: pointer; font-weight: 500;" 
                 onclick="window.confirmQuestionItem('${q.id}')">✓ Đã Kiểm Tra & Đúng</button>
