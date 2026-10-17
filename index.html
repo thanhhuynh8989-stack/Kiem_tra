@@ -104,40 +104,30 @@
   <div id="lecturerView" class="view-section">
     <h3>Cổng Giảng Viên - Bóc Tách & Tải Đề Thi AI</h3>
 
-   <!-- KHUNG CẤU HÌNH API KEY CÁ NHÂN & TRẠNG THÁI LƯỢT DÙNG -->
-    <div style="background: #f8fafc; border: 1px solid #cbd5e1; padding: 14px 18px; border-radius: 10px; margin-bottom: 20px;">
-      <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px; margin-bottom: 10px;">
-        <label style="font-weight: 600; font-size: 14px; color: #1e293b;">
+   <!-- KHUNG CẤU HÌNH API KEY CÁ NHÂN (CHỈ GIỮ 1 KHUNG DUY NHẤT) -->
+    <div style="background: #f8fafc; border: 1px solid #cbd5e1; padding: 16px; border-radius: 10px; margin-bottom: 20px; box-sizing: border-box;">
+      <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px; margin-bottom: 12px;">
+        <label style="font-weight: 600; font-size: 14px; color: #1e293b; margin: 0;">
           🔑 Gemini API Key Cá Nhân <span style="font-size: 12px; font-weight: normal; color: #64748b;">(Dùng không giới hạn lượt)</span>
         </label>
-        <span id="aiQuotaBadge" style="background: #e2e8f0; color: #475569; padding: 4px 10px; border-radius: 20px; font-size: 12px; font-weight: 600;">
+        <span id="aiQuotaBadge" style="background: #e2e8f0; color: #475569; padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight: 600; display: inline-block;">
           🎁 AI Hệ thống: 1 lượt miễn phí (Hoặc nhập Key cá nhân)
         </span>
       </div>
     
-      <div style="display: flex; gap: 10px; align-items: center; width: 100%;">
+      <!-- KHUNG DÁN KEY & NÚT BẤM (DÙNG !IMPORTANT CỐ ĐỊNH CHỐNG VỠ GIAO DIỆN) -->
+      <div style="display: flex !important; flex-direction: row !important; gap: 10px !important; align-items: center !important; width: 100% !important; box-sizing: border-box !important;">
         <input type="password" id="userGeminiApiKey" placeholder="Dán Gemini API Key của bạn tại đây (AIzaSy...)" 
-               style="flex: 1; min-width: 0; width: 100%; padding: 10px 12px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 13px; box-sizing: border-box;">
+               style="flex: 1 1 auto !important; width: 100% !important; min-width: 0 !important; height: 42px !important; padding: 0 12px !important; border: 1px solid #cbd5e1 !important; border-radius: 6px !important; font-size: 13px !important; box-sizing: border-box !important; margin: 0 !important;">
+        
         <button type="button" onclick="window.saveUserApiKey()" 
-                style="flex-shrink: 0; background: #2563eb; color: white; border: none; padding: 10px 18px; border-radius: 6px; cursor: pointer; font-size: 13px; font-weight: 600; white-space: nowrap;">
+                style="flex: 0 0 auto !important; width: auto !important; min-width: 100px !important; height: 42px !important; background: #2563eb !important; color: white !important; border: none !important; padding: 0 20px !important; border-radius: 6px !important; cursor: pointer !important; font-size: 13px !important; font-weight: 600 !important; white-space: nowrap !important; box-sizing: border-box !important; margin: 0 !important;">
           Lưu Key
         </button>
       </div>
+    
       <small style="color: #64748b; font-size: 12px; display: block; margin-top: 8px;">
         💡 Lấy Key miễn phí tại <a href="https://aistudio.google.com/app/apikey" target="_blank" style="color: #2563eb; font-weight: 500;">aistudio.google.com</a>.
-      </small>
-    </div>
-    
-      <div style="display: flex; gap: 10px;">
-        <input type="password" id="userGeminiApiKey" placeholder="Dán Gemini API Key của bạn (AIzaSy...)" 
-               style="flex: 1; padding: 9px 12px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 13px;">
-        <button type="button" onclick="window.saveUserApiKey()" 
-                style="background: #2563eb; color: white; border: none; padding: 9px 16px; border-radius: 6px; cursor: pointer; font-size: 13px; font-weight: 600;">
-          Lưu Key
-        </button>
-      </div>
-      <small style="color: #64748b; font-size: 12px; display: block; margin-top: 6px;">
-        💡 Lấy Key miễn phí tại <a href="https://aistudio.google.com/app/apikey" target="_blank" style="color: #2563eb; font-weight: 500;">aistudio.google.com</a>. Nếu không nhập Key cá nhân, bạn có 1 lượt dùng AI hệ thống miễn phí.
       </small>
     </div>
     <div class="form-group">
