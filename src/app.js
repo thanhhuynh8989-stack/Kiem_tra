@@ -630,34 +630,34 @@ async function createCanvasFromBase64(base64Data, mimeType = 'image/jpeg') {
  */
 window.saveUserApiKey = async function() {
   const input = document.getElementById('userGeminiApiKey');
-  const key = input?.value.trim() || '';
-  const username = currentUser ? currentUser.username : '';
+  if (!input) return;
 
-  if (!username) {
-    return alert('Vui lòng đăng nhập trước khi lưu API Key cá nhân!');
+  const apiKey = input.value.trim();
+  if (!apiKey) {
+    alert('Vui lòng dán Gemini API Key của bạn.');
+    return;
   }
 
+  // 1. Luôn lưu ngay vào localStorage của trình duyệt
+  localStorage.setItem('userGeminiApiKey', apiKey);
+  
+  const badge = document.getElementById('aiQuotaBadge');
+  if (badge) {
+    badge.style.background = '#dcfce7';
+    badge.style.color = '#15803d';
+    badge.innerHTML = '🔑 API Key cá nhân: Đang kích hoạt (Không giới hạn)';
+  }
+
+  alert('Đã lưu API Key cá nhân thành công!');
+
+  // 2. Đồng bộ lên Google Sheets (Chạy ngầm)
   try {
-    setUploadStatus('⏳ Đang lưu API Key cá nhân lên Google Sheets...', 'color: #2563eb');
-
-    // 1. Lưu vào bộ nhớ trình duyệt
-    if (!key) {
-      localStorage.removeItem('custom_gemini_api_key');
-    } else {
-      localStorage.setItem('custom_gemini_api_key', key);
+    const user = JSON.parse(localStorage.getItem('currentUser') || '{}');
+    if (user.username) {
+      await appsScriptService.saveUserApiKey(user.username, apiKey);
     }
-
-    // 2. Lưu đồng bộ vào tab Users trên Google Sheets
-    await appsScriptService.saveUserApiKey(username, key);
-
-    setUploadStatus('✅ Đã lưu API Key cá nhân thành công lên Google Sheets!', 'color: #10b981');
-    alert('✅ Đã lưu API Key cá nhân thành công lên Google Sheets!');
-    updateAIQuotaBadge();
-
   } catch (err) {
-    console.error('Lỗi lưu API Key:', err);
-    setUploadStatus(`❌ Lỗi lưu API Key: ${err.message}`, 'color: #ef4444');
-    alert(`❌ Không thể lưu API Key: ${err.message}`);
+    console.warn('Đã lưu Key tại trình duyệt. Lỗi đồng bộ Google Sheets:', err.message);
   }
 };
 
