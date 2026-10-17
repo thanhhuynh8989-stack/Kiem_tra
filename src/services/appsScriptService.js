@@ -73,6 +73,10 @@ export const appsScriptService = {
     }, 300000);
   },
 
+  async saveUserApiKey(username, apiKey) {
+    return await this.request('SAVE_USER_API_KEY', { username, apiKey });
+  },
+
   async callGeminiVisionProxy(prompt, imageBase64, mimeType = 'image/jpeg', model = 'gemini-3.6-flash') {
     return await this.request('GEMINI_PROXY', { prompt, imageBase64, mimeType, model }, 60000);
   },
@@ -93,7 +97,3 @@ export const appsScriptService = {
     return await this.request('GET_MY_EXAMS', { username });
   }
 };
-
-async saveUserApiKey(username, apiKey) {
-    return await this.request('SAVE_USER_API_KEY', { username, apiKey });
-  },
