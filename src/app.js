@@ -625,9 +625,48 @@ async function createCanvasFromBase64(base64Data, mimeType = 'image/jpeg') {
   });
 }
 
-/**
- * Giảng viên: Phân tích tệp hoặc văn bản đề thi bằng Gemini AI (Sử dụng Code-First)
- */
+// QUẢN LÝ GEMINI API KEY CÁ NHÂN & BADGE TRẠNG THÁI LƯỢT DÙNG
+window.saveUserApiKey = function() {
+  const input = document.getElementById('userGeminiApiKey');
+  const key = input?.value.trim();
+  if (!key) {
+    localStorage.removeItem('custom_gemini_api_key');
+    alert('Đã xóa API Key cá nhân. Hệ thống sẽ áp dụng hạn mức AI mặc định.');
+  } else {
+    localStorage.setItem('custom_gemini_api_key', key);
+    alert('✅ Đã lưu API Key cá nhân thành công!');
+  }
+  updateAIQuotaBadge();
+};
+
+function updateAIQuotaBadge(serverUsageCount = null) {
+  const badge = document.getElementById('aiQuotaBadge');
+  const userKey = localStorage.getItem('custom_gemini_api_key');
+
+  if (!badge) return;
+
+  if (userKey) {
+    badge.style.background = '#d1fae5';
+    badge.style.color = '#047857';
+    badge.textContent = '🔑 API Key cá nhân: Đang kích hoạt (Không giới hạn)';
+  } else if (serverUsageCount !== null) {
+    if (serverUsageCount >= 1) {
+      badge.style.background = '#fee2e2';
+      badge.style.color = '#b91c1c';
+      badge.textContent = '⚠️ AI Hệ thống: 0/1 lượt (Chế độ Code thuần)';
+    } else {
+      badge.style.background = '#dbeafe';
+      badge.style.color = '#1d4ed8';
+      badge.textContent = '🎁 AI Hệ thống: 1/1 lượt miễn phí';
+    }
+  } else {
+    badge.style.background = '#e2e8f0';
+    badge.style.color = '#475569';
+    badge.textContent = '🎁 AI Hệ thống: 1 lượt miễn phí (Hoặc nhập Key cá nhân)';
+  }
+}
+
+// CẬP NHẬT HÀM HANDLEPROCESSEXAMWITHAI TRONG APP.JS:
 async function handleProcessExamWithAI() {
   const fileInput = document.getElementById('examFileInput');
   const rawTextarea = document.getElementById('rawExamText');
@@ -639,12 +678,10 @@ async function handleProcessExamWithAI() {
 
   if (fileInput?.files.length > 0) {
     const file = fileInput.files[0];
-    setUploadStatus('📂 Đang bóc tách và phân tích cấu trúc tệp...', 'color: #2563eb');
+    setUploadStatus('📂 Đang bóc tách tệp bằng Code thuần...', 'color: #2563eb');
     try {
       if (file.name.endsWith('.docx')) {
-        // Gọi docxParser đã tích hợp Code-First
-        parsedQuestionsFromDocx = await parseDocxFile(file, false);
-        
+        parsedQuestionsFromDocx = await parseDocxFile(file);
         const docxImages = await extractImagesFromDocx(file);
         if (docxImages.length > 0) {
           imageBase64 = docxImages[0].imageBase64;
@@ -669,17 +706,20 @@ async function handleProcessExamWithAI() {
     return alert('Vui lòng chọn tệp (.docx, .pdf) hoặc dán văn bản đề thi vào ô nhập!');
   }
 
-  // Bắt đầu bật Thanh tiến trình & Bộ đếm giây
   startAILoading();
 
   try {
-    // Truyền parsedQuestionsFromDocx sang Apps Script
+    const customApiKey = localStorage.getItem('custom_gemini_api_key') || '';
+    const username = currentUser ? currentUser.username : '';
+
     const response = await appsScriptService.parseExamAI(
       rawText, 
       imageBase64, 
       mimeType, 
       'gemini-3.6-flash', 
-      parsedQuestionsFromDocx
+      parsedQuestionsFromDocx,
+      customApiKey,
+      username
     );
 
     if (!response.data || !response.data.questions) {
@@ -687,6 +727,11 @@ async function handleProcessExamWithAI() {
     }
 
     let questions = response.data.questions;
+
+    // Cập nhật lượt dùng trên Badge giao diện
+    if (response.data.aiUsageCount !== undefined) {
+      updateAIQuotaBadge(response.data.aiUsageCount);
+    }
 
     if (sourceCanvas) {
       questions = questions.map(q => {
@@ -698,13 +743,19 @@ async function handleProcessExamWithAI() {
     }
 
     currentExamState = examModel.createStandardExam(
-      { title: 'Đề thi phân tích bởi AI' },
+      { title: 'Đề thi phân tích' },
       questions
     );
 
     stopAILoading(true);
     const needReviewCount = questions.filter(q => q.flags?.needsUserConfirmation).length;
-    setUploadStatus(`✅ Bóc tách hoàn tất sau ${aiSecondsElapsed}s! Tổng ${questions.length} câu hỏi (${needReviewCount} câu cần kiểm tra lại).`, 'color: #10b981');
+
+    let successMsg = `✅ Hoàn tất sau ${aiSecondsElapsed}s! Bóc tách ${questions.length} câu hỏi (${needReviewCount} câu cần duyệt lại).`;
+    if (response.data.isFallback) {
+      successMsg = `⚠️ ${response.data.message || 'Đã dùng hết 1 lượt AI miễn phí. Hệ thống bóc tách bằng Code thuần (Vui lòng điền các ô lựa chọn bị trống).'}`;
+    }
+
+    setUploadStatus(successMsg, response.data.isFallback ? 'color: #d97706' : 'color: #10b981');
     renderQuestionListForReview(currentExamState.questions);
 
   } catch (err) {
@@ -884,27 +935,68 @@ function escapeHtml(str = '') {
 }
 
 /**
- * Xuất bản đề thi
+ * Xuất bản đề thi (Đã tích hợp ràng buộc kiểm tra ô trống & cuộn tới câu lỗi)
  */
 async function handlePublishExam() {
-  if (!currentExamState) return alert('Chưa có dữ liệu đề thi để xuất bản!');
+  if (!currentExamState || !currentExamState.questions || currentExamState.questions.length === 0) {
+    return alert('Chưa có dữ liệu đề thi để xuất bản!');
+  }
 
-  const examTitle = document.getElementById('examTitleInput')?.value.trim();
+  const examTitleInput = document.getElementById('examTitleInput');
+  const examTitle = examTitleInput?.value.trim();
   const durationMinutes = parseInt(document.getElementById('examDurationInput')?.value || '45', 10);
   const maxViolations = parseInt(document.getElementById('examMaxViolationsInput')?.value || '3', 10);
 
   if (!examTitle) {
-    return alert('Vui lòng nhập Tên đề thi trước khi lưu!');
+    if (examTitleInput) examTitleInput.focus();
+    return alert('Vui lòng nhập Tên đề thi trước khi xuất bản!');
   }
 
+  // 1. RÀNG BUỘC KIỂM TRA PHƯƠNG ÁN BỊ TRỐNG ("")
+  let hasEmptyOption = false;
+  let emptyQuestionIndex = -1;
+  let emptyQuestionId = null;
+
+  for (let idx = 0; idx < currentExamState.questions.length; idx++) {
+    const q = currentExamState.questions[idx];
+    const options = q.options || [];
+    for (let oIdx = 0; oIdx < options.length; oIdx++) {
+      const opt = options[oIdx];
+      const text = typeof opt === 'string' ? opt : (opt?.text || opt?.content || '');
+      if (!text || !text.trim()) {
+        hasEmptyOption = true;
+        emptyQuestionIndex = idx + 1;
+        emptyQuestionId = q.id || `q_${idx + 1}`;
+        break;
+      }
+    }
+    if (hasEmptyOption) break;
+  }
+
+  // NẾU CÓ Ô LỰA CHỌN BỊ TRỐNG -> CHẶN XUẤT BẢN & CUỘN TỚI CÂU LỖI
+  if (hasEmptyOption) {
+    alert(`⚠️ KHÔNG THỂ XUẤT BẢN!\nCâu hỏi số ${emptyQuestionIndex} đang có phương án lựa chọn bị TRỐNG.\nVui lòng nhập đầy đủ nội dung cho tất cả 4 phương án trước khi xuất bản!`);
+    
+    const targetCard = document.getElementById(`review-card-${emptyQuestionId}`) || 
+                       document.getElementById(`review-card-q_${emptyQuestionIndex}`);
+    if (targetCard) {
+      targetCard.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      targetCard.style.boxShadow = '0 0 0 3px #ef4444';
+      setTimeout(() => { targetCard.style.boxShadow = 'none'; }, 3500);
+    }
+    return;
+  }
+
+  // 2. CẢNH BÁO CÁC CÂU CẦN GIẢNG VIÊN DUYỆT THỦ CÔNG
   const unconfirmedCount = currentExamState.questions.filter(q => q.flags?.needsUserConfirmation).length;
   if (unconfirmedCount > 0) {
-    const autoConfirm = confirm(`Vẫn còn ${unconfirmedCount} câu hỏi AI tự điền chưa duyệt thủ công. Bạn có muốn tiếp tục xuất bản không?`);
+    const autoConfirm = confirm(`Vẫn còn ${unconfirmedCount} câu hỏi được đánh dấu cần duyệt thủ công. Bạn có chắc chắn muốn tiếp tục xuất bản không?`);
     if (!autoConfirm) return;
   }
 
+  // 3. THỰC HIỆN TẠO VÀ XUẤT BẢN ĐỀ THI
   try {
-    setUploadStatus('Đang tạo đề thi và gắn thẻ người dùng...', 'color: #2563eb');
+    setUploadStatus('⏳ Đang tạo đề thi và lưu lên kho dữ liệu...', 'color: #2563eb');
 
     currentExamState.title = examTitle;
     currentExamState.durationMinutes = durationMinutes;
@@ -927,11 +1019,15 @@ async function handlePublishExam() {
     );
 
     setUploadStatus(`🎉 Xuất bản thành công! Mã đề thi: <strong>${fileNameOnGithub}</strong>`, 'color: #10b981');
-    alert(`Xuất bản đề thi thành công!\nMã đề: ${fileNameOnGithub}`);
+    alert(`🎉 Xuất bản đề thi thành công!\nMã đề thi: ${fileNameOnGithub}`);
 
-    handleLoadMyExams();
+    if (typeof handleLoadMyExams === 'function') {
+      handleLoadMyExams();
+    }
   } catch (err) {
-    logger.error('Publish Error:', err);
+    if (typeof logger !== 'undefined' && logger.error) {
+      logger.error('Publish Error:', err);
+    }
     setUploadStatus(`❌ Lỗi xuất bản: ${err.message}`, 'color: #ef4444');
   }
 }
