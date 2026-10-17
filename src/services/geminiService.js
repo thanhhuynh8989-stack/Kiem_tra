@@ -1,4 +1,5 @@
 import { APP_CONFIG } from '../constants/appConfig.js';
+import { API_ENDPOINTS } from '../constants/apiEndpoints.js';
 import { appsScriptService } from './appsScriptService.js';
 import { logger } from '../utils/logger.js';
 import { fetchWithRetry, AppError } from '../utils/errorHandler.js';
@@ -10,7 +11,7 @@ import { ImageCompressor } from '../utils/imageCompressor.js';
 export class GeminiService {
   constructor(apiKey = null, model = null) {
     this.apiKey = apiKey || localStorage.getItem('gemini_api_key');
-    const defaultModel = (API_ENDPOINTS.GEMINI && API_ENDPOINTS.GEMINI.DEFAULT_MODEL) || 'gemini-3.6-flash';
+    const defaultModel = (typeof API_ENDPOINTS !== 'undefined' && API_ENDPOINTS.GEMINI && API_ENDPOINTS.GEMINI.DEFAULT_MODEL) || 'gemini-3.6-flash';
     this.model = model || localStorage.getItem('gemini_model') || defaultModel;
   }
 
@@ -32,7 +33,7 @@ export class GeminiService {
       throw new AppError('Gemini API Key chưa được cấu hình.', 'MISSING_API_KEY');
     }
 
-    const baseUrl = (API_ENDPOINTS.GEMINI && API_ENDPOINTS.GEMINI.BASE_URL) || 'https://generativelanguage.googleapis.com/v1beta';
+    const baseUrl = (typeof API_ENDPOINTS !== 'undefined' && API_ENDPOINTS.GEMINI && API_ENDPOINTS.GEMINI.BASE_URL) || 'https://generativelanguage.googleapis.com/v1beta';
     const endpoint = `${baseUrl}/models/${this.model}:generateContent?key=${this.apiKey}`;
 
     const parts = [{ text: prompt }];
