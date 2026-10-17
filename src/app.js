@@ -15,6 +15,10 @@ const studentAnswers = {};
 let violationCount = 0;
 let isExamActive = false;
 
+// Biến quản lý Timer AI
+let aiTimerInterval = null;
+let aiSecondsElapsed = 0;
+
 /**
  * Hàm chuẩn hóa dữ liệu User thông minh (Bóc tách đa tầng)
  */
@@ -85,7 +89,7 @@ async function requestWithRetry(action, payload, retries = 2, delay = 1500) {
 }
 
 /**
- * Xử lý Đăng nhập phân quyền chính
+ * Xử lý Đăng nhập
  */
 export async function handleLogin() {
   const usernameInput = document.getElementById('loginUsername');
@@ -108,7 +112,6 @@ export async function handleLogin() {
   try {
     const res = await requestWithRetry('AUTH_LECTURER', { username, password });
 
-    // Xóa session cũ trước khi nạp dữ liệu mới
     sessionStorage.removeItem('currentUser');
     sessionStorage.removeItem('userSession');
 
@@ -195,14 +198,14 @@ export function showView(viewId) {
   }
 }
 
-// Xuất các hàm ra phạm vi window để gọi trực tiếp từ thuộc tính inline HTML
+// Xuất hàm ra phạm vi Window
 window.handleLogin = handleLogin;
 window.handleLogout = handleLogout;
 window.showView = showView;
 window.saveAns = (qId, key) => { studentAnswers[qId] = key; };
 
 /**
- * Gán sự kiện cho các thẻ HTML an toàn
+ * Gán sự kiện cho các thẻ HTML
  */
 function bindEvents() {
   const rawSession = sessionStorage.getItem('currentUser') || sessionStorage.getItem('userSession');
@@ -272,6 +275,7 @@ function bindEvents() {
 
   document.getElementById('loadUsersBtn')?.addEventListener('click', handleLoadUsers);
   document.getElementById('gotoLecturerPortalBtn')?.addEventListener('click', () => showView('lecturerView'));
+  document.getElementById('uploadStudentsBtn')?.addEventListener('click', handleUploadStudentsExcel);
 }
 
 if (document.readyState === 'loading') {
@@ -376,7 +380,7 @@ async function handleLoadExam() {
 }
 
 /**
- * Render đề thi cho Học sinh (Nút tick radio nằm phía trước đáp án)
+ * Render đề thi cho Học sinh (Nút radio phía trước đáp án)
  */
 function renderQuestions(questions = []) {
   const container = document.getElementById('questionsList');
@@ -417,7 +421,7 @@ function renderQuestions(questions = []) {
 }
 
 /**
- * Thu thập đáp án hiện tại và Nộp bài (Hỗ trợ cả Nộp tự do & Ép nộp bài do vi phạm)
+ * Thu thập đáp án hiện tại và Nộp bài
  */
 async function handleSubmitExam(isAutoSubmitted = false) {
   if (!currentExamData || !currentExamData.questions) {
@@ -434,7 +438,6 @@ async function handleSubmitExam(isAutoSubmitted = false) {
     return alert('Vui lòng điền đầy đủ Họ tên và Mã sinh viên trước khi nộp bài!');
   }
 
-  // 💥 QUÉT TRỰC TIẾP TẤT CẢ CÁC CÂU ĐÃ CHỌN TRÊN GIAO DIỆN DOM
   const collectedAnswers = {};
   currentExamData.questions.forEach((q, idx) => {
     const qId = q.id || `q_${idx + 1}`;
@@ -490,6 +493,49 @@ async function handleSubmitExam(isAutoSubmitted = false) {
       btnSubmit.textContent = 'Nộp Bài Thi';
     }
   }
+}
+
+/* ==========================================================================
+   QUẢN LÝ TIẾN TRÌNH VÀ BỘ ĐẾM THỜI GIAN AI (AI LOADING PROGRESS)
+   ========================================================================== */
+
+function startAILoading() {
+  const loadingContainer = document.getElementById('aiLoadingContainer');
+  const progressBar = document.getElementById('aiProgressBar');
+  const timerText = document.getElementById('aiTimerText');
+  const uploadStatus = document.getElementById('uploadStatus');
+
+  if (uploadStatus) uploadStatus.innerHTML = '';
+  if (loadingContainer) loadingContainer.style.display = 'block';
+
+  aiSecondsElapsed = 0;
+  if (timerText) timerText.textContent = '⏱️ 0s';
+  if (progressBar) progressBar.style.width = '10%';
+
+  clearInterval(aiTimerInterval);
+  aiTimerInterval = setInterval(() => {
+    aiSecondsElapsed++;
+    if (timerText) timerText.textContent = `⏱️ ${aiSecondsElapsed}s`;
+
+    if (progressBar) {
+      let simulatedPercent = Math.min(90, 10 + Math.floor(aiSecondsElapsed * 2.5));
+      progressBar.style.width = `${simulatedPercent}%`;
+    }
+  }, 1000);
+}
+
+function stopAILoading(isSuccess = true) {
+  clearInterval(aiTimerInterval);
+  const loadingContainer = document.getElementById('aiLoadingContainer');
+  const progressBar = document.getElementById('aiProgressBar');
+
+  if (isSuccess && progressBar) {
+    progressBar.style.width = '100%';
+  }
+
+  setTimeout(() => {
+    if (loadingContainer) loadingContainer.style.display = 'none';
+  }, 800);
 }
 
 /* ==========================================================================
@@ -580,7 +626,7 @@ async function createCanvasFromBase64(base64Data, mimeType = 'image/jpeg') {
 }
 
 /**
- * Giảng viên: Phân tích tệp hoặc văn bản đề thi bằng Gemini AI
+ * Giảng viên: Phân tích tệp hoặc văn bản đề thi bằng Gemini AI (Hàm duy nhất)
  */
 async function handleProcessExamWithAI() {
   const fileInput = document.getElementById('examFileInput');
@@ -592,7 +638,7 @@ async function handleProcessExamWithAI() {
 
   if (fileInput?.files.length > 0) {
     const file = fileInput.files[0];
-    setUploadStatus('Đang đọc tệp và trích xuất hình ảnh...', 'color: #2563eb');
+    setUploadStatus('📂 Đang đọc tệp và trích xuất hình ảnh...', 'color: #2563eb');
     try {
       rawText = await extractTextFromFile(file);
 
@@ -611,7 +657,7 @@ async function handleProcessExamWithAI() {
         }
       }
     } catch (err) {
-      setUploadStatus(`Lỗi đọc tệp: ${err.message}`, 'color: #ef4444');
+      setUploadStatus(`❌ Lỗi đọc tệp: ${err.message}`, 'color: #ef4444');
       return;
     }
   }
@@ -620,14 +666,11 @@ async function handleProcessExamWithAI() {
     return alert('Vui lòng chọn tệp (.docx, .pdf) hoặc dán văn bản đề thi vào ô nhập!');
   }
 
-  try {
-    setUploadStatus('🤖 Gemini AI đang bóc tách, chuẩn hóa công thức toán & phát hiện ảnh...', 'color: #2563eb');
+  // Bắt đầu bật Thanh tiến trình & Bộ đếm giây
+  startAILoading();
 
-    const response = await appsScriptService.request('PARSE_EXAM_AI', {
-      rawText,
-      imageBase64,
-      mimeType
-    });
+  try {
+    const response = await appsScriptService.parseExamAI(rawText, imageBase64, mimeType);
 
     if (!response.data || !response.data.questions) {
       throw new Error('Dữ liệu trả về từ AI không hợp lệ.');
@@ -649,17 +692,19 @@ async function handleProcessExamWithAI() {
       questions
     );
 
-    setUploadStatus('✅ Phân tích hoàn tất! Bạn có thể chỉnh sửa nội dung, công thức và chọn đáp án bên dưới.', 'color: #10b981');
+    stopAILoading(true);
+    setUploadStatus(`✅ Phân tích hoàn tất sau ${aiSecondsElapsed}s! Bóc tách thành công ${questions.length} câu hỏi.`, 'color: #10b981');
     renderQuestionListForReview(currentExamState.questions);
 
   } catch (err) {
+    stopAILoading(false);
     logger.error('AI Process Error:', err);
     setUploadStatus(`❌ Lỗi AI: ${err.message}`, 'color: #ef4444');
   }
 }
 
 /**
- * Render danh sách câu hỏi AI bóc tách (Nút radio đặt phía trước lựa chọn)
+ * Render danh sách câu hỏi AI bóc tách (Nút radio phía trước lựa chọn)
  */
 function renderQuestionListForReview(questions = []) {
   const reviewSection = document.getElementById('aiReviewSection');
@@ -808,7 +853,7 @@ function escapeHtml(str = '') {
 }
 
 /**
- * Xuất bản đề thi (Lấy thiết lập Form, gắn Thẻ User và đăng đề)
+ * Xuất bản đề thi
  */
 async function handlePublishExam() {
   if (!currentExamState) return alert('Chưa có dữ liệu đề thi để xuất bản!');
@@ -955,129 +1000,78 @@ async function extractTextFromFile(file) {
   return String(parsed || '');
 }
 
+/**
+ * Tải danh sách Sinh viên bằng Excel (.xlsx)
+ */
+async function handleUploadStudentsExcel() {
+  const fileInput = document.getElementById('studentExcelInput');
+  const statusEl = document.getElementById('studentUploadStatus');
+
+  if (!fileInput || !fileInput.files.length) {
+    return alert('Vui lòng chọn 1 file Excel (.xlsx) danh sách sinh viên!');
+  }
+
+  const file = fileInput.files[0];
+  if (!window.XLSX) {
+    return alert('Thư viện XLSX chưa tải xong. Vui lòng thử lại sau vài giây!');
+  }
+
+  if (statusEl) {
+    statusEl.style.color = '#2563eb';
+    statusEl.textContent = '⏳ Đang đọc file Excel...';
+  }
+
+  try {
+    const arrayBuffer = await file.arrayBuffer();
+    const workbook = window.XLSX.read(arrayBuffer, { type: 'array' });
+    const firstSheetName = workbook.SheetNames[0];
+    const worksheet = workbook.Sheets[firstSheetName];
+    const rawData = window.XLSX.utils.sheet_to_json(worksheet);
+
+    if (!rawData || rawData.length === 0) {
+      throw new Error('File Excel rỗng hoặc không đúng định dạng!');
+    }
+
+    const parsedStudents = rawData.map(row => {
+      const studentCode = row['Mã Sinh Viên'] || row['Mã SV'] || row['MaSV'] || row['studentCode'] || '';
+      const fullName = row['Họ và Tên'] || row['Họ tên'] || row['FullName'] || row['fullName'] || '';
+      const className = row['Lớp'] || row['Lop'] || row['Class'] || row['className'] || 'Chưa phân lớp';
+
+      return { studentCode, fullName, className };
+    }).filter(s => s.studentCode && s.fullName);
+
+    if (parsedStudents.length === 0) {
+      throw new Error('Không tìm thấy dữ liệu sinh viên hợp lệ. Đảm bảo file có tiêu đề cột: "Mã Sinh Viên", "Họ và Tên", "Lớp".');
+    }
+
+    if (statusEl) {
+      statusEl.textContent = `⏳ Đang lưu ${parsedStudents.length} sinh viên lên Google Sheets...`;
+    }
+
+    const res = await appsScriptService.request('UPLOAD_STUDENTS_LIST', { students: parsedStudents });
+    const { addedCount, skippedCount } = res.data || res;
+
+    if (statusEl) {
+      statusEl.style.color = '#10b981';
+      statusEl.textContent = `✅ Thành công! Đã thêm ${addedCount} sinh viên mới (${skippedCount} mã đã tồn tại).`;
+    }
+
+    alert(`Tải lên hoàn tất!\n- Đã thêm mới: ${addedCount} sinh viên\n- Bỏ qua (trùng mã): ${skippedCount}`);
+    fileInput.value = '';
+
+  } catch (err) {
+    console.error('Upload Students Error:', err);
+    if (statusEl) {
+      statusEl.style.color = '#ef4444';
+      statusEl.textContent = `❌ Lỗi: ${err.message}`;
+    }
+  }
+}
+
 function setUploadStatus(text, style) {
   const el = document.getElementById('uploadStatus');
   if (el) {
     el.innerHTML = text;
     el.setAttribute('style', `margin-top: 12px; font-weight: 600; ${style}`);
-  }
-}
-
-let aiTimerInterval = null;
-let aiSecondsElapsed = 0;
-
-function startAILoading() {
-  const loadingContainer = document.getElementById('aiLoadingContainer');
-  const progressBar = document.getElementById('aiProgressBar');
-  const timerText = document.getElementById('aiTimerText');
-  const uploadStatus = document.getElementById('uploadStatus');
-
-  if (uploadStatus) uploadStatus.innerHTML = '';
-  if (loadingContainer) loadingContainer.style.display = 'block';
-
-  aiSecondsElapsed = 0;
-  if (timerText) timerText.textContent = '⏱️ 0s';
-  if (progressBar) progressBar.style.width = '10%';
-
-  clearInterval(aiTimerInterval);
-  aiTimerInterval = setInterval(() => {
-    aiSecondsElapsed++;
-    if (timerText) timerText.textContent = `⏱️ ${aiSecondsElapsed}s`;
-
-    // Giả lập tiến trình chạy mượt từ 10% đến 90% trong lúc chờ AI
-    if (progressBar) {
-      let simulatedPercent = Math.min(90, 10 + Math.floor(aiSecondsElapsed * 2.5));
-      progressBar.style.width = `${simulatedPercent}%`;
-    }
-  }, 1000);
-}
-
-function stopAILoading(isSuccess = true) {
-  clearInterval(aiTimerInterval);
-  const loadingContainer = document.getElementById('aiLoadingContainer');
-  const progressBar = document.getElementById('aiProgressBar');
-
-  if (isSuccess && progressBar) {
-    progressBar.style.width = '100%';
-  }
-
-  setTimeout(() => {
-    if (loadingContainer) loadingContainer.style.display = 'none';
-  }, 800);
-}
-
-// CẬP NHẬT HÀM HANDLEPROCESSEXAMWITHAI TRONG APP.JS:
-async function handleProcessExamWithAI() {
-  const fileInput = document.getElementById('examFileInput');
-  const rawTextarea = document.getElementById('rawExamText');
-  let rawText = rawTextarea?.value.trim() || '';
-  let imageBase64 = null;
-  let mimeType = 'image/jpeg';
-  let sourceCanvas = null;
-
-  if (fileInput?.files.length > 0) {
-    const file = fileInput.files[0];
-    setUploadStatus('📂 Đang đọc tệp và trích xuất hình ảnh...', 'color: #2563eb');
-    try {
-      rawText = await extractTextFromFile(file);
-
-      if (file.name.endsWith('.docx')) {
-        const docxImages = await extractImagesFromDocx(file);
-        if (docxImages.length > 0) {
-          imageBase64 = docxImages[0].imageBase64;
-          mimeType = docxImages[0].mimeType;
-          sourceCanvas = await createCanvasFromBase64(imageBase64, mimeType);
-        }
-      } else if (file.name.endsWith('.pdf')) {
-        sourceCanvas = await renderPdfPageToCanvas(file, 1);
-        if (sourceCanvas) {
-          imageBase64 = sourceCanvas.toDataURL('image/jpeg').split(',')[1];
-          mimeType = 'image/jpeg';
-        }
-      }
-    } catch (err) {
-      setUploadStatus(`❌ Lỗi đọc tệp: ${err.message}`, 'color: #ef4444');
-      return;
-    }
-  }
-
-  if (!rawText && !imageBase64) {
-    return alert('Vui lòng chọn tệp (.docx, .pdf) hoặc dán văn bản đề thi vào ô nhập!');
-  }
-
-  // KÍCH HOẠT THANH LOADING ĐỘNG KÈM BỘ ĐẾM THỜI GIAN
-  startAILoading();
-
-  try {
-    const response = await appsScriptService.parseExamAI(rawText, imageBase64, mimeType);
-
-    if (!response.data || !response.data.questions) {
-      throw new Error('Dữ liệu trả về từ AI không hợp lệ.');
-    }
-
-    let questions = response.data.questions;
-
-    if (sourceCanvas) {
-      questions = questions.map(q => {
-        if (q.hasImage && q.imageBox) {
-          q.imageUrl = cropImageFromBox(sourceCanvas, q.imageBox);
-        }
-        return q;
-      });
-    }
-
-    currentExamState = examModel.createStandardExam(
-      { title: 'Đề thi phân tích bởi AI' },
-      questions
-    );
-
-    stopAILoading(true);
-    setUploadStatus(`✅ Phân tích hoàn tất sau ${aiSecondsElapsed}s! Bóc tách thành công ${questions.length} câu hỏi.`, 'color: #10b981');
-    renderQuestionListForReview(currentExamState.questions);
-
-  } catch (err) {
-    stopAILoading(false);
-    logger.error('AI Process Error:', err);
-    setUploadStatus(`❌ Lỗi AI: ${err.message}`, 'color: #ef4444');
   }
 }
