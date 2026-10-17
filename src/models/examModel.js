@@ -183,7 +183,35 @@ export class ExamModel {
   static shuffleExamQuestions(...args) { return new ExamModel().shuffleExamQuestions(...args); }
 }
 
-export const examModel = new ExamModel();
+export const examModel = {
+  createStandardExam(meta = {}, questions = []) {
+    return {
+      id: meta.id || `exam_${Date.now()}`,
+      title: meta.title || 'Đề thi phân tích',
+      durationMinutes: meta.durationMinutes || 45,
+      maxViolations: meta.maxViolations || 3,
+      createdBy: meta.createdBy || 'system',
+      createdByName: meta.createdByName || 'Hệ thống',
+      createdAt: new Date().toISOString(),
+      questions: questions.map((q, idx) => ({
+        id: q.id || `q_${idx + 1}`,
+        stem: q.stem || `Câu ${idx + 1}`,
+        options: Array.isArray(q.options) ? q.options : ['', '', '', ''],
+        correctAnswer: Number(q.correctAnswer) || 0,
+        hasImage: Boolean(q.hasImage),
+        imageUrl: q.imageUrl || null,
+        imageBox: q.imageBox || null,
+        originalOptionCount: q.originalOptionCount !== undefined ? q.originalOptionCount : 4,
+        flags: q.flags || {
+          needsUserConfirmation: true,
+          isMissingOptions: true,
+          isMissingAnswer: false,
+          note: 'Cần kiểm tra lại.'
+        }
+      }))
+    };
+  }
+};
 export const splitExamForPublishing = examModel.splitExamForPublishing.bind(examModel);
 export const createStandardExam = examModel.createStandardExam.bind(examModel);
 
