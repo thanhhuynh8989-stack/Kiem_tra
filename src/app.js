@@ -704,7 +704,7 @@ async function handleProcessExamWithAI() {
 }
 
 /**
- * Render danh sách câu hỏi AI bóc tách (Nút radio phía trước lựa chọn)
+ * Render danh sách câu hỏi AI bóc tách (Có đánh dấu chi tiết câu thiếu phương án / thiếu đáp án)
  */
 function renderQuestionListForReview(questions = []) {
   const reviewSection = document.getElementById('aiReviewSection');
@@ -718,14 +718,22 @@ function renderQuestionListForReview(questions = []) {
 
   const needReviewCount = questions.filter(q => q.flags?.needsUserConfirmation).length;
   if (summaryText) {
-    summaryText.innerHTML = `Tổng số <strong>${questions.length}</strong> câu hỏi. Có <strong>${needReviewCount}</strong> câu AI cần bạn duyệt lại.`;
+    summaryText.innerHTML = `Tổng số <strong>${questions.length}</strong> câu hỏi. Có <strong style="color:#d97706;">${needReviewCount}</strong> câu thiếu dữ liệu cần bạn kiểm tra lại.`;
   }
 
   questions.forEach((q, idx) => {
     const isWarning = q.flags?.needsUserConfirmation;
+    const isMissingOpts = q.flags?.isMissingOptions;
+    const isMissingAns = q.flags?.isMissingAnswer;
+
     const card = document.createElement('div');
     card.className = `question-card ${isWarning ? 'card-needs-review' : ''}`;
-    card.style.cssText = 'border: 1px solid #e5e7eb; border-radius: 8px; padding: 16px; margin-bottom: 16px; background: #fff; width: 100%; box-sizing: border-box;';
+    
+    // Viền màu vàng/cam nếu có cảnh báo
+    const cardBorderColor = isWarning ? '#f59e0b' : '#e5e7eb';
+    const cardBgColor = isWarning ? '#fffbeb' : '#fff';
+    
+    card.style.cssText = `border: 2px solid ${cardBorderColor}; border-radius: 8px; padding: 16px; margin-bottom: 16px; background: ${cardBgColor}; width: 100%; box-sizing: border-box;`;
     card.id = `review-card-${q.id}`;
 
     const optionsList = (Array.isArray(q.options) && q.options.length > 0) ? q.options : ['', '', '', ''];
@@ -767,12 +775,22 @@ function renderQuestionListForReview(questions = []) {
       </div>
     ` : '';
 
+    // Tạo các nhãn Tag cảnh báo
+    let warningBadges = '';
+    if (isMissingOpts) {
+      warningBadges += `<span style="background:#fee2e2; color:#dc2626; padding: 4px 10px; border-radius: 4px; font-size: 12px; font-weight:600; margin-left: 6px;">⚠️ Thiếu phương án</span>`;
+    }
+    if (isMissingAns) {
+      warningBadges += `<span style="background:#fef3c7; color:#d97706; padding: 4px 10px; border-radius: 4px; font-size: 12px; font-weight:600; margin-left: 6px;">⚠️ Chưa có đáp án đúng</span>`;
+    }
+
     card.innerHTML = `
       <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 10px;">
-        <strong style="font-size: 15px;">Câu ${idx + 1}:</strong>
-        ${isWarning 
-          ? `<span style="background:#fef3c7; color:#d97706; padding: 4px 10px; border-radius: 4px; font-size: 12px; font-weight:600;">⚠️ AI Tự Điền / Cần Duyệt</span>` 
-          : `<span style="background:#d1fae5; color:#059669; padding: 4px 10px; border-radius: 4px; font-size: 12px; font-weight:600;">✓ Hoàn Thiện</span>`}
+        <div>
+          <strong style="font-size: 15px;">Câu ${idx + 1}:</strong>
+          ${warningBadges}
+        </div>
+        ${!isWarning ? `<span style="background:#d1fae5; color:#059669; padding: 4px 10px; border-radius: 4px; font-size: 12px; font-weight:600;">✓ Hoàn Thiện</span>` : ''}
       </div>
 
       <div style="margin-bottom: 12px;">
@@ -790,7 +808,9 @@ function renderQuestionListForReview(questions = []) {
       </div>
 
       ${isWarning ? `
-        <div style="margin-top: 12px; padding: 10px; background: #fffbeb; border-left: 4px solid #f59e0b; border-radius: 4px; font-size: 13px;">💡 <strong>Ghi chú từ AI:</strong> ${q.flags?.note || 'Kiểm tra lại phương án và đáp án đúng.'}</div>
+        <div style="margin-top: 12px; padding: 10px; background: #fff; border: 1px solid #fcd34d; border-left: 4px solid #f59e0b; border-radius: 4px; font-size: 13px;">
+          <strong>🔍 Ghi chú cảnh báo:</strong> ${q.flags?.note || 'Vui lòng bổ sung phương án hoặc chọn lại đáp án đúng.'}
+        </div>
         <button style="margin-top: 10px; background: #059669; color: white; border: none; padding: 8px 14px; border-radius: 6px; cursor: pointer; font-weight: 500;" 
                 onclick="window.confirmQuestionItem('${q.id}')">✓ Đã Kiểm Tra & Đúng</button>
       ` : ''}
