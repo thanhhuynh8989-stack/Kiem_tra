@@ -707,9 +707,6 @@ function updateAIQuotaBadge(serverUsageCount = null) {
   }
 }
 
-//**
- * CẬP NHẬT HÀM HANDLEPROCESSEXAMWITHAI TRONG APP.JS
- */
 async function handleProcessExamWithAI() {
   const fileInput = document.getElementById('examFileInput');
   const rawTextarea = document.getElementById('rawExamText');
