@@ -3,8 +3,7 @@ import { logger } from '../utils/logger.js';
 
 export const appsScriptService = {
   /**
-   * Wrapper gọi API sang Google Apps Script.
-   * Tác vụ AI sẽ có thời gian chờ 300 giây (5 phút) - thoải mái cho Gemini xử lý đề lớn.
+   * Wrapper gọi API sang Google Apps Script với Timeout 300s cho AI.
    */
   async request(action, payload = {}, customTimeout = null) {
     let endpoint = APP_CONFIG.APPS_SCRIPT_URL;
@@ -15,7 +14,6 @@ export const appsScriptService = {
 
     const bodyData = JSON.stringify({ action, ...payload });
 
-    // Tác vụ AI cho phép chờ tối đa 5 phút (300.000ms), các tác vụ khác chờ 20 giây
     const isAITask = ['PARSE_EXAM_AI', 'GEMINI_PROXY', 'SAVE_AND_PUBLISH_EXAM'].includes(action);
     const timeoutMs = customTimeout || (isAITask ? 300000 : 20000); 
 
@@ -54,7 +52,7 @@ export const appsScriptService = {
     } catch (error) {
       clearTimeout(timeoutId);
       if (error.name === 'AbortError') {
-        throw new Error(`Thời gian xử lý quá 5 phút. Vui lòng kiểm tra lại file hoặc chia nhỏ đề thi.`);
+        throw new Error(`Thời gian xử lý quá 5 phút. Vui lòng kiểm tra lại file.`);
       }
       if (typeof logger !== 'undefined' && logger.error) {
         logger.error(`AppsScript Request Error [${action}]:`, error);
@@ -63,8 +61,12 @@ export const appsScriptService = {
     }
   },
 
-  async parseExamAI(rawText, imageBase64 = '', mimeType = 'image/png', model = 'gemini-1.5-flash') {
+  async parseExamAI(rawText, imageBase64 = '', mimeType = 'image/png', model = 'gemini-3.6-flash') {
     return await this.request('PARSE_EXAM_AI', { rawText, imageBase64, mimeType, model }, 300000);
+  },
+
+  async callGeminiVisionProxy(prompt, imageBase64, mimeType = 'image/jpeg', model = 'gemini-3.6-flash') {
+    return await this.request('GEMINI_PROXY', { prompt, imageBase64, mimeType, model }, 60000);
   },
 
   async submitExamAnswers(examId, studentInfo, answers, violationInfo = {}) {
