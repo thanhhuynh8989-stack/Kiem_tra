@@ -962,3 +962,122 @@ function setUploadStatus(text, style) {
     el.setAttribute('style', `margin-top: 12px; font-weight: 600; ${style}`);
   }
 }
+
+let aiTimerInterval = null;
+let aiSecondsElapsed = 0;
+
+function startAILoading() {
+  const loadingContainer = document.getElementById('aiLoadingContainer');
+  const progressBar = document.getElementById('aiProgressBar');
+  const timerText = document.getElementById('aiTimerText');
+  const uploadStatus = document.getElementById('uploadStatus');
+
+  if (uploadStatus) uploadStatus.innerHTML = '';
+  if (loadingContainer) loadingContainer.style.display = 'block';
+
+  aiSecondsElapsed = 0;
+  if (timerText) timerText.textContent = '⏱️ 0s';
+  if (progressBar) progressBar.style.width = '10%';
+
+  clearInterval(aiTimerInterval);
+  aiTimerInterval = setInterval(() => {
+    aiSecondsElapsed++;
+    if (timerText) timerText.textContent = `⏱️ ${aiSecondsElapsed}s`;
+
+    // Giả lập tiến trình chạy mượt từ 10% đến 90% trong lúc chờ AI
+    if (progressBar) {
+      let simulatedPercent = Math.min(90, 10 + Math.floor(aiSecondsElapsed * 2.5));
+      progressBar.style.width = `${simulatedPercent}%`;
+    }
+  }, 1000);
+}
+
+function stopAILoading(isSuccess = true) {
+  clearInterval(aiTimerInterval);
+  const loadingContainer = document.getElementById('aiLoadingContainer');
+  const progressBar = document.getElementById('aiProgressBar');
+
+  if (isSuccess && progressBar) {
+    progressBar.style.width = '100%';
+  }
+
+  setTimeout(() => {
+    if (loadingContainer) loadingContainer.style.display = 'none';
+  }, 800);
+}
+
+// CẬP NHẬT HÀM HANDLEPROCESSEXAMWITHAI TRONG APP.JS:
+async function handleProcessExamWithAI() {
+  const fileInput = document.getElementById('examFileInput');
+  const rawTextarea = document.getElementById('rawExamText');
+  let rawText = rawTextarea?.value.trim() || '';
+  let imageBase64 = null;
+  let mimeType = 'image/jpeg';
+  let sourceCanvas = null;
+
+  if (fileInput?.files.length > 0) {
+    const file = fileInput.files[0];
+    setUploadStatus('📂 Đang đọc tệp và trích xuất hình ảnh...', 'color: #2563eb');
+    try {
+      rawText = await extractTextFromFile(file);
+
+      if (file.name.endsWith('.docx')) {
+        const docxImages = await extractImagesFromDocx(file);
+        if (docxImages.length > 0) {
+          imageBase64 = docxImages[0].imageBase64;
+          mimeType = docxImages[0].mimeType;
+          sourceCanvas = await createCanvasFromBase64(imageBase64, mimeType);
+        }
+      } else if (file.name.endsWith('.pdf')) {
+        sourceCanvas = await renderPdfPageToCanvas(file, 1);
+        if (sourceCanvas) {
+          imageBase64 = sourceCanvas.toDataURL('image/jpeg').split(',')[1];
+          mimeType = 'image/jpeg';
+        }
+      }
+    } catch (err) {
+      setUploadStatus(`❌ Lỗi đọc tệp: ${err.message}`, 'color: #ef4444');
+      return;
+    }
+  }
+
+  if (!rawText && !imageBase64) {
+    return alert('Vui lòng chọn tệp (.docx, .pdf) hoặc dán văn bản đề thi vào ô nhập!');
+  }
+
+  // KÍCH HOẠT THANH LOADING ĐỘNG KÈM BỘ ĐẾM THỜI GIAN
+  startAILoading();
+
+  try {
+    const response = await appsScriptService.parseExamAI(rawText, imageBase64, mimeType);
+
+    if (!response.data || !response.data.questions) {
+      throw new Error('Dữ liệu trả về từ AI không hợp lệ.');
+    }
+
+    let questions = response.data.questions;
+
+    if (sourceCanvas) {
+      questions = questions.map(q => {
+        if (q.hasImage && q.imageBox) {
+          q.imageUrl = cropImageFromBox(sourceCanvas, q.imageBox);
+        }
+        return q;
+      });
+    }
+
+    currentExamState = examModel.createStandardExam(
+      { title: 'Đề thi phân tích bởi AI' },
+      questions
+    );
+
+    stopAILoading(true);
+    setUploadStatus(`✅ Phân tích hoàn tất sau ${aiSecondsElapsed}s! Bóc tách thành công ${questions.length} câu hỏi.`, 'color: #10b981');
+    renderQuestionListForReview(currentExamState.questions);
+
+  } catch (err) {
+    stopAILoading(false);
+    logger.error('AI Process Error:', err);
+    setUploadStatus(`❌ Lỗi AI: ${err.message}`, 'color: #ef4444');
+  }
+}
