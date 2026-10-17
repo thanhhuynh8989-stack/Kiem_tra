@@ -61,8 +61,14 @@ export const appsScriptService = {
     }
   },
 
-  async parseExamAI(rawText, imageBase64 = '', mimeType = 'image/png', model = 'gemini-3.6-flash') {
-    return await this.request('PARSE_EXAM_AI', { rawText, imageBase64, mimeType, model }, 300000);
+  async parseExamAI(rawText, imageBase64 = '', mimeType = 'image/png', model = 'gemini-3.6-flash', parsedQuestions = null) {
+    return await this.request('PARSE_EXAM_AI', { 
+      rawText, 
+      imageBase64, 
+      mimeType, 
+      model, 
+      questions: parsedQuestions 
+    }, 300000);
   },
 
   async callGeminiVisionProxy(prompt, imageBase64, mimeType = 'image/jpeg', model = 'gemini-3.6-flash') {
