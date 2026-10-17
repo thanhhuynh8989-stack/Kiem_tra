@@ -84,7 +84,127 @@ async function requestWithRetry(action, payload, retries = 2, delay = 1500) {
   }
 }
 
-document.addEventListener('DOMContentLoaded', () => {
+/**
+ * Xử lý Đăng nhập phân quyền chính
+ */
+export async function handleLogin() {
+  const usernameInput = document.getElementById('loginUsername');
+  const passwordInput = document.getElementById('loginPassword');
+  const loginBtn = document.getElementById('loginBtn');
+
+  const username = usernameInput?.value.trim();
+  const password = passwordInput?.value.trim();
+
+  if (!username || !password) {
+    return alert('Vui lòng nhập đầy đủ Tên đăng nhập và Mật khẩu!');
+  }
+
+  const originalBtnText = loginBtn ? loginBtn.innerText : 'Đăng Nhập';
+  if (loginBtn) {
+    loginBtn.disabled = true;
+    loginBtn.innerText = '⏳ Đang kết nối...';
+  }
+
+  try {
+    const res = await requestWithRetry('AUTH_LECTURER', { username, password });
+
+    // Xóa session cũ trước khi nạp dữ liệu mới
+    sessionStorage.removeItem('currentUser');
+    sessionStorage.removeItem('userSession');
+
+    currentUser = normalizeUserData(res);
+
+    if (currentUser && currentUser.role) {
+      sessionStorage.setItem('currentUser', JSON.stringify(currentUser));
+      sessionStorage.setItem('userSession', JSON.stringify(currentUser));
+
+      alert(`Đăng nhập thành công!\nXin chào ${currentUser.fullName}!`);
+
+      if (currentUser.role === 'ADMIN' || currentUser.role === 'LECTURER') {
+        if (!document.getElementById('adminView') && !document.getElementById('lecturerView')) {
+          window.location.href = 'index.html';
+        } else {
+          showView(currentUser.role === 'ADMIN' ? 'adminView' : 'lecturerView');
+        }
+      } else {
+        showView('studentView');
+      }
+    } else {
+      alert(res.message || 'Tên đăng nhập hoặc mật khẩu không chính xác!');
+    }
+  } catch (err) {
+    console.error('Login Error:', err);
+    alert('Không thể kết nối đến Máy chủ! Vui lòng kiểm tra lại đường truyền mạng.');
+  } finally {
+    if (loginBtn) {
+      loginBtn.disabled = false;
+      loginBtn.innerText = originalBtnText;
+    }
+  }
+}
+
+export function handleLogout() {
+  currentUser = null;
+  sessionStorage.removeItem('currentUser');
+  sessionStorage.removeItem('userSession');
+
+  if (typeof stopViolationTracking === 'function') {
+    stopViolationTracking();
+  }
+
+  const usernameInput = document.getElementById('loginUsername');
+  const passwordInput = document.getElementById('loginPassword');
+  if (usernameInput) usernameInput.value = '';
+  if (passwordInput) passwordInput.value = '';
+
+  showView('authView');
+}
+
+/**
+ * Hiển thị View theo quyền truy cập
+ */
+export function showView(viewId) {
+  const targetView = document.getElementById(viewId);
+  
+  if (targetView) {
+    document.querySelectorAll('.view-section').forEach(el => el.classList.remove('active'));
+    targetView.classList.add('active');
+  }
+
+  const userInfo = document.getElementById('userInfo');
+  const userBadge = document.getElementById('userBadge');
+
+  if (currentUser) {
+    if (userInfo) userInfo.style.display = 'flex';
+    
+    const roleTitle = currentUser.role === 'ADMIN' ? 'Quản trị hệ thống' : 
+                      currentUser.role === 'LECTURER' ? 'Giảng viên' : 'Sinh viên';
+
+    if (userBadge) {
+      userBadge.textContent = `${currentUser.fullName} (${roleTitle})`;
+    }
+
+    if (viewId === 'lecturerView' && typeof handleLoadMyExams === 'function') {
+      handleLoadMyExams();
+    }
+  } else if (viewId === 'studentView') {
+    if (userInfo) userInfo.style.display = 'flex';
+    if (userBadge) userBadge.textContent = 'HỌC SINH / SINH VIÊN';
+  } else {
+    if (userInfo) userInfo.style.display = 'none';
+  }
+}
+
+// Xuất các hàm ra phạm vi window để gọi trực tiếp từ thuộc tính inline HTML
+window.handleLogin = handleLogin;
+window.handleLogout = handleLogout;
+window.showView = showView;
+window.saveAns = (qId, key) => { studentAnswers[qId] = key; };
+
+/**
+ * Gán sự kiện cho các thẻ HTML an toàn
+ */
+function bindEvents() {
   const rawSession = sessionStorage.getItem('currentUser') || sessionStorage.getItem('userSession');
   
   if (rawSession) {
@@ -122,10 +242,26 @@ document.addEventListener('DOMContentLoaded', () => {
     showView('authView');
   }
 
-  document.getElementById('loginBtn')?.addEventListener('click', handleLogin);
-  document.getElementById('logoutBtn')?.addEventListener('click', handleLogout);
-  document.getElementById('gotoStudentBtn')?.addEventListener('click', () => showView('studentView'));
-  document.querySelectorAll('.backToAuthLink').forEach(el => el.addEventListener('click', () => showView('authView')));
+  const loginBtn = document.getElementById('loginBtn');
+  if (loginBtn) loginBtn.onclick = handleLogin;
+
+  const logoutBtn = document.getElementById('logoutBtn');
+  if (logoutBtn) logoutBtn.onclick = handleLogout;
+
+  const gotoStudentBtn = document.getElementById('gotoStudentBtn');
+  if (gotoStudentBtn) {
+    gotoStudentBtn.onclick = (e) => {
+      e.preventDefault();
+      showView('studentView');
+    };
+  }
+
+  document.querySelectorAll('.backToAuthLink').forEach(el => {
+    el.onclick = (e) => {
+      e.preventDefault();
+      showView('authView');
+    };
+  });
 
   document.getElementById('loadExamBtn')?.addEventListener('click', handleLoadExam);
   document.getElementById('submitExamBtn')?.addEventListener('click', () => handleSubmitExam(false));
@@ -136,115 +272,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
   document.getElementById('loadUsersBtn')?.addEventListener('click', handleLoadUsers);
   document.getElementById('gotoLecturerPortalBtn')?.addEventListener('click', () => showView('lecturerView'));
-});
-
-/**
- * Hiển thị View theo quyền truy cập
- */
-function showView(viewId) {
-  const targetView = document.getElementById(viewId);
-  
-  if (targetView) {
-    document.querySelectorAll('.view-section').forEach(el => el.classList.remove('active'));
-    targetView.classList.add('active');
-  }
-
-  const userInfo = document.getElementById('userInfo');
-  const userBadge = document.getElementById('userBadge');
-
-  if (currentUser) {
-    if (userInfo) userInfo.style.display = 'flex';
-    
-    const roleTitle = currentUser.role === 'ADMIN' ? 'Quản trị hệ thống' : 
-                      currentUser.role === 'LECTURER' ? 'Giảng viên' : 'Sinh viên';
-
-    if (userBadge) {
-      userBadge.textContent = `${currentUser.fullName} (${roleTitle})`;
-    }
-
-    if (viewId === 'lecturerView' && typeof handleLoadMyExams === 'function') {
-      handleLoadMyExams();
-    }
-  } else if (viewId === 'studentView') {
-    if (userInfo) userInfo.style.display = 'flex';
-    if (userBadge) userBadge.textContent = 'HỌC SINH / SINH VIÊN';
-  } else {
-    if (userInfo) userInfo.style.display = 'none';
-  }
 }
 
-/**
- * Xử lý Đăng nhập
- */
-async function handleLogin() {
-  const usernameInput = document.getElementById('loginUsername');
-  const passwordInput = document.getElementById('loginPassword');
-  const loginBtn = document.getElementById('loginBtn');
-
-  const username = usernameInput?.value.trim();
-  const password = passwordInput?.value.trim();
-
-  if (!username || !password) return alert('Vui lòng nhập tên đăng nhập và mật khẩu!');
-
-  const originalBtnText = loginBtn ? loginBtn.innerText : '';
-  if (loginBtn) {
-    loginBtn.disabled = true;
-    loginBtn.innerText = 'Đang kết nối...';
-  }
-
-  try {
-    const res = await requestWithRetry('AUTH_LECTURER', { username, password });
-
-    // Xóa session cũ trước khi nạp dữ liệu mới
-    sessionStorage.removeItem('currentUser');
-    sessionStorage.removeItem('userSession');
-
-    currentUser = normalizeUserData(res);
-
-    if (currentUser && currentUser.role) {
-      sessionStorage.setItem('currentUser', JSON.stringify(currentUser));
-      sessionStorage.setItem('userSession', JSON.stringify(currentUser));
-
-      alert(`Xin chào ${currentUser.fullName}!`);
-
-      if (currentUser.role === 'ADMIN' || currentUser.role === 'LECTURER') {
-        if (!document.getElementById('adminView') && !document.getElementById('lecturerView')) {
-          window.location.href = 'index.html';
-        } else {
-          showView(currentUser.role === 'ADMIN' ? 'adminView' : 'lecturerView');
-        }
-      } else {
-        showView('studentView');
-      }
-    } else {
-      alert(res.message || 'Tên đăng nhập hoặc mật khẩu không chính xác!');
-    }
-  } catch (err) {
-    console.error('Login Error:', err);
-    alert('Không thể kết nối đến Máy chủ! Vui lòng kiểm tra lại kết nối mạng.');
-  } finally {
-    if (loginBtn) {
-      loginBtn.disabled = false;
-      loginBtn.innerText = originalBtnText;
-    }
-  }
-}
-
-function handleLogout() {
-  currentUser = null;
-  sessionStorage.removeItem('currentUser');
-  sessionStorage.removeItem('userSession');
-
-  if (typeof stopViolationTracking === 'function') {
-    stopViolationTracking();
-  }
-
-  const usernameInput = document.getElementById('loginUsername');
-  const passwordInput = document.getElementById('loginPassword');
-  if (usernameInput) usernameInput.value = '';
-  if (passwordInput) passwordInput.value = '';
-
-  showView('authView');
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', bindEvents);
+} else {
+  bindEvents();
 }
 
 async function handleLoadUsers() {
@@ -307,17 +340,13 @@ function processViolation() {
 
   const max = parseInt(currentExamData?.maxViolations || 3, 10);
 
-  // Nếu chỉ cho phép 1 lần vi phạm HOẶC số lần vi phạm đã vượt quá maxViolations
   if (max <= 1 || violationCount >= max) {
     alert(`⚠️ VI PHẠM QUY CHẾ (${violationCount}/${max}): Bạn đã rời khỏi màn hình làm bài!\nHệ thống TỰ ĐỘNG NỘP BÀI TỨC THỜI.`);
     stopViolationTracking();
-    handleSubmitExam(true); // Ép nộp bài ngay
-  } 
-  // Cảnh báo ở lần vi phạm kế cuối (maxViolations - 1)
-  else if (violationCount === max - 1) {
+    handleSubmitExam(true);
+  } else if (violationCount === max - 1) {
     alert(`⚠️ CẢNH BÁO VI PHẠM (${violationCount}/${max}): Bạn vừa rời khỏi màn hình thi!\nNếu vi phạm thêm 1 lần nữa, bài thi của bạn sẽ bị TỰ ĐỘNG NỘP NGAY LẬP TỨC.`);
-  } 
-  else {
+  } else {
     alert(`⚠️ VI PHẠM (${violationCount}/${max}): Vui lòng không chuyển tab hoặc rời khỏi giao diện làm bài!`);
   }
 }
@@ -340,7 +369,6 @@ async function handleLoadExam() {
     document.getElementById('examContainer').style.display = 'block';
     renderKaTeX(document.getElementById('questionsList'));
 
-    // Bắt đầu giám sát vi phạm khi vào bài thi
     startViolationTracking();
   } catch (err) {
     alert('Không tìm thấy đề thi!');
@@ -369,7 +397,6 @@ function renderQuestions(questions = []) {
       const optText = typeof opt === 'string' ? opt : (opt?.text || opt?.content || String(opt || ''));
       const inputId = `q_${q.id}_opt_${oIdx}`;
 
-      // Đặt ô radio tick trước nhãn A, B, C, D
       html += `
         <div style="display: flex; align-items: center; gap: 8px; margin: 8px 0; cursor: pointer;">
           <input type="radio" 
@@ -388,8 +415,6 @@ function renderQuestions(questions = []) {
     container.appendChild(card);
   });
 }
-
-window.saveAns = (qId, key) => { studentAnswers[qId] = key; };
 
 /**
  * Thu thập đáp án hiện tại và Nộp bài (Hỗ trợ cả Nộp tự do & Ép nộp bài do vi phạm)
@@ -413,8 +438,8 @@ async function handleSubmitExam(isAutoSubmitted = false) {
   const collectedAnswers = {};
   currentExamData.questions.forEach((q, idx) => {
     const qId = q.id || `q_${idx + 1}`;
-    // Tìm radio button được chọn trong câu hỏi này
-    const selectedRadio = document.querySelector(`input[name="${qId}"]:checked`) || 
+    const selectedRadio = document.querySelector(`input[name="q_${q.id}"]:checked`) || 
+                          document.querySelector(`input[name="${qId}"]:checked`) ||
                           document.querySelector(`input[name="q_${idx}"]:checked`);
     
     if (selectedRadio) {
@@ -430,7 +455,6 @@ async function handleSubmitExam(isAutoSubmitted = false) {
     btnSubmit.textContent = '⏳ Đang chấm điểm & gửi bài...';
   }
 
-  // Tắt bộ giám sát vi phạm
   stopViolationTracking();
 
   try {
@@ -442,10 +466,8 @@ async function handleSubmitExam(isAutoSubmitted = false) {
       reason: isAutoSubmitted ? 'Tự động nộp do vi phạm quy chế rời màn hình' : 'Nộp bài tự nguyện'
     };
 
-    // Gửi sang Backend chấm điểm
     const result = await appsScriptService.submitExamAnswers(examId, studentInfo, collectedAnswers, violationInfo);
 
-    // Hiển thị kết quả lên màn hình
     document.getElementById('examContainer').style.display = 'none';
     const resultContainer = document.getElementById('resultContainer');
     if (resultContainer) {
@@ -579,7 +601,6 @@ async function handleProcessExamWithAI() {
         if (docxImages.length > 0) {
           imageBase64 = docxImages[0].imageBase64;
           mimeType = docxImages[0].mimeType;
-          // Tự động chuyển ảnh từ DOCX thành sourceCanvas để cắt ảnh từng câu hỏi sau khi AI trả tọa độ
           sourceCanvas = await createCanvasFromBase64(imageBase64, mimeType);
         }
       } else if (file.name.endsWith('.pdf')) {
@@ -671,7 +692,6 @@ function renderQuestionListForReview(questions = []) {
       const isCorrect = Number(q.correctAnswer) === oIdx;
       const optText = typeof opt === 'string' ? opt : (opt?.text || opt?.content || String(opt || ''));
 
-      // Đặt ô radio tick lên trước ký tự A, B, C, D
       optionsHtml += `
         <div style="display: flex; align-items: center; gap: 8px; margin-top: 8px; width: 100%;">
           <input type="radio" 
@@ -810,7 +830,6 @@ async function handlePublishExam() {
   try {
     setUploadStatus('Đang tạo đề thi và gắn thẻ người dùng...', 'color: #2563eb');
 
-    // Thiết lập thuộc tính cấu hình và thẻ User
     currentExamState.title = examTitle;
     currentExamState.durationMinutes = durationMinutes;
     currentExamState.maxViolations = maxViolations;
@@ -834,7 +853,6 @@ async function handlePublishExam() {
     setUploadStatus(`🎉 Xuất bản thành công! Mã đề thi: <strong>${fileNameOnGithub}</strong>`, 'color: #10b981');
     alert(`Xuất bản đề thi thành công!\nMã đề: ${fileNameOnGithub}`);
 
-    // Nạp lại danh sách đề thi của giảng viên
     handleLoadMyExams();
   } catch (err) {
     logger.error('Publish Error:', err);
