@@ -1,0 +1,192 @@
+{
+  "examId": "exam_61590f9e-ee5d-4b45-a917-94562b32b8b9",
+  "title": "Test_ĐCSTH_3",
+  "subject": "Chưa phân loại",
+  "durationMinutes": 15,
+  "totalQuestions": 15,
+  "createdAt": "2026-10-17T09:51:39.743Z",
+  "updatedAt": "2026-10-17T09:51:39.743Z",
+  "questions": [
+    {
+      "id": "q_1",
+      "stem": "Nhân tố sinh thái được hiểu là:",
+      "images": [],
+      "options": [
+        "Những thành phần cấu tạo nên cơ thể sinh vật",
+        "Những điều kiện chỉ ảnh hưởng đến sự sinh trưởng",
+        "Những yếu tố môi trường ảnh hưởng đến đời sống sinh vật",
+        "Những biến đổi chỉ xảy ra trong quần thể sinh vật"
+      ],
+      "disableShuffle": false
+    },
+    {
+      "id": "q_2",
+      "stem": "Theo quy luật tối thiểu của Liebig, sự sinh trưởng của sinh vật phụ thuộc vào:",
+      "images": [],
+      "options": [
+        "Nhân tố có giá trị cao nhất trong môi trường",
+        "Tổng số lượng các nhân tố sinh thái hiện có",
+        "Nhân tố thiết yếu đang thiếu hụt so với nhu cầu",
+        "Nhân tố có ảnh hưởng mạnh nhất trong mọi điều kiện"
+      ],
+      "disableShuffle": false
+    },
+    {
+      "id": "q_3",
+      "stem": "Theo quy luật Bergmann, động vật đẳng nhiệt sống ở vùng lạnh thường có xu hướng:",
+      "images": [],
+      "options": [
+        "Có kích thước cơ thể nhỏ hơn ở vùng nóng",
+        "Có kích thước cơ thể lớn hơn ở vùng nóng",
+        "Có kích thước cơ thể tương đương ở vùng nóng",
+        "Có tỷ lệ diện tích bề mặt trên thể tích lớn hơn ở vùng nóng"
+      ],
+      "disableShuffle": false
+    },
+    {
+      "id": "q_4",
+      "stem": "Hệ sinh thái được cấu thành từ những thành phần cơ bản nào?",
+      "images": [],
+      "options": [
+        "Quần thể sinh vật và các mối quan hệ sinh sản",
+        "Quần xã sinh vật và các nhân tố hữu sinh",
+        "Quần xã sinh vật và môi trường vô sinh của chúng",
+        "Các loài sinh vật và những quan hệ cạnh tranh"
+      ],
+      "disableShuffle": false
+    },
+    {
+      "id": "q_5",
+      "stem": "Sinh vật hoại sinh có vai trò chủ yếu nào trong hệ sinh thái?",
+      "images": [],
+      "options": [
+        "Tạo ra chất hữu cơ từ các chất vô cơ",
+        "Chuyển năng lượng ánh sáng thành năng lượng hóa học",
+        "Điều chỉnh số lượng sinh vật tiêu thụ bậc cao",
+        "Phân hủy chất hữu cơ và giải phóng chất dinh dưỡng"
+      ],
+      "disableShuffle": false
+    },
+    {
+      "id": "q_6",
+      "stem": "Trong chuỗi thức ăn, sinh vật tiêu thụ bậc $1$ thường là:",
+      "images": [],
+      "options": [
+        "Sinh vật sử dụng xác chết làm nguồn thức ăn",
+        "Sinh vật ăn trực tiếp sinh vật sản xuất",
+        "Sinh vật ăn các động vật ăn thực vật",
+        "Sinh vật tự tổng hợp chất hữu cơ từ chất vô cơ"
+      ],
+      "disableShuffle": false
+    },
+    {
+      "id": "q_7",
+      "stem": "Nguyên nhân chủ yếu khiến năng lượng giảm qua các bậc dinh dưỡng là:",
+      "images": [],
+      "options": [
+        "Sinh vật ở bậc cao có kích thước lớn hơn",
+        "Các sinh vật ở bậc thấp không sử dụng năng lượng",
+        "Một phần năng lượng tiêu hao và thất thoát dưới dạng nhiệt",
+        "Năng lượng chỉ được tích lũy ở sinh vật sản xuất"
+      ],
+      "disableShuffle": false
+    },
+    {
+      "id": "q_8",
+      "stem": "Tháp năng lượng trong hệ sinh thái thường có đặc điểm nào?",
+      "images": [],
+      "options": [
+        "Có thể đảo ngược tùy theo kích thước sinh vật",
+        "Có đáy hẹp hơn các bậc dinh dưỡng phía trên",
+        "Có đáy rộng và thu hẹp dần ở các bậc phía trên",
+        "Có chiều rộng bằng nhau ở các bậc dinh dưỡng"
+      ],
+      "disableShuffle": false
+    },
+    {
+      "id": "q_9",
+      "stem": "Đặc trưng nào sau đây phản ánh số lượng cá thể trên một đơn vị diện tích hoặc thể tích?",
+      "images": [],
+      "options": [
+        "Kích thước quần thể",
+        "Mật độ quần thể",
+        "Tỷ lệ giới tính",
+        "Thành phần nhóm tuổi"
+      ],
+      "disableShuffle": false
+    },
+    {
+      "id": "q_10",
+      "stem": "Quần thể có cấu trúc tuổi với nhóm tuổi trước sinh sản chiếm tỷ lệ lớn thường có xu hướng:",
+      "images": [],
+      "options": [
+        "Giảm nhanh số lượng trong thời gian ngắn",
+        "Tăng trưởng khi các cá thể bước vào tuổi sinh sản",
+        "Duy trì số lượng không đổi trong mọi điều kiện",
+        "Giảm khả năng bổ sung cá thể cho quần thể"
+      ],
+      "disableShuffle": false
+    },
+    {
+      "id": "q_11",
+      "stem": "Mối quan hệ hỗ trợ giữa các cá thể cùng loài có thể giúp:",
+      "images": [],
+      "options": [
+        "Tăng mức độ cạnh tranh giữa các cá thể",
+        "Hạn chế khả năng khai thác nguồn sống",
+        "Làm giảm khả năng chống chịu trước biến động môi trường",
+        "Tăng khả năng khai thác nguồn sống và tồn tại"
+      ],
+      "disableShuffle": false
+    },
+    {
+      "id": "q_12",
+      "stem": "Yếu tố nào sau đây thường không phụ thuộc trực tiếp vào mật độ quần thể?",
+      "images": [],
+      "options": [
+        "Sự cạnh tranh về nguồn thức ăn",
+        "Sự lây lan của dịch bệnh truyền nhiễm",
+        "Sự xuất hiện của một đợt rét đậm bất thường",
+        "Sự cạnh tranh về nơi làm tổ"
+      ],
+      "disableShuffle": false
+    },
+    {
+      "id": "q_13",
+      "stem": "Sự di cư của các cá thể có thể làm thay đổi:",
+      "images": [],
+      "options": [
+        "Thành phần kiểu gen của mọi cá thể ngay lập tức",
+        "Giới hạn sinh thái của loài trong mọi trường hợp",
+        "Kích thước và mật độ của quần thể",
+        "Số lượng loài trong toàn bộ hệ sinh thái"
+      ],
+      "disableShuffle": false
+    },
+    {
+      "id": "q_14",
+      "stem": "Quần xã sinh vật là tập hợp:",
+      "images": [],
+      "options": [
+        "Các cá thể cùng loài sống trong một khu vực",
+        "Các nhân tố vô sinh cùng tồn tại trong một sinh cảnh",
+        "Các quần thể thuộc nhiều loài cùng sống và tương tác trong một sinh cảnh",
+        "Các loài sinh vật có cùng nhu cầu về nguồn thức ăn"
+      ],
+      "disableShuffle": false
+    },
+    {
+      "id": "q_15",
+      "stem": "Quan hệ cộng sinh giữa hai loài được đặc trưng bởi:",
+      "images": [],
+      "options": [
+        "Một loài có lợi và loài còn lại bị hại",
+        "Một loài có lợi và loài còn lại không bị ảnh hưởng",
+        "Hai loài cùng có lợi và thường gắn bó chặt chẽ với nhau",
+        "Hai loài cùng bị ảnh hưởng bất lợi trong quan hệ"
+      ],
+      "disableShuffle": false
+    }
+  ],
+  "createdBy": "admin"
+}
