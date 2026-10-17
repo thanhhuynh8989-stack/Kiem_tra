@@ -625,19 +625,60 @@ async function createCanvasFromBase64(base64Data, mimeType = 'image/jpeg') {
   });
 }
 
-// QUẢN LÝ GEMINI API KEY CÁ NHÂN & BADGE TRẠNG THÁI LƯỢT DÙNG
-window.saveUserApiKey = function() {
+/**
+ * LƯU GEMINI API KEY CÁ NHÂN VÀO CẢ LOCALSTORAGE VÀ GOOGLE SHEETS
+ */
+window.saveUserApiKey = async function() {
   const input = document.getElementById('userGeminiApiKey');
-  const key = input?.value.trim();
-  if (!key) {
-    localStorage.removeItem('custom_gemini_api_key');
-    alert('Đã xóa API Key cá nhân. Hệ thống sẽ áp dụng hạn mức AI mặc định.');
-  } else {
-    localStorage.setItem('custom_gemini_api_key', key);
-    alert('✅ Đã lưu API Key cá nhân thành công!');
+  const key = input?.value.trim() || '';
+  const username = currentUser ? currentUser.username : '';
+
+  if (!username) {
+    return alert('Vui lòng đăng nhập trước khi lưu API Key cá nhân!');
   }
-  updateAIQuotaBadge();
+
+  try {
+    setUploadStatus('⏳ Đang lưu API Key cá nhân lên Google Sheets...', 'color: #2563eb');
+
+    // 1. Lưu vào bộ nhớ trình duyệt
+    if (!key) {
+      localStorage.removeItem('custom_gemini_api_key');
+    } else {
+      localStorage.setItem('custom_gemini_api_key', key);
+    }
+
+    // 2. Lưu đồng bộ vào tab Users trên Google Sheets
+    await appsScriptService.saveUserApiKey(username, key);
+
+    setUploadStatus('✅ Đã lưu API Key cá nhân thành công lên Google Sheets!', 'color: #10b981');
+    alert('✅ Đã lưu API Key cá nhân thành công lên Google Sheets!');
+    updateAIQuotaBadge();
+
+  } catch (err) {
+    console.error('Lỗi lưu API Key:', err);
+    setUploadStatus(`❌ Lỗi lưu API Key: ${err.message}`, 'color: #ef4444');
+    alert(`❌ Không thể lưu API Key: ${err.message}`);
+  }
 };
+
+/**
+ * TỰ ĐỘNG ĐỒNG BỘ API KEY TỪ BACKEND KHI ĐĂNG NHẬP THÀNH CÔNG
+ */
+function syncUserApiKeyAfterLogin(userData) {
+  if (!userData) return;
+
+  const keyInput = document.getElementById('userGeminiApiKey');
+  
+  if (userData.geminiApiKey) {
+    localStorage.setItem('custom_gemini_api_key', userData.geminiApiKey);
+    if (keyInput) keyInput.value = userData.geminiApiKey;
+  } else {
+    const localKey = localStorage.getItem('custom_gemini_api_key');
+    if (localKey && keyInput) keyInput.value = localKey;
+  }
+
+  updateAIQuotaBadge(userData.aiUsageCount);
+}
 
 function updateAIQuotaBadge(serverUsageCount = null) {
   const badge = document.getElementById('aiQuotaBadge');
