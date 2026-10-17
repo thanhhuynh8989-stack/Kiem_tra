@@ -707,7 +707,9 @@ function updateAIQuotaBadge(serverUsageCount = null) {
   }
 }
 
-// CẬP NHẬT HÀM HANDLEPROCESSEXAMWITHAI TRONG APP.JS:
+//**
+ * CẬP NHẬT HÀM HANDLEPROCESSEXAMWITHAI TRONG APP.JS
+ */
 async function handleProcessExamWithAI() {
   const fileInput = document.getElementById('examFileInput');
   const rawTextarea = document.getElementById('rawExamText');
@@ -750,58 +752,77 @@ async function handleProcessExamWithAI() {
   startAILoading();
 
   try {
-    const customApiKey = localStorage.getItem('custom_gemini_api_key') || '';
+    // 1. Lấy API Key cá nhân từ localStorage (Kiểm tra cả 2 tên key dự phòng)
+    const customApiKey = localStorage.getItem('userGeminiApiKey') || localStorage.getItem('custom_gemini_api_key') || '';
     const username = currentUser ? currentUser.username : '';
 
+    // 2. Gọi API Backend (Sử dụng model gemini-2.0-flash để đảm bảo tương thích 100%)
     const response = await appsScriptService.parseExamAI(
       rawText, 
       imageBase64, 
       mimeType, 
-      'gemini-3.6-flash', 
+      'gemini-2.0-flash', 
       parsedQuestionsFromDocx,
       customApiKey,
       username
     );
 
-    if (!response.data || !response.data.questions) {
-      throw new Error('Dữ liệu trả về từ Server không hợp lệ.');
+    // 3. Bóc tách linh hoạt cấu trúc trả về từ Server (tránh lỗi undefined)
+    const resData = response.data || response;
+    const questionsRaw = resData.questions || (Array.isArray(resData) ? resData : null);
+
+    if (!questionsRaw || !Array.isArray(questionsRaw)) {
+      throw new Error('Dữ liệu câu hỏi trả về từ Server không hợp lệ.');
     }
 
-    let questions = response.data.questions;
+    let questions = questionsRaw;
 
-    // Cập nhật lượt dùng trên Badge giao diện
-    if (response.data.aiUsageCount !== undefined) {
-      updateAIQuotaBadge(response.data.aiUsageCount);
+    // 4. Cập nhật lượt dùng trên Badge giao diện
+    const aiUsageCount = resData.aiUsageCount !== undefined ? resData.aiUsageCount : response.aiUsageCount;
+    if (aiUsageCount !== undefined && typeof updateAIQuotaBadge === 'function') {
+      updateAIQuotaBadge(aiUsageCount);
     }
 
+    // 5. Cắt ảnh từ Canvas nếu câu hỏi có cờ imageBox
     if (sourceCanvas) {
       questions = questions.map(q => {
-        if (q.hasImage && q.imageBox) {
+        if (q.hasImage && q.imageBox && typeof cropImageFromBox === 'function') {
           q.imageUrl = cropImageFromBox(sourceCanvas, q.imageBox);
         }
         return q;
       });
     }
 
+    // 6. Khởi tạo đề thi chuẩn hóa (Giữ nguyên cờ flags & originalOptionCount)
     currentExamState = examModel.createStandardExam(
-      { title: 'Đề thi phân tích' },
+      { title: 'Đề thi phân tích AI' },
       questions
     );
 
     stopAILoading(true);
-    const needReviewCount = questions.filter(q => q.flags?.needsUserConfirmation).length;
+
+    // 7. Đếm chính xác số câu chưa hoàn thiện (cần duyệt lại)
+    const needReviewCount = currentExamState.questions.filter(q => {
+      const hasEmptyOpt = Array.isArray(q.options) && q.options.some(opt => !String(opt || '').trim());
+      return Boolean(q.flags?.needsUserConfirmation) || hasEmptyOpt || Boolean(q.flags?.isMissingOptions) || Boolean(q.flags?.isMissingAnswer);
+    }).length;
+
+    const isFallback = Boolean(resData.isFallback || response.isFallback);
+    const serverMsg = resData.message || response.message;
 
     let successMsg = `✅ Hoàn tất sau ${aiSecondsElapsed}s! Bóc tách ${questions.length} câu hỏi (${needReviewCount} câu cần duyệt lại).`;
-    if (response.data.isFallback) {
-      successMsg = `⚠️ ${response.data.message || 'Đã dùng hết 1 lượt AI miễn phí. Hệ thống bóc tách bằng Code thuần (Vui lòng điền các ô lựa chọn bị trống).'}`;
+    if (isFallback) {
+      successMsg = `⚠️ ${serverMsg || 'Đã dùng hết 1 lượt AI miễn phí. Hệ thống bóc tách bằng Code thuần (Vui lòng điền các ô lựa chọn bị trống).'}`;
     }
 
-    setUploadStatus(successMsg, response.data.isFallback ? 'color: #d97706' : 'color: #10b981');
+    setUploadStatus(successMsg, isFallback ? 'color: #d97706' : 'color: #10b981');
     renderQuestionListForReview(currentExamState.questions);
 
   } catch (err) {
     stopAILoading(false);
-    logger.error('AI Process Error:', err);
+    if (typeof logger !== 'undefined' && logger.error) {
+      logger.error('AI Process Error:', err);
+    }
     setUploadStatus(`❌ Lỗi xử lý: ${err.message}`, 'color: #ef4444');
   }
 }
