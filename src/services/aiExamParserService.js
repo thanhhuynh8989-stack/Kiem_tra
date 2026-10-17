@@ -1,6 +1,6 @@
+import { APP_CONFIG } from '../constants/appConfig.js';
 import { appsScriptService } from './appsScriptService.js';
 import { logger } from '../utils/logger.js';
-import { getConfig } from '../modules/config.js';
 
 /**
  * Service xử lý phân tích đề thi bằng AI thông qua Apps Script Backend Proxy.
