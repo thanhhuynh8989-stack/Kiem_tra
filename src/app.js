@@ -1347,16 +1347,19 @@ window.handleDeleteExam = async function(examId) {
   }
 };
 
+// Lưu trữ thông tin đề thi đang chỉnh sửa vào bộ nhớ tạm
+window.currentEditingExamContext = null;
+
 /**
- * 1. TẢI ĐỀ THI LÊN TRÌNH CHỈNH SỬA
+ * 1. TẢI ĐÚNG CÂU HỎI VÀ ĐÁP ÁN ĐANG TỒN TẠI TỪ FILE JSON
  */
 window.handleEditExam = async function(examId, examCode = '') {
-  console.log('✏️ Bắt đầu tải đề thi lên trình chỉnh sửa. ID:', examId, 'Code:', examCode);
+  console.log('✏️ Bắt đầu nạp đề thi hiện tại. ID:', examId, 'Code:', examCode);
 
   const btn = event?.target?.closest('button');
   if (btn) {
     btn.disabled = true;
-    btn.innerHTML = '⏳ Đang nạp đề...';
+    btn.innerHTML = '⏳ Đang nạp đề hiện tại...';
   }
 
   try {
@@ -1364,7 +1367,7 @@ window.handleEditExam = async function(examId, examCode = '') {
       GITHUB: { OWNER: 'thanhhuynh8989-stack', REPO: 'Kiem_tra', BRANCH: 'main' }
     });
 
-    // Chuẩn hóa tên file ngắn (Ví dụ: exam_75ceb91a.json)
+    // Xác định tên file chuẩn (Ví dụ: exam_75ceb91a.json)
     let rawName = String(examCode || examId).trim();
     if (rawName.includes('-')) {
       rawName = rawName.split('-')[0];
@@ -1373,53 +1376,65 @@ window.handleEditExam = async function(examId, examCode = '') {
       rawName = `${rawName}.json`;
     }
 
-    const path = `exams/${rawName}`;
-    const cdnUrl = `https://raw.githubusercontent.com/${config.GITHUB.OWNER}/${config.GITHUB.REPO}/${config.GITHUB.BRANCH}/${path}?t=${Date.now()}`;
-    console.log('📡 Đang tải tệp đề thi từ GitHub CDN:', cdnUrl);
+    const filePath = `exams/${rawName}`;
+    const cdnUrl = `https://raw.githubusercontent.com/${config.GITHUB.OWNER}/${config.GITHUB.REPO}/${config.GITHUB.BRANCH}/${filePath}?t=${Date.now()}`;
+    
+    console.log('📡 Đang nạp tệp JSON thực tế từ GitHub CDN:', cdnUrl);
 
     let examData = null;
 
-    // Tải tệp JSON từ CDN hoặc Backend dự phòng
+    // Tải nội dung tệp JSON lưu gần nhất từ CDN
     try {
       const res = await fetch(cdnUrl);
       if (res.ok) {
         examData = await res.json();
       }
     } catch (e) {
-      console.warn('⚠️ Không kết nối được GitHub CDN, chuyển sang gọi Backend...');
+      console.warn('⚠️ GitHub CDN chưa phản hồi, thử tải từ Backend...');
     }
 
+    // Dự phòng gọi Backend nếu CDN báo 404
     if (!examData && typeof appsScriptService !== 'undefined') {
-      const backendRes = await appsScriptService.request('GET_EXAM_DETAIL', { examId, examCode, filePath: path });
+      const backendRes = await appsScriptService.request('GET_EXAM_DETAIL', { examId, examCode, filePath });
       if (backendRes.status === 'success' && backendRes.examData) {
         examData = backendRes.examData;
-      } else {
-        throw new Error(backendRes.message || 'Không tìm thấy file đề thi trên máy chủ!');
       }
     }
 
     if (!examData) {
-      throw new Error(`Không tìm thấy file [${path}] trên kho lưu trữ.`);
+      throw new Error(`Không tìm thấy dữ liệu tệp [${filePath}]. Hãy chắc chắn đề thi đã được Xuất bản!`);
     }
 
-    // Trích xuất danh sách câu hỏi
-    const questions = Array.isArray(examData) 
+    // Lấy chính xác danh sách câu hỏi trong JSON hiện tại
+    const currentQuestions = Array.isArray(examData) 
       ? examData 
       : (examData.questions || examData.data?.questions || []);
 
-    if (!Array.isArray(questions) || questions.length === 0) {
-      throw new Error('Tệp đề thi rỗng hoặc không đúng định dạng JSON.');
+    if (!Array.isArray(currentQuestions) || currentQuestions.length === 0) {
+      throw new Error('Tệp JSON đề thi không có câu hỏi hợp lệ.');
     }
 
-    console.log(`✅ Tải thành công ${questions.length} câu hỏi. Đang nạp đầy đủ Lựa chọn A,B,C,D...`);
+    console.log(`✅ Nạp thành công ${currentQuestions.length} câu hỏi hiện có từ tệp ${filePath}`);
 
-    if (window.examModel) window.examModel.setQuestions(questions);
-    window.currentEditingExamId = examId;
+    // Ghi nhớ Context của đề thi đang sửa để chuẩn bị cho việc GHI ĐÈ
+    window.currentEditingExamContext = {
+      examId: examId,
+      examCode: rawName,
+      filePath: filePath,
+      title: examData.title || 'Đề thi trắc nghiệm',
+      durationMinutes: examData.durationMinutes || 45
+    };
 
-    // Ưu tiên render đầy đủ giao diện chỉnh sửa kèm lựa chọn A, B, C, D
-    renderFullQuestionEditor(questions, rawName);
+    if (window.examModel) {
+      window.examModel.setQuestions(currentQuestions);
+    }
 
-    // Cuộn mượt đến giao diện chỉnh sửa
+    // Nạp câu hỏi và đáp án thực tế lên màn hình chỉnh sửa
+    if (typeof renderFullQuestionEditor === 'function') {
+      renderFullQuestionEditor(currentQuestions, rawName);
+    }
+
+    // Cuộn trang mượt đến vị trí Trình chỉnh sửa
     const targetElement = document.getElementById('reviewQuestionsContainer') || document.getElementById('myExamsListTable');
     if (targetElement) {
       targetElement.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -1427,12 +1442,96 @@ window.handleEditExam = async function(examId, examCode = '') {
 
   } catch (err) {
     console.error('❌ Lỗi nạp đề thi:', err);
-    alert(`Lỗi nạp đề thi lên trình chỉnh sửa: ${err.message}`);
+    alert(`Không thể nạp đề thi hiện tại: ${err.message}`);
   } finally {
     if (btn) {
       btn.disabled = false;
       btn.innerHTML = '✏️ Sửa';
     }
+  }
+};
+
+/**
+ * 2. LƯU THAY ĐỔI VÀ GHI ĐÈ NỘI DUNG LÊN TỆP JSON CŨ
+ */
+window.handleSaveEditedExam = async function() {
+  const context = window.currentEditingExamContext;
+  if (!context || !context.examId) {
+    alert('⚠️ Chưa xác định được đề thi đang chỉnh sửa!');
+    return;
+  }
+
+  const saveBtns = document.querySelectorAll('button[onclick*="handleSaveEditedExam"]');
+  saveBtns.forEach(btn => {
+    btn.disabled = true;
+    btn.innerText = '⏳ Đang ghi đè dữ liệu...';
+  });
+
+  try {
+    const cards = document.querySelectorAll('.question-editor-card');
+    if (!cards || cards.length === 0) {
+      throw new Error('Không có dữ liệu câu hỏi trên màn hình.');
+    }
+
+    // Thu thập dữ liệu đã sửa đổi từ giao diện
+    const updatedQuestions = Array.from(cards).map((card, idx) => {
+      const stemInput = card.querySelector('.q-stem-input');
+      const stemText = stemInput ? stemInput.value.trim() : '';
+
+      const checkedRadio = card.querySelector('.q-radio-ans:checked');
+      const answerKey = checkedRadio ? checkedRadio.value : 'A';
+
+      const optionInputs = card.querySelectorAll('.q-option-input');
+      const options = Array.from(optionInputs).map(optEl => optEl.value.trim());
+
+      while (options.length < 4) {
+        options.push('');
+      }
+
+      return {
+        id: idx + 1,
+        stem: stemText,
+        options: options.slice(0, 4),
+        answerKey: answerKey
+      };
+    });
+
+    const username = typeof getLoggedInUsername === 'function' ? getLoggedInUsername() : 'admin';
+
+    console.log(`💾 Tiến hành GHI ĐÈ ${updatedQuestions.length} câu hỏi lên file [${context.filePath}]...`);
+
+    // Gọi API lưu và GHI ĐÈ lên chính examId và filePath cũ
+    const res = await appsScriptService.saveAndPublishExam(
+      context.examId,
+      'MASTER_KEY',
+      { 
+        title: context.title,
+        durationMinutes: context.durationMinutes,
+        questions: updatedQuestions 
+      },
+      context.filePath, // Giữ nguyên đường dẫn tệp JSON cũ
+      username
+    );
+
+    alert(res.message || `✅ Đã ghi đè và cập nhật thành công tệp [${context.filePath}]!`);
+
+    if (window.examModel) {
+      window.examModel.setQuestions(updatedQuestions);
+    }
+
+    // Tải lại danh sách đề thi
+    if (typeof handleLoadMyExams === 'function') {
+      handleLoadMyExams();
+    }
+
+  } catch (err) {
+    console.error('❌ Lỗi ghi đè đề thi:', err);
+    alert(`Lỗi ghi đè đề thi: ${err.message}`);
+  } finally {
+    saveBtns.forEach(btn => {
+      btn.disabled = false;
+      btn.innerText = '💾 Lưu thay đổi đề thi';
+    });
   }
 };
 
@@ -1550,24 +1649,25 @@ document.addEventListener('change', (e) => {
  * TỐI ƯU HÀM LƯU THAY ĐỔI ĐỀ THI (DUYỆT THEO CLASS SELECTOR)
  */
 window.handleSaveEditedExam = async function() {
-  const examId = window.currentEditingExamId;
-  if (!examId) {
-    alert('⚠️ Chưa xác định được Mã đề thi đang chỉnh sửa!');
+  const context = window.currentEditingExamContext;
+  if (!context || !context.examId) {
+    alert('⚠️ Chưa xác định được đề thi đang chỉnh sửa!');
     return;
   }
 
   const saveBtns = document.querySelectorAll('button[onclick*="handleSaveEditedExam"]');
   saveBtns.forEach(btn => {
     btn.disabled = true;
-    btn.innerText = '⏳ Đang lưu đề thi...';
+    btn.innerText = '⏳ Đang ghi đè dữ liệu...';
   });
 
   try {
     const cards = document.querySelectorAll('.question-editor-card');
     if (!cards || cards.length === 0) {
-      throw new Error('Không tìm thấy câu hỏi nào trên màn hình chỉnh sửa.');
+      throw new Error('Không có dữ liệu câu hỏi trên màn hình.');
     }
 
+    // Thu thập dữ liệu đã sửa đổi từ giao diện
     const updatedQuestions = Array.from(cards).map((card, idx) => {
       const stemInput = card.querySelector('.q-stem-input');
       const stemText = stemInput ? stemInput.value.trim() : '';
@@ -1578,7 +1678,6 @@ window.handleSaveEditedExam = async function() {
       const optionInputs = card.querySelectorAll('.q-option-input');
       const options = Array.from(optionInputs).map(optEl => optEl.value.trim());
 
-      // Đảm bảo luôn đủ 4 lựa chọn A, B, C, D
       while (options.length < 4) {
         options.push('');
       }
@@ -1591,41 +1690,37 @@ window.handleSaveEditedExam = async function() {
       };
     });
 
-    console.log(`💾 Đang lưu ${updatedQuestions.length} câu hỏi cho đề [${examId}]...`, updatedQuestions);
-
     const username = typeof getLoggedInUsername === 'function' ? getLoggedInUsername() : 'admin';
 
-    let rawName = String(examId).trim();
-    if (rawName.includes('-')) {
-      rawName = rawName.split('-')[0];
-    }
-    if (!rawName.endsWith('.json')) {
-      rawName = `${rawName}.json`;
-    }
+    console.log(`💾 Tiến hành GHI ĐÈ ${updatedQuestions.length} câu hỏi lên file [${context.filePath}]...`);
 
-    const filePath = `exams/${rawName}`;
-
+    // Gọi API lưu và GHI ĐÈ lên chính examId và filePath cũ
     const res = await appsScriptService.saveAndPublishExam(
-      examId,
+      context.examId,
       'MASTER_KEY',
-      { questions: updatedQuestions },
-      filePath,
+      { 
+        title: context.title,
+        durationMinutes: context.durationMinutes,
+        questions: updatedQuestions 
+      },
+      context.filePath, // Giữ nguyên đường dẫn tệp JSON cũ
       username
     );
 
-    alert(res.message || `✅ Đã lưu thành công các thay đổi cho đề thi [${rawName}]!`);
+    alert(res.message || `✅ Đã ghi đè và cập nhật thành công tệp [${context.filePath}]!`);
 
     if (window.examModel) {
       window.examModel.setQuestions(updatedQuestions);
     }
 
+    // Tải lại danh sách đề thi
     if (typeof handleLoadMyExams === 'function') {
       handleLoadMyExams();
     }
 
   } catch (err) {
-    console.error('❌ Lỗi khi lưu đề thi:', err);
-    alert(`Lỗi khi lưu đề thi: ${err.message}`);
+    console.error('❌ Lỗi ghi đè đề thi:', err);
+    alert(`Lỗi ghi đè đề thi: ${err.message}`);
   } finally {
     saveBtns.forEach(btn => {
       btn.disabled = false;
