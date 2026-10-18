@@ -103,3 +103,19 @@ export const appsScriptService = {
     return await this.request('SAVE_USER_API_KEY', { username: username, apiKey: apiKey });
   }
 };
+
+async deleteExam(examId, username) {
+    return await this.request('DELETE_EXAM', { examId, username });
+  },
+
+  async assignExam(examId, targetClass, studentCodes, dueDate, createdBy) {
+    return await this.request('ASSIGN_EXAM', { examId, targetClass, studentCodes, dueDate, createdBy });
+  },
+
+  async getStudents() {
+    return await this.request('GET_STUDENTS', {});
+  },
+
+  async getSubmissions() {
+    return await this.request('GET_SUBMISSIONS', {});
+  }
