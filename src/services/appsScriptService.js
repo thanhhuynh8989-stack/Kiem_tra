@@ -61,7 +61,7 @@ export const appsScriptService = {
     }
   },
 
-  async parseExamAI(rawText, imageBase64 = '', mimeType = 'image/png', model = 'gemini-3.6-flash', parsedQuestions = null, customApiKey = '', username = '') {
+  async parseExamAI(rawText, imageBase64 = '', mimeType = 'image/png', model = 'gemini-3.8-flash', parsedQuestions = null, customApiKey = '', username = '') {
     return await this.request('PARSE_EXAM_AI', { 
       rawText, 
       imageBase64, 
@@ -73,7 +73,7 @@ export const appsScriptService = {
     }, 300000);
   },
 
-  async callGeminiVisionProxy(prompt, imageBase64, mimeType = 'image/jpeg', model = 'gemini-3.6-flash') {
+  async callGeminiVisionProxy(prompt, imageBase64, mimeType = 'image/jpeg', model = 'gemini-3.8-flash') {
     return await this.request('GEMINI_PROXY', { prompt, imageBase64, mimeType, model }, 60000);
   },
 
@@ -90,34 +90,16 @@ export const appsScriptService = {
   },
 
   /**
- * Lấy danh sách đề thi của giảng viên
- */
-async getLecturerExams(username) {
-  if (typeof this.request === 'function') {
+   * Lấy danh sách đề thi của giảng viên
+   */
+  async getLecturerExams(username) {
     return await this.request('GET_MY_EXAMS', { username: username });
-  }
+  },
 
-  // Phương án dự phòng nếu gọi fetch trực tiếp
-  const response = await fetch(APP_CONFIG.APPS_SCRIPT_URL, {
-    method: 'POST',
-    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-    body: JSON.stringify({ action: 'GET_MY_EXAMS', username: username })
-  });
-  return await response.json();
-},
-
-/**
- * Lưu API Key cá nhân
- */
-async saveUserApiKey(username, apiKey) {
-  if (typeof this.request === 'function') {
+  /**
+   * Lưu API Key cá nhân
+   */
+  async saveUserApiKey(username, apiKey) {
     return await this.request('SAVE_USER_API_KEY', { username: username, apiKey: apiKey });
   }
-
-  const response = await fetch(APP_CONFIG.APPS_SCRIPT_URL, {
-    method: 'POST',
-    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-    body: JSON.stringify({ action: 'SAVE_USER_API_KEY', username: username, apiKey: apiKey })
-  });
-  return await response.json();
-}
+};
