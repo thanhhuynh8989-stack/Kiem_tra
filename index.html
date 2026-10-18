@@ -191,15 +191,74 @@
       <button id="publishExamBtn" style="background: #059669; margin-top: 16px;">Xác Nhận & Xuất Bản Đề Thi</button>
     </div>
 
-    <!-- Khung Danh sách đề thi do User tạo -->
+    <!-- KHU VỰC DANH SÁCH ĐỀ THI & BỘ LỌC ADMIN -->
     <div style="margin-top: 30px; border-top: 2px dashed #e2e8f0; padding-top: 20px;">
-      <div style="display: flex; justify-content: space-between; align-items: center;">
-        <h3>📚 Danh Sách Đề Thi Đã Tạo</h3>
-        <button type="button" id="loadMyExamsBtn" style="background: #3b82f6; color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer;">
-          🔄 Tải lại
+      <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; margin-bottom: 12px;">
+        <h3 style="margin: 0; font-size: 16px; color: #1e293b; display: flex; align-items: center; gap: 8px;">
+          📚 Danh Sách Đề Thi Đã Tạo
+        </h3>
+    
+        <!-- BỘ LỌC THEO NGƯỜI TẠO (DÀNH CHO ADMIN) -->
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <div id="adminAuthorFilterWrapper" style="display: none; align-items: center; gap: 6px;">
+            <label for="filterAuthorSelect" style="font-size: 13px; font-weight: 600; color: #475569;">👤 Người tạo:</label>
+            <select id="filterAuthorSelect" style="padding: 6px 12px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 13px; background: #fff; cursor: pointer;">
+              <option value="ALL">-- Tất cả người tạo --</option>
+            </select>
+          </div>
+    
+          <button type="button" id="loadMyExamsBtn" style="background: #3b82f6; color: white; border: none; padding: 6px 14px; border-radius: 6px; cursor: pointer; font-size: 13px; font-weight: 500;">
+            🔄 Tải lại
+          </button>
+        </div>
+      </div>
+    
+      <!-- Khung chứa danh sách đề thi -->
+      <div id="myExamsListTable"></div>
+    </div>
+    
+    <!-- TAB KHU VỰC QUẢN LÝ SINH VIÊN & ĐIỂM THI -->
+    <div id="studentManagementSection" style="margin-top: 40px; background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 20px;">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+        <h3 style="margin: 0; color: #0f172a; font-size: 18px;">👨‍🎓 Quản Lý Sinh Viên & Điểm Thi</h3>
+        <button type="button" onclick="handleLoadStudentsAndGrades()" style="background: #10b981; color: white; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; font-size: 13px; font-weight: 600;">
+          📊 Tải Bảng Điểm & Sinh Viên
         </button>
       </div>
-      <div id="myExamsListTable"></div>
+      
+      <div id="studentsAndGradesTable" style="min-height: 80px;">
+        <p style="color: #64748b; font-size: 13px;">Nhấn nút "Tải Bảng Điểm & Sinh Viên" để xem thông tin chi tiết.</p>
+      </div>
+    </div>
+    
+    <!-- MODAL GIAO ĐỀ THI -->
+    <div id="assignExamModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 9999; justify-content: center; align-items: center;">
+      <div style="background: white; border-radius: 12px; padding: 24px; width: 90%; max-width: 500px; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1);">
+        <h3 style="margin-top: 0; color: #1e293b;">📤 Giao Đề Thi Cho Sinh Viên / Lớp</h3>
+        <p id="assignExamTitle" style="font-size: 13px; color: #2563eb; font-weight: 600;"></p>
+        
+        <input type="hidden" id="assignExamId">
+    
+        <div style="margin-bottom: 12px;">
+          <label style="display: block; font-size: 13px; font-weight: 600; margin-bottom: 4px;">Tên Lớp (hoặc tất cả):</label>
+          <input type="text" id="assignClassInput" placeholder="Ví dụ: CNTT_K15 hoặc để trống cho tất cả" style="width: 100%; padding: 8px; border: 1px solid #cbd5e1; border-radius: 6px; box-sizing: border-box;">
+        </div>
+    
+        <div style="margin-bottom: 12px;">
+          <label style="display: block; font-size: 13px; font-weight: 600; margin-bottom: 4px;">Mã Sinh Viên cụ thể (phân cách dấu phẩy):</label>
+          <input type="text" id="assignStudentsInput" placeholder="Ví dụ: SV001, SV002" style="width: 100%; padding: 8px; border: 1px solid #cbd5e1; border-radius: 6px; box-sizing: border-box;">
+        </div>
+    
+        <div style="margin-bottom: 16px;">
+          <label style="display: block; font-size: 13px; font-weight: 600; margin-bottom: 4px;">Hạn chót làm bài (DueDate):</label>
+          <input type="datetime-local" id="assignDueDateInput" style="width: 100%; padding: 8px; border: 1px solid #cbd5e1; border-radius: 6px; box-sizing: border-box;">
+        </div>
+    
+        <div style="display: flex; justify-content: flex-end; gap: 10px;">
+          <button type="button" onclick="closeAssignModal()" style="padding: 8px 16px; border: 1px solid #cbd5e1; background: #fff; border-radius: 6px; cursor: pointer;">Hủy</button>
+          <button type="button" onclick="submitAssignExam()" style="padding: 8px 16px; background: #2563eb; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: 600;">Giao Đề</button>
+        </div>
+      </div>
     </div>
   </div>
 
