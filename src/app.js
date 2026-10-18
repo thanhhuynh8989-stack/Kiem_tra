@@ -1134,6 +1134,36 @@ function safeEscapeHtml(str) {
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&#039;');
 }
+/**
+ * Trích xuất tên Username đăng nhập từ mọi vị trí Storage có thể
+ */
+function getLoggedInUsername() {
+  const possibleKeys = ['currentUser', 'user', 'loggedInUser', 'username', 'auth_user', 'account'];
+  
+  for (const key of possibleKeys) {
+    // Quét cả localStorage lẫn sessionStorage
+    const rawVal = localStorage.getItem(key) || sessionStorage.getItem(key);
+    if (!rawVal) continue;
+
+    try {
+      const parsed = JSON.parse(rawVal);
+      if (typeof parsed === 'string' && parsed.trim()) {
+        return parsed.trim();
+      }
+      if (typeof parsed === 'object' && parsed !== null) {
+        const name = parsed.username || parsed.user || parsed.User || parsed.Fullname || parsed.fullName || parsed.name || parsed.studentCode;
+        if (name && String(name).trim()) return String(name).trim();
+      }
+    } catch (e) {
+      // Nếu là chuỗi thuần (ví dụ: "admin" hoặc "thanh")
+      if (typeof rawVal === 'string' && rawVal.trim() && rawVal !== 'null' && rawVal !== 'undefined' && rawVal !== '{}') {
+        return rawVal.replace(/"/g, '').trim();
+      }
+    }
+  }
+
+  return '';
+}
 
 /**
  * TẢI VÀ HIỂN THỊ DANH SÁCH ĐỀ THI
@@ -1141,7 +1171,6 @@ function safeEscapeHtml(str) {
 async function handleLoadMyExams() {
   console.log('🚀 [DEBUG] Bắt đầu gọi handleLoadMyExams()');
 
-  // Tìm đúng ID myExamsListTable như trong thẻ HTML
   const container = document.getElementById('myExamsListTable') || document.getElementById('myExamsList');
   const btnReload = document.getElementById('loadMyExamsBtn');
 
@@ -1151,7 +1180,7 @@ async function handleLoadMyExams() {
   }
 
   if (!container) {
-    console.error('❌ Không tìm thấy thẻ container #myExamsListTable trong HTML!');
+    console.error('❌ Không tìm thấy thẻ container hiển thị danh sách đề!');
     if (btnReload) {
       btnReload.disabled = false;
       btnReload.innerText = '🔄 Tải lại';
@@ -1162,20 +1191,18 @@ async function handleLoadMyExams() {
   container.innerHTML = '<p style="color: #2563eb; font-size: 13px; padding: 10px 0;">🔄 Đang kết nối máy chủ lấy danh sách đề thi...</p>';
 
   try {
-    // 1. Xác định tên tài khoản
-    const rawUser = localStorage.getItem('currentUser') || '{}';
-    let userObj = {};
-    try { userObj = JSON.parse(rawUser); } catch(e) { userObj = { username: rawUser }; }
-    const username = (userObj.username || userObj.user || userObj.User || userObj.name || '').trim();
+    // 1. Quét tìm username từ tất cả Storage
+    const username = getLoggedInUsername();
+    console.log('🔍 Username phát hiện được từ Storage:', username);
 
     if (!username) {
-      container.innerHTML = '<p style="color: #ef4444; font-size: 13px;">⚠️ Bạn chưa đăng nhập tài khoản.</p>';
+      container.innerHTML = '<p style="color: #ef4444; font-size: 13px;">⚠️ Chưa tìm thấy phiên đăng nhập. Vui lòng đăng nhập lại tài khoản!</p>';
       return;
     }
 
     console.log(`📡 Đang gọi API lấy danh sách đề thi cho User: [${username}]`);
 
-    // 2. Gọi API
+    // 2. Gọi Backend Apps Script
     const response = await appsScriptService.getLecturerExams(username);
     console.log('📦 Dữ liệu nhận từ Apps Script:', response);
 
@@ -1188,7 +1215,7 @@ async function handleLoadMyExams() {
       return;
     }
 
-    // 3. Đổ dữ liệu ra khung HTML
+    // 3. Render danh sách ra giao diện
     let html = '<div style="display: flex; flex-direction: column; gap: 10px; margin-top: 10px;">';
     exams.forEach((ex) => {
       html += `
@@ -1220,7 +1247,7 @@ async function handleLoadMyExams() {
   }
 }
 
-// Khai báo Toàn cục
+// Gán hàm ra window
 window.handleLoadMyExams = handleLoadMyExams;
 
 // Lắng nghe sự kiện click nút #loadMyExamsBtn Toàn cục
