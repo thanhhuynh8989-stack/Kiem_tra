@@ -638,9 +638,10 @@ window.saveUserApiKey = async function() {
     return;
   }
 
-  // 1. Luôn lưu ngay vào localStorage của trình duyệt
+  // 1. Luôn lưu tại localStorage trình duyệt
   localStorage.setItem('userGeminiApiKey', apiKey);
-  
+  localStorage.setItem('custom_gemini_api_key', apiKey);
+
   const badge = document.getElementById('aiQuotaBadge');
   if (badge) {
     badge.style.background = '#dcfce7';
@@ -650,14 +651,15 @@ window.saveUserApiKey = async function() {
 
   alert('Đã lưu API Key cá nhân thành công!');
 
-  // 2. Đồng bộ lên Google Sheets (Chạy ngầm)
+  // 2. Đồng bộ lên Google Sheets
   try {
     const user = JSON.parse(localStorage.getItem('currentUser') || '{}');
-    if (user.username) {
-      await appsScriptService.saveUserApiKey(user.username, apiKey);
+    const username = user.username || user.user || '';
+    if (username) {
+      await appsScriptService.saveUserApiKey(username, apiKey);
     }
   } catch (err) {
-    console.warn('Đã lưu Key tại trình duyệt. Lỗi đồng bộ Google Sheets:', err.message);
+    console.warn('Đã lưu Key tại trình duyệt local. Lỗi đồng bộ lên Hệ thống:', err.message);
   }
 };
 
@@ -1124,49 +1126,52 @@ async function handlePublishExam() {
  * Tải danh sách đề thi do Giảng viên hiện tại tạo
  */
 async function handleLoadMyExams() {
-  const container = document.getElementById('myExamsListTable');
-  if (!container || !currentUser) return;
+  const container = document.getElementById('myExamsList');
+  if (!container) return;
+
+  container.innerHTML = '<p style="color: #64748b; font-size: 13px;">🔄 Đang tải danh sách đề thi...</p>';
 
   try {
-    container.innerHTML = '<p style="color: #6b7280;">Đang tải danh sách đề thi...</p>';
-    const res = await appsScriptService.request('GET_MY_EXAMS', { username: currentUser.username });
-    const exams = res.data || [];
+    const user = JSON.parse(localStorage.getItem('currentUser') || '{}');
+    const username = user.username || user.user || '';
 
-    if (exams.length === 0) {
-      container.innerHTML = '<p style="color: #6b7280;">Bạn chưa tạo đề thi nào.</p>';
+    if (!username) {
+      container.innerHTML = '<p style="color: #ef4444; font-size: 13px;">⚠️ Chưa đăng nhập tài khoản.</p>';
       return;
     }
 
-    let html = `
-      <table border="1" style="width:100%; border-collapse:collapse; text-align:left; font-size:14px; margin-top:10px;">
-        <thead style="background:#f1f5f9;">
-          <tr>
-            <th style="padding:8px;">Mã Đề</th>
-            <th style="padding:8px;">Tên Đề Thi</th>
-            <th style="padding:8px;">Thời Gian</th>
-            <th style="padding:8px;">Giới Hạn Vi Phạm</th>
-            <th style="padding:8px;">Ngày Tạo</th>
-          </tr>
-        </thead>
-        <tbody>
-    `;
+    const response = await appsScriptService.getLecturerExams(username);
+    
+    // Bóc tách danh sách linh hoạt từ mọi kiểu phản hồi
+    const exams = response.exams || response.data?.exams || (Array.isArray(response.data) ? response.data : []);
 
-    exams.forEach(item => {
+    if (!Array.isArray(exams) || exams.length === 0) {
+      container.innerHTML = '<p style="color: #64748b; font-size: 13px;">Chưa có đề thi nào được tạo.</p>';
+      return;
+    }
+
+    let html = '<div style="display: flex; flex-direction: column; gap: 10px;">';
+    exams.forEach((ex, idx) => {
       html += `
-        <tr>
-          <td style="padding:8px;"><code>${item.examCode || item.examId}</code></td>
-          <td style="padding:8px; font-weight:600;">${escapeHtml(item.title)}</td>
-          <td style="padding:8px;">${item.durationMinutes || 45} phút</td>
-          <td style="padding:8px;">${item.maxViolations || 3} lần</td>
-          <td style="padding:8px;">${item.createdAt || 'N/A'}</td>
-        </tr>
+        <div style="background: #fff; border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px; display: flex; justify-content: space-between; align-items: center;">
+          <div>
+            <strong style="font-size: 14px; color: #1e293b;">${escapeHtml(ex.title || 'Đề thi trắc nghiệm')}</strong>
+            <div style="font-size: 12px; color: #64748b; margin-top: 4px;">
+              Mã đề: <code>${ex.examCode || ex.examId}</code> | Thời gian: ${ex.durationMinutes || 45} phút | Tạo lúc: ${ex.createdAt || 'N/A'}
+            </div>
+          </div>
+        </div>
       `;
     });
+    html += '</div>';
 
-    html += '</tbody></table>';
     container.innerHTML = html;
+
   } catch (err) {
-    container.innerHTML = '<p style="color: #ef4444;">Lỗi tải danh sách đề thi!</p>';
+    if (typeof logger !== 'undefined' && logger.error) {
+      logger.error('Lỗi tải danh sách đề thi:', err);
+    }
+    container.innerHTML = `<p style="color: #ef4444; font-size: 13px;">❌ Không thể tải danh sách đề thi: ${err.message}</p>`;
   }
 }
 
