@@ -1348,7 +1348,7 @@ window.handleDeleteExam = async function(examId) {
 };
 
 /**
- * TẢI ĐỀ THI LÊN TRÌNH CHỈNH SỬA (Bảo vệ đường dẫn & Bắt lỗi rõ ràng)
+ * 1. TẢI ĐỀ THI LÊN TRÌNH CHỈNH SỬA
  */
 window.handleEditExam = async function(examId, examCode = '') {
   console.log('✏️ Bắt đầu tải đề thi lên trình chỉnh sửa. ID:', examId, 'Code:', examCode);
@@ -1364,10 +1364,10 @@ window.handleEditExam = async function(examId, examCode = '') {
       GITHUB: { OWNER: 'thanhhuynh8989-stack', REPO: 'Kiem_tra', BRANCH: 'main' }
     });
 
-    // CHUẨN HÓA TÊN FILE: Ưu tiên examCode -> Cắt dấu gạch ngang đầu tiên nếu là UUID dài
+    // Chuẩn hóa tên file ngắn (Ví dụ: exam_75ceb91a.json)
     let rawName = String(examCode || examId).trim();
     if (rawName.includes('-')) {
-      rawName = rawName.split('-')[0]; // Biến 'exam_75ceb91a-5fde-...' thành 'exam_75ceb91a'
+      rawName = rawName.split('-')[0];
     }
     if (!rawName.endsWith('.json')) {
       rawName = `${rawName}.json`;
@@ -1379,7 +1379,7 @@ window.handleEditExam = async function(examId, examCode = '') {
 
     let examData = null;
 
-    // 1. Thử tải trực tiếp từ GitHub CDN
+    // Tải tệp JSON từ CDN hoặc Backend dự phòng
     try {
       const res = await fetch(cdnUrl);
       if (res.ok) {
@@ -1389,7 +1389,6 @@ window.handleEditExam = async function(examId, examCode = '') {
       console.warn('⚠️ Không kết nối được GitHub CDN, chuyển sang gọi Backend...');
     }
 
-    // 2. Gọi Apps Script Backend dự phòng
     if (!examData && typeof appsScriptService !== 'undefined') {
       const backendRes = await appsScriptService.request('GET_EXAM_DETAIL', { examId, examCode, filePath: path });
       if (backendRes.status === 'success' && backendRes.examData) {
@@ -1400,10 +1399,10 @@ window.handleEditExam = async function(examId, examCode = '') {
     }
 
     if (!examData) {
-      throw new Error(`Không tìm thấy file [${path}] trên GitHub.`);
+      throw new Error(`Không tìm thấy file [${path}] trên kho lưu trữ.`);
     }
 
-    // 3. Trích xuất danh sách câu hỏi
+    // Trích xuất danh sách câu hỏi
     const questions = Array.isArray(examData) 
       ? examData 
       : (examData.questions || examData.data?.questions || []);
@@ -1412,33 +1411,16 @@ window.handleEditExam = async function(examId, examCode = '') {
       throw new Error('Tệp đề thi rỗng hoặc không đúng định dạng JSON.');
     }
 
-    console.log(`✅ Tải thành công ${questions.length} câu hỏi.`);
+    console.log(`✅ Tải thành công ${questions.length} câu hỏi. Đang nạp đầy đủ Lựa chọn A,B,C,D...`);
 
-    // 4. Nạp vào State & Render ra màn hình
     if (window.examModel) window.examModel.setQuestions(questions);
     window.currentEditingExamId = examId;
 
-    if (typeof renderReviewCards === 'function') {
-      renderReviewCards(questions);
-    } else {
-      const reviewContainer = document.getElementById('reviewQuestionsContainer') || document.getElementById('myExamsListTable');
-      if (reviewContainer) {
-        let editorHtml = `<div style="background: #e0f2fe; padding: 12px; border-radius: 8px; color: #0369a1; font-weight: 600; margin-bottom: 12px;">
-          📝 Đang chỉnh sửa Đề thi: [${rawName}] (${questions.length} câu)
-        </div>`;
-        questions.forEach((q, idx) => {
-          editorHtml += `
-            <div style="background: #fff; border: 1px solid #cbd5e1; border-radius: 8px; padding: 14px; margin-bottom: 10px;">
-              <strong>Câu ${idx + 1}:</strong> ${q.stem || q.text || ''}
-            </div>
-          `;
-        });
-        reviewContainer.innerHTML = editorHtml;
-      }
-    }
+    // Ưu tiên render đầy đủ giao diện chỉnh sửa kèm lựa chọn A, B, C, D
+    renderFullQuestionEditor(questions, rawName);
 
-    // Cuộn mượt đến khung chỉnh sửa
-    const targetElement = document.getElementById('reviewQuestionsContainer') || document.getElementById('reviewSection');
+    // Cuộn mượt đến giao diện chỉnh sửa
+    const targetElement = document.getElementById('reviewQuestionsContainer') || document.getElementById('myExamsListTable');
     if (targetElement) {
       targetElement.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
@@ -1453,6 +1435,98 @@ window.handleEditExam = async function(examId, examCode = '') {
     }
   }
 };
+
+/**
+ * 2. TRÌNH DỰNG GIAO DIỆN CHỈNH SỬA CÂU HỎI ĐẦY ĐỦ (HIỂN THỊ A, B, C, D VÀ ĐÁP ÁN ĐÚNG)
+ */
+function renderFullQuestionEditor(questions, fileName) {
+  const reviewContainer = document.getElementById('reviewQuestionsContainer') || document.getElementById('myExamsListTable');
+  if (!reviewContainer) return;
+
+  let editorHtml = `
+    <div style="background: #eff6ff; border: 1px solid #bfdbfe; padding: 14px 18px; border-radius: 8px; color: #1e40af; font-weight: 600; margin-bottom: 16px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
+      <span>📝 Đang chỉnh sửa Đề thi: <strong style="color: #2563eb;">[${fileName}]</strong> (${questions.length} câu hỏi)</span>
+      <button type="button" onclick="handleSaveEditedExam()" style="background: #2563eb; color: white; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; font-size: 13px; font-weight: 600; box-shadow: 0 1px 2px rgba(0,0,0,0.1);">
+        💾 Lưu thay đổi đề thi
+      </button>
+    </div>
+  `;
+
+  questions.forEach((q, idx) => {
+    const stemText = q.stem || q.text || q.value || '';
+    const optionsList = Array.isArray(q.options) ? q.options : (Array.isArray(q.choices) ? q.choices : []);
+    const answerKey = String(q.answerKey || q.answer || q.key || '').trim().toUpperCase();
+
+    // Chuẩn hóa 4 đáp án A, B, C, D
+    const formattedOptions = ['', '', '', ''];
+    optionsList.forEach((opt, oIdx) => {
+      if (oIdx < 4) {
+        let optStr = typeof opt === 'string' ? opt : (opt.text || opt.content || String(opt || ''));
+        // Loại bỏ tiền tố A. B. C. D. nếu đã có trong chuỗi
+        optStr = optStr.replace(/^[A-D][.:)]\s*/i, '').trim();
+        formattedOptions[oIdx] = optStr;
+      }
+    });
+
+    const isAnswerMissing = !answerKey || !['A', 'B', 'C', 'D'].includes(answerKey);
+
+    editorHtml += `
+      <div style="background: #ffffff; border: ${isAnswerMissing ? '2px solid #f97316' : '1px solid #cbd5e1'}; border-radius: 10px; padding: 16px; margin-bottom: 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
+        
+        <!-- HEADER CÂU HỎI & CANH BÁO ĐÁP ÁN -->
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+          <strong style="font-size: 15px; color: #0f172a;">Câu ${idx + 1}:</strong>
+          ${isAnswerMissing ? `
+            <span style="background: #ffedd5; color: #c2410c; border: 1px solid #fed7aa; padding: 3px 10px; border-radius: 20px; font-size: 12px; font-weight: 600;">
+              ⚠️ Chưa chọn đáp án gốc (Tạm chọn A)
+            </span>
+          ` : `
+            <span style="background: #dcfce7; color: #15803d; border: 1px solid #bbf7d0; padding: 3px 10px; border-radius: 20px; font-size: 12px; font-weight: 600;">
+              ✅ Đáp án đúng: ${answerKey}
+            </span>
+          `}
+        </div>
+
+        <!-- NỘI DUNG NỘI DUNG CÂU HỎI (STEM) -->
+        <textarea id="question_stem_${idx}" style="width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 6px; box-sizing: border-box; font-family: inherit; font-size: 14px; margin-bottom: 12px; min-height: 60px; line-height: 1.4;">${escapeHtml(stemText)}</textarea>
+
+        <!-- DANH SÁCH LỰA CHỌN A, B, C, D -->
+        <div style="display: flex; flex-direction: column; gap: 8px; background: #f8fafc; padding: 12px; border-radius: 8px; border: 1px solid #f1f5f9;">
+          <span style="font-size: 12px; font-weight: 600; color: #64748b; margin-bottom: 4px;">Các lựa chọn đáp án (Tích chọn nút tròn để xác định đáp án đúng):</span>
+          
+          ${formattedOptions.map((optVal, oIdx) => {
+            const letter = String.fromCharCode(65 + oIdx);
+            const isChecked = (answerKey === letter) || (isAnswerMissing && letter === 'A');
+
+            return `
+              <div style="display: flex; align-items: center; gap: 10px;">
+                <label style="display: flex; align-items: center; gap: 6px; font-weight: 700; color: #334155; min-width: 40px; cursor: pointer;">
+                  <input type="radio" name="correct_ans_${idx}" value="${letter}" ${isChecked ? 'checked' : ''} style="width: 16px; height: 16px; cursor: pointer;">
+                  ${letter}.
+                </label>
+                <input type="text" id="option_${idx}_${oIdx}" value="${escapeHtml(optVal)}" placeholder="Lựa chọn ${letter}..." style="flex: 1; padding: 8px 12px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 13px; background: #ffffff;">
+              </div>
+            `;
+          }).join('')}
+        </div>
+
+      </div>
+    `;
+  });
+
+  editorHtml += `
+    <div style="text-align: right; margin-top: 16px; margin-bottom: 30px;">
+      <button type="button" onclick="handleSaveEditedExam()" style="background: #2563eb; color: white; border: none; padding: 10px 24px; border-radius: 8px; cursor: pointer; font-size: 14px; font-weight: 600; box-shadow: 0 2px 4px rgba(37,99,235,0.2);">
+        💾 Lưu thay đổi đề thi
+      </button>
+    </div>
+  `;
+
+  reviewContainer.innerHTML = editorHtml;
+}
+
+// Gán hàm ra window
+window.renderFullQuestionEditor = renderFullQuestionEditor;
 
 /**
  * 2. QUẢN LÝ SINH VIÊN VÀ BẢNG ĐIỂM THI
