@@ -1135,7 +1135,111 @@ function safeEscapeHtml(str) {
     .replace(/'/g, '&#039;');
 }
 
-async function handleLoadMyExams
+/**
+ * TẢI VÀ HIỂN THỊ DANH SÁCH ĐỀ THI
+ */
+async function handleLoadMyExams() {
+  console.log('🚀 [DEBUG] Bắt đầu gọi handleLoadMyExams()');
+
+  // Tìm đúng ID myExamsListTable như trong thẻ HTML
+  const container = document.getElementById('myExamsListTable') || document.getElementById('myExamsList');
+  const btnReload = document.getElementById('loadMyExamsBtn');
+
+  if (btnReload) {
+    btnReload.disabled = true;
+    btnReload.innerText = '⏳ Đang tải...';
+  }
+
+  if (!container) {
+    console.error('❌ Không tìm thấy thẻ container #myExamsListTable trong HTML!');
+    if (btnReload) {
+      btnReload.disabled = false;
+      btnReload.innerText = '🔄 Tải lại';
+    }
+    return;
+  }
+
+  container.innerHTML = '<p style="color: #2563eb; font-size: 13px; padding: 10px 0;">🔄 Đang kết nối máy chủ lấy danh sách đề thi...</p>';
+
+  try {
+    // 1. Xác định tên tài khoản
+    const rawUser = localStorage.getItem('currentUser') || '{}';
+    let userObj = {};
+    try { userObj = JSON.parse(rawUser); } catch(e) { userObj = { username: rawUser }; }
+    const username = (userObj.username || userObj.user || userObj.User || userObj.name || '').trim();
+
+    if (!username) {
+      container.innerHTML = '<p style="color: #ef4444; font-size: 13px;">⚠️ Bạn chưa đăng nhập tài khoản.</p>';
+      return;
+    }
+
+    console.log(`📡 Đang gọi API lấy danh sách đề thi cho User: [${username}]`);
+
+    // 2. Gọi API
+    const response = await appsScriptService.getLecturerExams(username);
+    console.log('📦 Dữ liệu nhận từ Apps Script:', response);
+
+    const exams = Array.isArray(response.exams) 
+      ? response.exams 
+      : (Array.isArray(response.data) ? response.data : []);
+
+    if (!exams || exams.length === 0) {
+      container.innerHTML = `<p style="color: #64748b; font-size: 13px; padding: 10px 0;">Chưa có đề thi nào cho tài khoản <strong>${username}</strong>.</p>`;
+      return;
+    }
+
+    // 3. Đổ dữ liệu ra khung HTML
+    let html = '<div style="display: flex; flex-direction: column; gap: 10px; margin-top: 10px;">';
+    exams.forEach((ex) => {
+      html += `
+        <div style="background: #ffffff; border: 1px solid #cbd5e1; border-radius: 8px; padding: 12px 16px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
+          <div>
+            <strong style="font-size: 14px; color: #0f172a;">${ex.title || 'Đề thi trắc nghiệm'}</strong>
+            <div style="font-size: 12px; color: #64748b; margin-top: 4px;">
+              Mã đề: <code style="background:#f1f5f9; padding:2px 6px; border-radius:4px; color:#2563eb; font-weight:600;">${ex.examCode || ex.examId}</code> 
+              | Thời gian: <strong>${ex.durationMinutes || 45} phút</strong> 
+              | Người tạo: <strong>${ex.createdBy || username}</strong>
+              | Ngày tạo: ${ex.createdAt || 'N/A'}
+            </div>
+          </div>
+        </div>
+      `;
+    });
+    html += '</div>';
+
+    container.innerHTML = html;
+
+  } catch (err) {
+    console.error('❌ Lỗi tải danh sách đề:', err);
+    container.innerHTML = `<p style="color: #ef4444; font-size: 13px; padding: 10px 0;">❌ Lỗi kết nối: ${err.message}</p>`;
+  } finally {
+    if (btnReload) {
+      btnReload.disabled = false;
+      btnReload.innerText = '🔄 Tải lại';
+    }
+  }
+}
+
+// Khai báo Toàn cục
+window.handleLoadMyExams = handleLoadMyExams;
+
+// Lắng nghe sự kiện click nút #loadMyExamsBtn Toàn cục
+document.addEventListener('click', (e) => {
+  const btn = e.target.closest('#loadMyExamsBtn');
+  if (btn) {
+    e.preventDefault();
+    console.log('👉 Click nút #loadMyExamsBtn!');
+    handleLoadMyExams();
+  }
+});
+
+// Tự động tải dữ liệu khi khung chứa vừa xuất hiện trên màn hình
+setInterval(() => {
+  const container = document.getElementById('myExamsListTable') || document.getElementById('myExamsList');
+  if (container && container.children.length === 0 && container.innerHTML.trim() === '') {
+    handleLoadMyExams();
+  }
+}, 1500);
 
 /**
  * Trích xuất văn bản từ tệp .docx hoặc .pdf
