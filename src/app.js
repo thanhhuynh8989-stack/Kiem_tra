@@ -1015,15 +1015,6 @@ window.removeQuestionImage = (qId) => {
   }
 };
 
-function escapeHtml(str = '') {
-  return String(str)
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#039;');
-}
-
 /**
  * Xuất bản đề thi (Đã tích hợp ràng buộc kiểm tra ô trống & cuộn tới câu lỗi)
  */
