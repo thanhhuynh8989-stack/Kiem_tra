@@ -1165,14 +1165,19 @@ function getLoggedInUsername() {
   return '';
 }
 
+// Biến toàn cục lưu danh sách đề thi gốc để phục vụ lọc dữ liệu
+window.rawFetchedExams = [];
+
 /**
- * TẢI VÀ HIỂN THỊ DANH SÁCH ĐỀ THI
+ * TẢI VÀ HIỂN THỊ DANH SÁCH ĐỀ THI (Hỗ trợ Admin Filter & Action Buttons)
  */
 async function handleLoadMyExams() {
   console.log('🚀 [DEBUG] Bắt đầu gọi handleLoadMyExams()');
 
   const container = document.getElementById('myExamsListTable') || document.getElementById('myExamsList');
   const btnReload = document.getElementById('loadMyExamsBtn');
+  const filterWrapper = document.getElementById('adminAuthorFilterWrapper');
+  const filterSelect = document.getElementById('filterAuthorSelect');
 
   if (btnReload) {
     btnReload.disabled = true;
@@ -1210,31 +1215,27 @@ async function handleLoadMyExams() {
       ? response.exams 
       : (Array.isArray(response.data) ? response.data : []);
 
-    if (!exams || exams.length === 0) {
-      container.innerHTML = `<p style="color: #64748b; font-size: 13px; padding: 10px 0;">Chưa có đề thi nào cho tài khoản <strong>${username}</strong>.</p>`;
-      return;
+    // Lưu vào biến toàn cục để dùng cho bộ lọc Admin
+    window.rawFetchedExams = exams;
+
+    // 3. Xử lý Bộ Lọc Người Tạo cho Admin
+    const isAdmin = String(username).trim().toLowerCase() === 'admin';
+    if (isAdmin && filterWrapper && filterSelect) {
+      filterWrapper.style.display = 'flex';
+
+      // Trích xuất danh sách người tạo duy nhất
+      const authors = [...new Set(exams.map(e => e.createdBy || 'N/A'))];
+      let optionsHtml = '<option value="ALL">-- Tất cả người tạo --</option>';
+      authors.forEach(author => {
+        optionsHtml += `<option value="${escapeHtml(author)}">${escapeHtml(author)}</option>`;
+      });
+      filterSelect.innerHTML = optionsHtml;
+    } else if (filterWrapper) {
+      filterWrapper.style.display = 'none';
     }
 
-    // 3. Render danh sách ra giao diện
-    let html = '<div style="display: flex; flex-direction: column; gap: 10px; margin-top: 10px;">';
-    exams.forEach((ex) => {
-      html += `
-        <div style="background: #ffffff; border: 1px solid #cbd5e1; border-radius: 8px; padding: 12px 16px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
-          <div>
-            <strong style="font-size: 14px; color: #0f172a;">${ex.title || 'Đề thi trắc nghiệm'}</strong>
-            <div style="font-size: 12px; color: #64748b; margin-top: 4px;">
-              Mã đề: <code style="background:#f1f5f9; padding:2px 6px; border-radius:4px; color:#2563eb; font-weight:600;">${ex.examCode || ex.examId}</code> 
-              | Thời gian: <strong>${ex.durationMinutes || 45} phút</strong> 
-              | Người tạo: <strong>${ex.createdBy || username}</strong>
-              | Ngày tạo: ${ex.createdAt || 'N/A'}
-            </div>
-          </div>
-        </div>
-      `;
-    });
-    html += '</div>';
-
-    container.innerHTML = html;
+    // 4. Render danh sách đề thi
+    renderExamsList(exams, username);
 
   } catch (err) {
     console.error('❌ Lỗi tải danh sách đề:', err);
@@ -1247,10 +1248,70 @@ async function handleLoadMyExams() {
   }
 }
 
+/**
+ * HÀM RENDER DANH SÁCH ĐỀ THI RA THẺ CARD KÈM NÚT SỬA / XÓA / GIAO ĐỀ
+ */
+function renderExamsList(exams, currentUsername = '') {
+  const container = document.getElementById('myExamsListTable') || document.getElementById('myExamsList');
+  if (!container) return;
+
+  if (!exams || exams.length === 0) {
+    container.innerHTML = `<p style="color: #64748b; font-size: 13px; padding: 10px 0;">Chưa có đề thi nào phù hợp.</p>`;
+    return;
+  }
+
+  let html = '<div style="display: flex; flex-direction: column; gap: 10px; margin-top: 10px;">';
+  
+  exams.forEach((ex) => {
+    const examId = escapeHtml(ex.examId || '');
+    const examCode = escapeHtml(ex.examCode || ex.examId || 'N/A');
+    const title = escapeHtml(ex.title || 'Đề thi trắc nghiệm');
+    const duration = ex.durationMinutes || 45;
+    const createdBy = escapeHtml(ex.createdBy || currentUsername || 'N/A');
+    const createdAt = escapeHtml(ex.createdAt || 'N/A');
+
+    html += `
+      <div style="background: #ffffff; border: 1px solid #cbd5e1; border-radius: 8px; padding: 12px 16px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 1px 3px rgba(0,0,0,0.05); flex-wrap: wrap; gap: 10px;">
+        <!-- THÔNG TIN ĐỀ THI -->
+        <div>
+          <strong style="font-size: 15px; color: #0f172a;">${title}</strong>
+          <div style="font-size: 12px; color: #64748b; margin-top: 4px;">
+            Mã đề: <code style="background:#f1f5f9; padding:2px 6px; border-radius:4px; color:#2563eb; font-weight:600;">${examCode}</code> 
+            | Thời gian: <strong>${duration} phút</strong> 
+            | Người tạo: <strong style="color: #d97706;">${createdBy}</strong>
+            | Ngày tạo: ${createdAt}
+          </div>
+        </div>
+
+        <!-- CÁC NÚT THAO TÁC: GIAO ĐỀ / SỬA / XÓA -->
+        <div style="display: flex; align-items: center; gap: 6px;">
+          <button type="button" onclick="handleOpenAssignModal('${examId}', '${title}')" title="Giao đề cho Lớp / Sinh viên" style="background: #059669; color: white; border: none; padding: 6px 12px; border-radius: 6px; cursor: pointer; font-size: 12px; font-weight: 600; display: flex; align-items: center; gap: 4px;">
+            📤 Giao đề
+          </button>
+          <button type="button" onclick="handleEditExam('${examId}')" title="Chỉnh sửa nội dung đề" style="background: #d97706; color: white; border: none; padding: 6px 12px; border-radius: 6px; cursor: pointer; font-size: 12px; font-weight: 600; display: flex; align-items: center; gap: 4px;">
+            ✏️ Sửa
+          </button>
+          <button type="button" onclick="handleDeleteExam('${examId}')" title="Xóa đề thi này" style="background: #dc2626; color: white; border: none; padding: 6px 12px; border-radius: 6px; cursor: pointer; font-size: 12px; font-weight: 600; display: flex; align-items: center; gap: 4px;">
+            🗑️ Xóa
+          </button>
+        </div>
+      </div>
+    `;
+  });
+
+  html += '</div>';
+  container.innerHTML = html;
+}
+
 // Gán hàm ra window
 window.handleLoadMyExams = handleLoadMyExams;
+window.renderExamsList = renderExamsList;
 
-// Lắng nghe sự kiện click nút #loadMyExamsBtn Toàn cục
+// -------------------------------------------------------------
+// SỰ KIỆN TOÀN CỤC (EVENT LISTENERS)
+// -------------------------------------------------------------
+
+// 1. Lắng nghe click nút #loadMyExamsBtn
 document.addEventListener('click', (e) => {
   const btn = e.target.closest('#loadMyExamsBtn');
   if (btn) {
@@ -1259,6 +1320,70 @@ document.addEventListener('click', (e) => {
     handleLoadMyExams();
   }
 });
+
+// 2. Lắng nghe thay đổi Lọc theo Người tạo (Admin Author Filter)
+document.addEventListener('change', (e) => {
+  if (e.target && e.target.id === 'filterAuthorSelect') {
+    const selectedAuthor = e.target.value;
+    console.log(`🔍 Đang lọc đề thi theo tác giả: [${selectedAuthor}]`);
+
+    if (selectedAuthor === 'ALL') {
+      renderExamsList(window.rawFetchedExams);
+    } else {
+      const filtered = window.rawFetchedExams.filter(ex => 
+        String(ex.createdBy || '').toLowerCase() === selectedAuthor.toLowerCase()
+      );
+      renderExamsList(filtered);
+    }
+  }
+});
+
+// -------------------------------------------------------------
+// HÀM PHỤ TRỢ THAO TÁC NÚT BẤM (XÓA / SỬA / GIAO ĐỀ)
+// -------------------------------------------------------------
+
+window.handleDeleteExam = async function(examId) {
+  if (!confirm(`Bạn có chắc chắn muốn XÓA vĩnh viễn đề thi [${examId}]?`)) return;
+  
+  try {
+    const username = getLoggedInUsername();
+    const res = await appsScriptService.deleteExam(examId, username);
+    alert(res.message || 'Đã xóa đề thi thành công!');
+    handleLoadMyExams(); // Tải lại danh sách sau khi xóa
+  } catch (err) {
+    alert('Lỗi khi xóa đề thi: ' + err.message);
+  }
+};
+
+window.handleEditExam = function(examId) {
+  alert(`✏️ Tính năng Sửa: Hệ thống sẽ tải lại đề thi [${examId}] lên trình chỉnh sửa!`);
+};
+
+window.handleOpenAssignModal = function(examId, title) {
+  const modal = document.getElementById('assignExamModal');
+  const idInput = document.getElementById('assignExamId');
+  const titleEl = document.getElementById('assignExamTitle');
+
+  if (idInput) idInput.value = examId;
+  if (titleEl) titleEl.innerText = `Đề thi: ${title} (${examId})`;
+  if (modal) modal.style.display = 'flex';
+};
+
+window.closeAssignModal = function() {
+  const modal = document.getElementById('assignExamModal');
+  if (modal) modal.style.display = 'none';
+};
+
+// Hàm escape HTML an toàn cho chuỗi
+function escapeHtml(str) {
+  if (str === null || str === undefined) return '';
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+}
 
 // Tự động tải dữ liệu khi khung chứa vừa xuất hiện trên màn hình
 setInterval(() => {
@@ -1388,3 +1513,4 @@ function setUploadStatus(text, style) {
     el.setAttribute('style', `margin-top: 12px; font-weight: 600; ${style}`);
   }
 }
+
