@@ -48,12 +48,14 @@ export class ExamModel {
       if (foundIdx !== -1) return foundIdx;
     }
 
-    if (typeof correctAnswer === 'number') return correctAnswer;
+    if (typeof correctAnswer === 'number' && correctAnswer >= 0 && correctAnswer < options.length) {
+      return correctAnswer;
+    }
     return null;
   }
 
   /**
-   * Tạo cấu trúc đề thi chuẩn hóa (Bảo toàn cờ flags & originalOptionCount)
+   * Tạo cấu trúc đề thi chuẩn hóa (Khắc phục triệt để lỗi báo sai cờ isMissingAnswer)
    */
   createStandardExam(metadata = {}, rawQuestions = []) {
     const examId = metadata.examId || metadata.id || `exam_${this.generateUUID()}`;
@@ -66,8 +68,29 @@ export class ExamModel {
       while (options.length < 4) options.push('');
 
       const disableShuffle = q.disableShuffle || this.shouldDisableShuffle(options);
+      
+      // 1. Kiểm tra chính xác xem đã tìm thấy đáp án hợp lệ chưa
       const normalizedAnswer = this.normalizeCorrectAnswer(q.correctAnswer, options);
+      const hasValidAnswer = (normalizedAnswer !== null && normalizedAnswer >= 0 && normalizedAnswer < 4);
+      
+      // 2. Kiểm tra phương án trống hoặc thiếu
       const origCount = q.originalOptionCount !== undefined ? q.originalOptionCount : 4;
+      const hasEmptyOption = options.some(o => !o.trim());
+      const isMissingOpts = origCount < 4 || hasEmptyOption;
+      const isMissingAns = !hasValidAnswer;
+
+      // 3. Cập nhật Note cảnh báo đồng nhất với trạng thái đáp án thực tế
+      let noteText = '';
+      if (isMissingOpts) {
+        noteText = `Đề gốc có ${origCount}/4 phương án. Vui lòng bổ sung phương án bị trống.`;
+      } else if (isMissingAns) {
+        noteText = 'Chưa tìm thấy đáp án gốc trong đề (Tạm chọn A). Vui lòng kiểm tra lại.';
+      } else {
+        const letter = String.fromCharCode(65 + normalizedAnswer);
+        noteText = `Đã nhận diện đáp án gốc (${letter}).`;
+      }
+
+      const needsConfirmation = isMissingOpts || isMissingAns;
 
       return {
         id: qId,
@@ -77,16 +100,16 @@ export class ExamModel {
         imageUrl: q.imageUrl || null,
         imageBox: q.imageBox || null,
         options: options.slice(0, 4),
-        correctAnswer: normalizedAnswer !== null ? normalizedAnswer : 0,
+        correctAnswer: hasValidAnswer ? normalizedAnswer : 0,
         explanation: this.sanitizeContent(q.explanation || ''),
         points: typeof q.points === 'number' ? q.points : 1.0,
         disableShuffle: disableShuffle,
         originalOptionCount: origCount,
-        flags: q.flags || {
-          needsUserConfirmation: origCount < 4 || options.some(o => !o.trim()),
-          isMissingOptions: origCount < 4 || options.some(o => !o.trim()),
-          isMissingAnswer: normalizedAnswer === null,
-          note: 'Cần kiểm tra lại.'
+        flags: {
+          needsUserConfirmation: needsConfirmation,
+          isMissingOptions: isMissingOpts,
+          isMissingAnswer: isMissingAns,
+          note: noteText
         }
       };
     });
