@@ -1125,6 +1125,22 @@ async function handlePublishExam() {
 /**
  * Tải danh sách đề thi do Giảng viên hiện tại tạo
  */
+/**
+ * Hàm hỗ trợ mã hóa ký tự HTML an toàn (Tránh lỗi escapeHtml is not defined)
+ */
+function safeEscapeHtml(str) {
+  if (str === null || str === undefined) return '';
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+}
+
+/**
+ * Tải và hiển thị danh sách đề thi của người dùng
+ */
 async function handleLoadMyExams() {
   const container = document.getElementById('myExamsList');
   if (!container) return;
@@ -1132,32 +1148,53 @@ async function handleLoadMyExams() {
   container.innerHTML = '<p style="color: #64748b; font-size: 13px;">🔄 Đang tải danh sách đề thi...</p>';
 
   try {
-    const user = JSON.parse(localStorage.getItem('currentUser') || '{}');
-    const username = user.username || user.user || '';
+    // 1. Đọc linh hoạt username từ mọi kiểu định dạng trong localStorage
+    const userObj = JSON.parse(localStorage.getItem('currentUser') || '{}');
+    const username = userObj.username || userObj.user || userObj.User || userObj.Fullname || '';
 
     if (!username) {
-      container.innerHTML = '<p style="color: #ef4444; font-size: 13px;">⚠️ Chưa đăng nhập tài khoản.</p>';
+      container.innerHTML = '<p style="color: #ef4444; font-size: 13px;">⚠️ Chưa tìm thấy tên tài khoản đăng nhập trong Session/LocalStorage.</p>';
       return;
     }
 
+    // 2. Gửi yêu cầu tới Apps Script Webhook
     const response = await appsScriptService.getLecturerExams(username);
-    
-    // Bóc tách danh sách linh hoạt từ mọi kiểu phản hồi
-    const exams = response.exams || response.data?.exams || (Array.isArray(response.data) ? response.data : []);
+    console.log('📦 Dữ liệu danh sách đề thi từ Apps Script:', response);
+
+    if (response && response.status === 'error') {
+      throw new Error(response.message || 'Máy chủ trả về lỗi không xác định');
+    }
+
+    // 3. Bóc tách mảng linh hoạt từ các kiểu dữ liệu trả về
+    const exams = Array.isArray(response.exams)
+      ? response.exams
+      : (Array.isArray(response.data) 
+          ? response.data 
+          : (Array.isArray(response.data?.exams) ? response.data.exams : []));
 
     if (!Array.isArray(exams) || exams.length === 0) {
-      container.innerHTML = '<p style="color: #64748b; font-size: 13px;">Chưa có đề thi nào được tạo.</p>';
+      container.innerHTML = `<p style="color: #64748b; font-size: 13px;">Chưa có đề thi nào cho tài khoản <strong>${safeEscapeHtml(username)}</strong>.</p>`;
       return;
     }
 
+    // 4. Dựng giao diện hiển thị
     let html = '<div style="display: flex; flex-direction: column; gap: 10px;">';
-    exams.forEach((ex, idx) => {
+    exams.forEach((ex) => {
+      const title = safeEscapeHtml(ex.title || 'Đề thi trắc nghiệm');
+      const code = safeEscapeHtml(ex.examCode || ex.examId || 'N/A');
+      const duration = ex.durationMinutes || 45;
+      const createdBy = safeEscapeHtml(ex.createdBy || username);
+      const createdAt = safeEscapeHtml(ex.createdAt || 'N/A');
+
       html += `
-        <div style="background: #fff; border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px; display: flex; justify-content: space-between; align-items: center;">
+        <div style="background: #fff; border: 1px solid #cbd5e1; border-radius: 8px; padding: 12px 16px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 1px 2px rgba(0,0,0,0.05);">
           <div>
-            <strong style="font-size: 14px; color: #1e293b;">${escapeHtml(ex.title || 'Đề thi trắc nghiệm')}</strong>
+            <strong style="font-size: 14px; color: #1e293b;">${title}</strong>
             <div style="font-size: 12px; color: #64748b; margin-top: 4px;">
-              Mã đề: <code>${ex.examCode || ex.examId}</code> | Thời gian: ${ex.durationMinutes || 45} phút | Tạo lúc: ${ex.createdAt || 'N/A'}
+              Mã đề: <code style="background:#f1f5f9; padding:2px 6px; border-radius:4px; color:#2563eb;">${code}</code> 
+              | Thời gian: <strong>${duration} phút</strong> 
+              | Người tạo: <strong>${createdBy}</strong>
+              | Tạo lúc: ${createdAt}
             </div>
           </div>
         </div>
@@ -1168,10 +1205,11 @@ async function handleLoadMyExams() {
     container.innerHTML = html;
 
   } catch (err) {
+    console.error('❌ Lỗi tải danh sách đề thi:', err);
     if (typeof logger !== 'undefined' && logger.error) {
       logger.error('Lỗi tải danh sách đề thi:', err);
     }
-    container.innerHTML = `<p style="color: #ef4444; font-size: 13px;">❌ Không thể tải danh sách đề thi: ${err.message}</p>`;
+    container.innerHTML = `<p style="color: #ef4444; font-size: 13px;">❌ Không thể tải danh sách đề thi: ${safeEscapeHtml(err.message)}</p>`;
   }
 }
 
