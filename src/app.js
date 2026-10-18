@@ -1136,11 +1136,15 @@ function safeEscapeHtml(str) {
 }
 
 /**
- * 1. Hàm tải danh sách đề thi chính thức
+ * 1. Hàm tải danh sách đề thi chính thức (Đã sửa lỗi đọc Username & Nút bấm)
  */
 async function handleLoadMyExams() {
+  console.log('🚀 [DEBUG] Kích hoạt handleLoadMyExams()');
+  
   const container = document.getElementById('myExamsList');
-  const btnReload = document.querySelector('button[onclick*="handleLoadMyExams"]') || document.getElementById('btnReloadExams');
+  const btnReload = document.getElementById('loadMyExamsBtn') || 
+                    document.getElementById('btnReloadExams') || 
+                    document.querySelector('button[onclick*="handleLoadMyExams"]');
   
   if (btnReload) {
     btnReload.disabled = true;
@@ -1148,19 +1152,36 @@ async function handleLoadMyExams() {
   }
 
   if (container) {
-    container.innerHTML = '<p style="color: #64748b; font-size: 13px; padding: 8px 0;">🔄 Đang kết nối lấy danh sách đề thi...</p>';
+    container.innerHTML = '<p style="color: #2563eb; font-size: 13px; padding: 8px 0; font-weight: 500;">🔄 Đang kết nối lấy danh sách đề thi...</p>';
   }
 
   try {
-    const userObj = JSON.parse(localStorage.getItem('currentUser') || '{}');
-    const username = userObj.username || userObj.user || userObj.User || '';
+    // Đọc thông tin user linh hoạt (Xử lý cả dạng Object JSON lẫn Chuỗi String)
+    let userObj = {};
+    const rawUser = localStorage.getItem('currentUser');
+    try {
+      userObj = JSON.parse(rawUser || '{}');
+    } catch (e) {
+      userObj = rawUser || '';
+    }
+
+    let username = '';
+    if (typeof userObj === 'string') {
+      username = userObj.replace(/"/g, '').trim();
+    } else if (typeof userObj === 'object' && userObj !== null) {
+      username = userObj.username || userObj.user || userObj.User || userObj.Fullname || userObj.name || '';
+    }
 
     if (!username) {
-      if (container) container.innerHTML = '<p style="color: #ef4444; font-size: 13px;">⚠️ Chưa xác định tên tài khoản. Vui lòng đăng nhập lại.</p>';
+      if (container) {
+        container.innerHTML = '<p style="color: #ef4444; font-size: 13px;">⚠️ Chưa xác định tên tài khoản. Vui lòng đăng nhập lại.</p>';
+      }
       return;
     }
 
-    // Gọi API lấy danh sách
+    console.log('📡 Đang gửi request lấy danh sách đề thi cho user:', username);
+
+    // Gọi API lấy danh sách từ Backend Apps Script
     const response = await appsScriptService.getLecturerExams(username);
     console.log('📦 KẾT QUẢ ĐỀ THI TỪ MÁY CHỦ:', response);
 
@@ -1178,11 +1199,11 @@ async function handleLoadMyExams() {
     let html = '<div style="display: flex; flex-direction: column; gap: 10px; margin-top: 10px;">';
     exams.forEach((ex) => {
       html += `
-        <div style="background: #fff; border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px 16px; display: flex; justify-content: space-between; align-items: center;">
+        <div style="background: #fff; border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px 16px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
           <div>
             <strong style="font-size: 14px; color: #1e293b;">${ex.title || 'Đề thi trắc nghiệm'}</strong>
             <div style="font-size: 12px; color: #64748b; margin-top: 4px;">
-              Mã đề: <code style="background:#f1f5f9; padding:2px 6px; border-radius:4px; color:#2563eb;">${ex.examCode || ex.examId}</code> 
+              Mã đề: <code style="background:#f1f5f9; padding:2px 6px; border-radius:4px; color:#2563eb; font-weight:600;">${ex.examCode || ex.examId}</code> 
               | Thời gian: <strong>${ex.durationMinutes || 45} phút</strong> 
               | Người tạo: <strong>${ex.createdBy || username}</strong>
               | Ngày tạo: ${ex.createdAt || 'N/A'}
@@ -1208,18 +1229,30 @@ async function handleLoadMyExams() {
   }
 }
 
-// 2. GẮN TRỰC TIẾP VÀO WINDOW ĐỂ NÚT BẤM HTML GỌI ĐƯỢC
+// 2. GẮN TRỰC TIẾP VÀO WINDOW
 window.handleLoadMyExams = handleLoadMyExams;
 window.loadMyExams = handleLoadMyExams;
 
-// 3. TỰ ĐỘNG TẢI DANH SÁCH KHI TRANG VỪA MỞ XONG
-document.addEventListener('DOMContentLoaded', () => {
-  setTimeout(() => {
-    if (document.getElementById('myExamsList')) {
-      handleLoadMyExams();
-    }
-  }, 500);
+// 3. SỰ KIỆN CLICK TOÀN CỤC (EVENT DELEGATION) - LẮNG NGHE NÚT BẤM DÙ XUẤT HIỆN LÚC NÀO
+document.addEventListener('click', (e) => {
+  const reloadBtn = e.target.closest('#loadMyExamsBtn') || 
+                    e.target.closest('#btnReloadExams') || 
+                    e.target.closest('button[onclick*="handleLoadMyExams"]');
+  if (reloadBtn) {
+    e.preventDefault();
+    e.stopPropagation();
+    console.log('👉 Đã nhận sự kiện click nút Tải lại!');
+    handleLoadMyExams();
+  }
 });
+
+// 4. TỰ ĐỘNG TẢI ĐỀ KHI GIAO DIỆN BẢNG ĐỀ THI XUẤT HIỆN
+setInterval(() => {
+  const container = document.getElementById('myExamsList');
+  if (container && (container.children.length === 0 || container.innerHTML.trim() === '')) {
+    handleLoadMyExams();
+  }
+}, 1200);
 
 /**
  * Trích xuất văn bản từ tệp .docx hoặc .pdf
@@ -1341,29 +1374,3 @@ function setUploadStatus(text, style) {
     el.setAttribute('style', `margin-top: 12px; font-weight: 600; ${style}`);
   }
 }
-
-// Gắn sự kiện click cho nút #loadMyExamsBtn và tự động tải khi mở trang
-document.addEventListener('DOMContentLoaded', () => {
-  const reloadBtn = document.getElementById('loadMyExamsBtn');
-  
-  if (reloadBtn) {
-    reloadBtn.addEventListener('click', (e) => {
-      e.preventDefault();
-      if (typeof handleLoadMyExams === 'function') {
-        handleLoadMyExams();
-      } else if (typeof window.handleLoadMyExams === 'function') {
-        window.handleLoadMyExams();
-      } else {
-        console.error('Chưa tìm thấy hàm handleLoadMyExams!');
-      }
-    });
-  }
-
-  // Tự động tải danh sách ngay khi mở trang sau 0.5s
-  setTimeout(() => {
-    if (document.getElementById('myExamsList')) {
-      if (typeof handleLoadMyExams === 'function') handleLoadMyExams();
-      else if (typeof window.handleLoadMyExams === 'function') window.handleLoadMyExams();
-    }
-  }, 500);
-});
