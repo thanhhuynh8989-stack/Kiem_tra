@@ -1123,9 +1123,6 @@ async function handlePublishExam() {
 }
 
 /**
- * Tải danh sách đề thi do Giảng viên hiện tại tạo
- */
-/**
  * Hàm hỗ trợ mã hóa ký tự HTML an toàn (Tránh lỗi escapeHtml is not defined)
  */
 function safeEscapeHtml(str) {
@@ -1139,62 +1136,56 @@ function safeEscapeHtml(str) {
 }
 
 /**
- * Tải và hiển thị danh sách đề thi của người dùng
+ * 1. Hàm tải danh sách đề thi chính thức
  */
 async function handleLoadMyExams() {
   const container = document.getElementById('myExamsList');
-  if (!container) return;
+  const btnReload = document.querySelector('button[onclick*="handleLoadMyExams"]') || document.getElementById('btnReloadExams');
+  
+  if (btnReload) {
+    btnReload.disabled = true;
+    btnReload.innerText = '⏳ Đang tải...';
+  }
 
-  container.innerHTML = '<p style="color: #64748b; font-size: 13px;">🔄 Đang tải danh sách đề thi...</p>';
+  if (container) {
+    container.innerHTML = '<p style="color: #64748b; font-size: 13px; padding: 8px 0;">🔄 Đang kết nối lấy danh sách đề thi...</p>';
+  }
 
   try {
-    // 1. Đọc linh hoạt username từ mọi kiểu định dạng trong localStorage
     const userObj = JSON.parse(localStorage.getItem('currentUser') || '{}');
-    const username = userObj.username || userObj.user || userObj.User || userObj.Fullname || '';
+    const username = userObj.username || userObj.user || userObj.User || '';
 
     if (!username) {
-      container.innerHTML = '<p style="color: #ef4444; font-size: 13px;">⚠️ Chưa tìm thấy tên tài khoản đăng nhập trong Session/LocalStorage.</p>';
+      if (container) container.innerHTML = '<p style="color: #ef4444; font-size: 13px;">⚠️ Chưa xác định tên tài khoản. Vui lòng đăng nhập lại.</p>';
       return;
     }
 
-    // 2. Gửi yêu cầu tới Apps Script Webhook
+    // Gọi API lấy danh sách
     const response = await appsScriptService.getLecturerExams(username);
-    console.log('📦 Dữ liệu danh sách đề thi từ Apps Script:', response);
+    console.log('📦 KẾT QUẢ ĐỀ THI TỪ MÁY CHỦ:', response);
 
-    if (response && response.status === 'error') {
-      throw new Error(response.message || 'Máy chủ trả về lỗi không xác định');
-    }
+    const exams = Array.isArray(response.exams) 
+      ? response.exams 
+      : (Array.isArray(response.data) ? response.data : (Array.isArray(response.data?.exams) ? response.data.exams : []));
 
-    // 3. Bóc tách mảng linh hoạt từ các kiểu dữ liệu trả về
-    const exams = Array.isArray(response.exams)
-      ? response.exams
-      : (Array.isArray(response.data) 
-          ? response.data 
-          : (Array.isArray(response.data?.exams) ? response.data.exams : []));
+    if (!container) return;
 
     if (!Array.isArray(exams) || exams.length === 0) {
-      container.innerHTML = `<p style="color: #64748b; font-size: 13px;">Chưa có đề thi nào cho tài khoản <strong>${safeEscapeHtml(username)}</strong>.</p>`;
+      container.innerHTML = `<p style="color: #64748b; font-size: 13px; padding: 8px 0;">Chưa có đề thi nào cho tài khoản <strong>${username}</strong>.</p>`;
       return;
     }
 
-    // 4. Dựng giao diện hiển thị
-    let html = '<div style="display: flex; flex-direction: column; gap: 10px;">';
+    let html = '<div style="display: flex; flex-direction: column; gap: 10px; margin-top: 10px;">';
     exams.forEach((ex) => {
-      const title = safeEscapeHtml(ex.title || 'Đề thi trắc nghiệm');
-      const code = safeEscapeHtml(ex.examCode || ex.examId || 'N/A');
-      const duration = ex.durationMinutes || 45;
-      const createdBy = safeEscapeHtml(ex.createdBy || username);
-      const createdAt = safeEscapeHtml(ex.createdAt || 'N/A');
-
       html += `
-        <div style="background: #fff; border: 1px solid #cbd5e1; border-radius: 8px; padding: 12px 16px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 1px 2px rgba(0,0,0,0.05);">
+        <div style="background: #fff; border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px 16px; display: flex; justify-content: space-between; align-items: center;">
           <div>
-            <strong style="font-size: 14px; color: #1e293b;">${title}</strong>
+            <strong style="font-size: 14px; color: #1e293b;">${ex.title || 'Đề thi trắc nghiệm'}</strong>
             <div style="font-size: 12px; color: #64748b; margin-top: 4px;">
-              Mã đề: <code style="background:#f1f5f9; padding:2px 6px; border-radius:4px; color:#2563eb;">${code}</code> 
-              | Thời gian: <strong>${duration} phút</strong> 
-              | Người tạo: <strong>${createdBy}</strong>
-              | Tạo lúc: ${createdAt}
+              Mã đề: <code style="background:#f1f5f9; padding:2px 6px; border-radius:4px; color:#2563eb;">${ex.examCode || ex.examId}</code> 
+              | Thời gian: <strong>${ex.durationMinutes || 45} phút</strong> 
+              | Người tạo: <strong>${ex.createdBy || username}</strong>
+              | Ngày tạo: ${ex.createdAt || 'N/A'}
             </div>
           </div>
         </div>
@@ -1206,12 +1197,29 @@ async function handleLoadMyExams() {
 
   } catch (err) {
     console.error('❌ Lỗi tải danh sách đề thi:', err);
-    if (typeof logger !== 'undefined' && logger.error) {
-      logger.error('Lỗi tải danh sách đề thi:', err);
+    if (container) {
+      container.innerHTML = `<p style="color: #ef4444; font-size: 13px;">❌ Lỗi kết nối: ${err.message}</p>`;
     }
-    container.innerHTML = `<p style="color: #ef4444; font-size: 13px;">❌ Không thể tải danh sách đề thi: ${safeEscapeHtml(err.message)}</p>`;
+  } finally {
+    if (btnReload) {
+      btnReload.disabled = false;
+      btnReload.innerText = '🔄 Tải lại';
+    }
   }
 }
+
+// 2. GẮN TRỰC TIẾP VÀO WINDOW ĐỂ NÚT BẤM HTML GỌI ĐƯỢC
+window.handleLoadMyExams = handleLoadMyExams;
+window.loadMyExams = handleLoadMyExams;
+
+// 3. TỰ ĐỘNG TẢI DANH SÁCH KHI TRANG VỪA MỞ XONG
+document.addEventListener('DOMContentLoaded', () => {
+  setTimeout(() => {
+    if (document.getElementById('myExamsList')) {
+      handleLoadMyExams();
+    }
+  }, 500);
+});
 
 /**
  * Trích xuất văn bản từ tệp .docx hoặc .pdf
