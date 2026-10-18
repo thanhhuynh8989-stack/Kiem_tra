@@ -1348,21 +1348,11 @@ window.handleDeleteExam = async function(examId) {
 };
 
 /**
- * TẢI ĐỀ THI LÊN TRÌNH CHỈNH SỬA (REVIEW EDITOR) - ĐÃ BỔ SUNG KHAI BÁO APP_CONFIG
+ * TẢI ĐỀ THI LÊN TRÌNH CHỈNH SỬA (Bảo vệ đường dẫn & Bắt lỗi rõ ràng)
  */
-window.handleEditExam = async function(examId) {
+window.handleEditExam = async function(examId, filePath = '') {
   console.log('✏️ Bắt đầu tải đề thi lên trình chỉnh sửa:', examId);
 
-  // Lấy cấu hình APP_CONFIG an toàn (Tránh lỗi APP_CONFIG is not defined)
-  const config = (typeof APP_CONFIG !== 'undefined') ? APP_CONFIG : (window.APP_CONFIG || {
-    GITHUB: {
-      OWNER: 'thanhhuynh8989-stack',
-      REPO: 'Kiem_tra',
-      BRANCH: 'main'
-    }
-  });
-
-  // Tìm nút bấm sửa đang được click để tạo hiệu ứng "Đang tải"
   const btn = event?.target?.closest('button');
   if (btn) {
     btn.disabled = true;
@@ -1370,81 +1360,73 @@ window.handleEditExam = async function(examId) {
   }
 
   try {
-    // 1. Tạo đường dẫn CDN tải tệp JSON của đề thi
-    const jsonFileName = examId.endsWith('.json') ? examId : `${examId}.json`;
-    const cdnUrl = `https://raw.githubusercontent.com/${config.GITHUB.OWNER}/${config.GITHUB.REPO}/${config.GITHUB.BRANCH}/exams/${jsonFileName}?t=${Date.now()}`;
-    
-    console.log('📡 Đang tải tệp đề thi từ GitHub CDN:', cdnUrl);
-    
+    const config = (typeof APP_CONFIG !== 'undefined') ? APP_CONFIG : (window.APP_CONFIG || {
+      GITHUB: { OWNER: 'thanhhuynh8989-stack', REPO: 'Kiem_tra', BRANCH: 'main' }
+    });
+
+    // Chuẩn hóa tên file
+    let path = filePath;
+    if (!path) {
+      const cleanId = String(examId).trim();
+      path = cleanId.endsWith('.json') ? `exams/${cleanId}` : `exams/${cleanId}.json`;
+    }
+
+    const cdnUrl = `https://raw.githubusercontent.com/${config.GITHUB.OWNER}/${config.GITHUB.REPO}/${config.GITHUB.BRANCH}/${path}?t=${Date.now()}`;
+    console.log('📡 Đang tải tệp đề thi từ:', cdnUrl);
+
     let examData = null;
+
+    // 1. Thử tải trực tiếp từ GitHub CDN
     try {
       const res = await fetch(cdnUrl);
       if (res.ok) {
         examData = await res.json();
       }
-    } catch (cdnErr) {
-      console.warn('⚠️ Không tải được từ GitHub CDN, chuyển sang gọi Apps Script Backend...');
+    } catch (e) {
+      console.warn('⚠️ Lỗi kết nối GitHub CDN, chuyển sang gọi Backend...');
     }
 
-    // Dự phòng gọi qua Backend nếu CDN không phản hồi
+    // 2. Dự phòng gọi qua Apps Script Backend nếu CDN báo 404
     if (!examData && typeof appsScriptService !== 'undefined') {
-      const backendRes = await appsScriptService.request('GET_EXAM_DETAIL', { examId });
-      examData = backendRes.examData || backendRes;
+      const backendRes = await appsScriptService.request('GET_EXAM_DETAIL', { examId, filePath: path });
+      if (backendRes.status === 'success' && backendRes.examData) {
+        examData = backendRes.examData;
+      } else {
+        throw new Error(backendRes.message || 'Không tìm thấy file đề thi trên máy chủ!');
+      }
     }
 
     if (!examData) {
-      throw new Error(`Không thể nạp dữ liệu cho đề thi [${examId}]. Hãy kiểm tra lại kết nối mạng.`);
+      throw new Error(`Tệp đề thi [${examId}] chưa được đẩy lên kho lưu trữ GitHub.`);
     }
 
-    // 2. Bóc tách danh sách câu hỏi từ JSON
+    // 3. Trích xuất danh sách câu hỏi
     const questions = Array.isArray(examData) 
       ? examData 
       : (examData.questions || examData.data?.questions || []);
 
     if (!Array.isArray(questions) || questions.length === 0) {
-      throw new Error('Tệp đề thi không chứa danh sách câu hỏi hợp lệ.');
+      throw new Error('Đề thi rỗng hoặc không đúng định dạng JSON.');
     }
 
-    console.log(`✅ Tải thành công ${questions.length} câu hỏi. Đang nạp lên trình chỉnh sửa...`);
+    console.log(`✅ Tải thành công ${questions.length} câu hỏi.`);
 
-    // 3. Cập nhật State và Nạp lên Trình chỉnh sửa (Review Cards)
-    if (window.examModel) {
-      window.examModel.setQuestions(questions);
-    }
+    // 4. Cập nhật State & Render lên UI
+    if (window.examModel) window.examModel.setQuestions(questions);
     window.currentEditingExamId = examId;
 
     if (typeof renderReviewCards === 'function') {
       renderReviewCards(questions);
-    } else if (typeof renderQuestionsEditor === 'function') {
-      renderQuestionsEditor(questions);
     } else {
-      // Dựng giao diện chỉnh sửa thủ công nếu chưa có hàm render riêng
-      const reviewContainer = document.getElementById('reviewQuestionsContainer') || 
-                               document.getElementById('reviewSection') ||
-                               document.getElementById('editorContainer');
+      const reviewContainer = document.getElementById('reviewQuestionsContainer') || document.getElementById('myExamsListTable');
       if (reviewContainer) {
-        let editorHtml = `
-          <div style="margin-bottom: 15px; background: #e0f2fe; border: 1px solid #bae6fd; padding: 12px 16px; border-radius: 8px; color: #0369a1; font-weight: 600; display: flex; justify-content: space-between; align-items: center;">
-            <span>📝 Đang chỉnh sửa Đề thi: <strong>${examId}</strong> (${questions.length} câu hỏi)</span>
-            <span style="font-size: 12px; color: #0284c7;">Chế độ Xem & Sửa trực tiếp</span>
-          </div>
-        `;
-        
+        let editorHtml = `<div style="background: #e0f2fe; padding: 12px; border-radius: 8px; color: #0369a1; font-weight: 600; margin-bottom: 12px;">
+          📝 Đang chỉnh sửa Đề thi: [${examId}] (${questions.length} câu)
+        </div>`;
         questions.forEach((q, idx) => {
-          const stem = typeof q.stem === 'string' ? q.stem : (q.text || q.value || '');
           editorHtml += `
-            <div style="background: #fff; border: 1px solid #cbd5e1; border-radius: 8px; padding: 16px; margin-bottom: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
-              <div style="font-weight: 600; color: #1e293b; margin-bottom: 8px;">Câu ${idx + 1}:</div>
-              <textarea style="width: 100%; padding: 8px; border: 1px solid #cbd5e1; border-radius: 6px; box-sizing: border-box; font-family: inherit; font-size: 13px; margin-bottom: 10px; min-height: 60px;">${escapeHtml(stem)}</textarea>
-              ${Array.isArray(q.options) ? q.options.map((opt, oIdx) => {
-                const optText = typeof opt === 'string' ? opt : (opt.text || opt.content || '');
-                return `
-                  <div style="display: flex; align-items: center; gap: 8px; margin-top: 6px; margin-left: 12px;">
-                    <strong style="min-width: 20px; color: #475569;">${String.fromCharCode(65 + oIdx)}.</strong>
-                    <input type="text" value="${escapeHtml(optText)}" style="flex: 1; padding: 6px 10px; border: 1px solid #e2e8f0; border-radius: 4px; font-size: 13px;">
-                  </div>
-                `;
-              }).join('') : ''}
+            <div style="background: #fff; border: 1px solid #cbd5e1; border-radius: 8px; padding: 14px; margin-bottom: 10px;">
+              <strong>Câu ${idx + 1}:</strong> ${q.stem || q.text || ''}
             </div>
           `;
         });
@@ -1452,17 +1434,14 @@ window.handleEditExam = async function(examId) {
       }
     }
 
-    // 4. Tự động cuộn mượt đến khu vực Trình chỉnh sửa
-    const targetElement = document.getElementById('reviewQuestionsContainer') || 
-                          document.getElementById('reviewSection') || 
-                          document.getElementById('editorContainer');
-
+    // Cuộn mượt đến khung chỉnh sửa
+    const targetElement = document.getElementById('reviewQuestionsContainer') || document.getElementById('reviewSection');
     if (targetElement) {
       targetElement.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
 
   } catch (err) {
-    console.error('❌ Lỗi nạp đề thi lên Editor:', err);
+    console.error('❌ Lỗi nạp đề thi:', err);
     alert(`Lỗi nạp đề thi lên trình chỉnh sửa: ${err.message}`);
   } finally {
     if (btn) {
