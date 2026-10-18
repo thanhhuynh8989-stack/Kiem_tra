@@ -1346,9 +1346,224 @@ window.handleDeleteExam = async function(examId) {
   }
 };
 
-window.handleEditExam = function(examId) {
-  alert(`✏️ Tính năng Sửa: Hệ thống sẽ tải lại đề thi [${examId}] lên trình chỉnh sửa!`);
+/**
+ * 1. TẢI ĐỀ THI LÊN TRÌNH CHỈNH SỬA (REVIEW EDITOR)
+ */
+window.handleEditExam = async function(examId) {
+  console.log('✏️ Bắt đầu tải đề thi lên trình chỉnh sửa:', examId);
+
+  // Tìm nút bấm sửa đang được click để tạo hiệu ứng Đang tải
+  const btn = event?.target?.closest('button');
+  if (btn) {
+    btn.disabled = true;
+    btn.innerHTML = '⏳ Đang nạp đề...';
+  }
+
+  try {
+    // Tải tệp JSON từ GitHub CDN hoặc Server
+    const jsonFileName = examId.endsWith('.json') ? examId : `${examId}.json`;
+    const cdnUrl = `https://raw.githubusercontent.com/${APP_CONFIG.GITHUB.OWNER}/${APP_CONFIG.GITHUB.REPO}/${APP_CONFIG.GITHUB.BRANCH}/exams/${jsonFileName}?t=${Date.now()}`;
+    
+    console.log('📡 Đang tải tệp đề thi từ:', cdnUrl);
+    
+    let examData = null;
+    const res = await fetch(cdnUrl);
+    
+    if (res.ok) {
+      examData = await res.json();
+    } else {
+      // Dự phòng gọi qua Backend
+      const backendRes = await appsScriptService.request('GET_EXAM_DETAIL', { examId });
+      examData = backendRes.examData || backendRes;
+    }
+
+    if (!examData) {
+      throw new Error('Không đọc được dữ liệu của đề thi này.');
+    }
+
+    // Bóc tách danh sách câu hỏi
+    const questions = Array.isArray(examData) 
+      ? examData 
+      : (examData.questions || examData.data?.questions || []);
+
+    if (!Array.isArray(questions) || questions.length === 0) {
+      throw new Error('Đề thi không chứa danh sách câu hỏi hợp lệ.');
+    }
+
+    console.log(`✅ Tải thành công ${questions.length} câu hỏi. Đang nạp lên trình chỉnh sửa...`);
+
+    // Lưu vào State của ứng dụng
+    if (window.examModel) {
+      window.examModel.setQuestions(questions);
+    }
+    window.currentEditingExamId = examId;
+
+    // Render danh sách câu hỏi lên Trình chỉnh sửa (Review Cards)
+    if (typeof renderReviewCards === 'function') {
+      renderReviewCards(questions);
+    } else if (typeof renderQuestionsEditor === 'function') {
+      renderQuestionsEditor(questions);
+    } else {
+      // Trình hiển thị câu hỏi mặc định
+      const reviewContainer = document.getElementById('reviewQuestionsContainer') || document.getElementById('reviewSection');
+      if (reviewContainer) {
+        let editorHtml = `<div style="margin-bottom: 15px; background: #e0f2fe; padding: 12px; border-radius: 8px; color: #0369a1; font-weight: 600;">
+          📝 Đang chỉnh sửa Đề thi: [${examId}] (${questions.length} câu hỏi)
+        </div>`;
+        
+        questions.forEach((q, idx) => {
+          editorHtml += `
+            <div style="background: #fff; border: 1px solid #cbd5e1; border-radius: 8px; padding: 16px; margin-bottom: 12px;">
+              <strong>Câu ${idx + 1}:</strong> <input type="text" value="${escapeHtml(q.stem || q.text || '')}" style="width: 80%; padding: 6px; border: 1px solid #cbd5e1; border-radius: 4px; margin-bottom: 8px;"><br>
+              ${Array.isArray(q.options) ? q.options.map((opt, oIdx) => `
+                <div style="margin-left: 20px; margin-top: 4px;">
+                  ${String.fromCharCode(65 + oIdx)}. <input type="text" value="${escapeHtml(typeof opt === 'string' ? opt : (opt.text || ''))}" style="width: 70%; padding: 4px; border: 1px solid #e2e8f0; border-radius: 4px;">
+                </div>
+              `).join('') : ''}
+            </div>
+          `;
+        });
+        reviewContainer.innerHTML = editorHtml;
+      }
+    }
+
+    // Cuộn trang mượt mà lên Trình chỉnh sửa
+    const targetElement = document.getElementById('reviewQuestionsContainer') || 
+                          document.getElementById('reviewSection') || 
+                          document.getElementById('editorContainer');
+
+    if (targetElement) {
+      targetElement.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+
+    alert(`✅ Đã nạp ${questions.length} câu hỏi của đề [${examId}] lên Trình chỉnh sửa!`);
+
+  } catch (err) {
+    console.error('❌ Lỗi nạp đề thi lên Editor:', err);
+    alert(`Lỗi nạp đề thi lên trình chỉnh sửa: ${err.message}`);
+  } finally {
+    if (btn) {
+      btn.disabled = false;
+      btn.innerHTML = '✏️ Sửa';
+    }
+  }
 };
+
+/**
+ * 2. QUẢN LÝ SINH VIÊN VÀ BẢNG ĐIỂM THI
+ */
+async function handleLoadStudentsAndGrades() {
+  console.log('🚀 [DEBUG] Kích hoạt handleLoadStudentsAndGrades()');
+
+  const container = document.getElementById('studentsAndGradesTable');
+  const btn = event?.target?.closest('button');
+
+  if (btn) {
+    btn.disabled = true;
+    btn.innerText = '⏳ Đang nạp bảng điểm...';
+  }
+
+  if (!container) {
+    console.error('❌ Không tìm thấy khung #studentsAndGradesTable!');
+    if (btn) { btn.disabled = false; btn.innerText = '📊 Tải Bảng Điểm & Sinh Viên'; }
+    return;
+  }
+
+  container.innerHTML = '<p style="color: #2563eb; font-size: 13px; padding: 12px 0;">🔄 Đang lấy danh sách Sinh viên và Bảng điểm từ máy chủ...</p>';
+
+  try {
+    // Gọi song song danh sách Sinh viên và Lịch sử làm bài
+    const [stRes, subRes] = await Promise.all([
+      appsScriptService.getStudents(),
+      appsScriptService.getSubmissions()
+    ]);
+
+    const students = Array.isArray(stRes.students) ? stRes.students : (Array.isArray(stRes.data) ? stRes.data : []);
+    const submissions = Array.isArray(subRes.submissions) ? subRes.submissions : (Array.isArray(subRes.data) ? subRes.data : []);
+
+    if (students.length === 0 && submissions.length === 0) {
+      container.innerHTML = '<p style="color: #64748b; font-size: 13px; padding: 12px 0;">Chưa có dữ liệu sinh viên hoặc bài nộp nào trong hệ thống.</p>';
+      return;
+    }
+
+    let html = `
+      <div style="overflow-x: auto; margin-top: 10px;">
+        <table style="width: 100%; border-collapse: collapse; font-size: 13px; text-align: left; background: #ffffff; border-radius: 8px; overflow: hidden; border: 1px solid #e2e8f0;">
+          <thead>
+            <tr style="background: #f8fafc; border-bottom: 2px solid #cbd5e1; color: #1e293b;">
+              <th style="padding: 12px;">Mã Sinh Viên</th>
+              <th style="padding: 12px;">Họ và Tên</th>
+              <th style="padding: 12px;">Lớp</th>
+              <th style="padding: 12px;">Đề thi đã làm</th>
+              <th style="padding: 12px;">Điểm số</th>
+              <th style="padding: 12px;">Thời gian nộp</th>
+            </tr>
+          </thead>
+          <tbody>
+    `;
+
+    if (students.length > 0) {
+      students.forEach(st => {
+        const studentSubs = submissions.filter(sub => String(sub.studentCode || '').toLowerCase() === String(st.studentCode || '').toLowerCase());
+
+        if (studentSubs.length > 0) {
+          studentSubs.forEach(sub => {
+            html += `
+              <tr style="border-bottom: 1px solid #f1f5f9;">
+                <td style="padding: 10px 12px; font-weight: 600; color: #0f172a;">${escapeHtml(st.studentCode)}</td>
+                <td style="padding: 10px 12px;">${escapeHtml(st.fullName)}</td>
+                <td style="padding: 10px 12px;"><span style="background: #f1f5f9; padding: 2px 8px; border-radius: 4px; font-weight: 500;">${escapeHtml(st.className)}</span></td>
+                <td style="padding: 10px 12px; color: #2563eb; font-weight: 500;">${escapeHtml(sub.examId)}</td>
+                <td style="padding: 10px 12px; font-weight: 700; color: #059669;">${sub.score} / 10</td>
+                <td style="padding: 10px 12px; color: #64748b;">${escapeHtml(sub.submittedAt)}</td>
+              </tr>
+            `;
+          });
+        } else {
+          html += `
+            <tr style="border-bottom: 1px solid #f1f5f9;">
+              <td style="padding: 10px 12px; font-weight: 600; color: #0f172a;">${escapeHtml(st.studentCode)}</td>
+              <td style="padding: 10px 12px;">${escapeHtml(st.fullName)}</td>
+              <td style="padding: 10px 12px;"><span style="background: #f1f5f9; padding: 2px 8px; border-radius: 4px; font-weight: 500;">${escapeHtml(st.className)}</span></td>
+              <td style="padding: 10px 12px; color: #94a3b8; font-style: italic;">Chưa nộp bài nào</td>
+              <td style="padding: 10px 12px; color: #94a3b8;">-</td>
+              <td style="padding: 10px 12px; color: #94a3b8;">-</td>
+            </tr>
+          `;
+        }
+      });
+    } else {
+      // Hiển thị trực tiếp nếu chưa có danh sách sinh viên nhưng có kết quả thi
+      submissions.forEach(sub => {
+        html += `
+          <tr style="border-bottom: 1px solid #f1f5f9;">
+            <td style="padding: 10px 12px; font-weight: 600; color: #0f172a;">${escapeHtml(sub.studentCode)}</td>
+            <td style="padding: 10px 12px;">${escapeHtml(sub.studentName || sub.studentCode)}</td>
+            <td style="padding: 10px 12px;">-</td>
+            <td style="padding: 10px 12px; color: #2563eb; font-weight: 500;">${escapeHtml(sub.examId)}</td>
+            <td style="padding: 10px 12px; font-weight: 700; color: #059669;">${sub.score} / 10</td>
+            <td style="padding: 10px 12px; color: #64748b;">${escapeHtml(sub.submittedAt)}</td>
+          </tr>
+        `;
+      });
+    }
+
+    html += '</tbody></table></div>';
+    container.innerHTML = html;
+
+  } catch (err) {
+    console.error('❌ Lỗi nạp dữ liệu sinh viên:', err);
+    container.innerHTML = `<p style="color: #ef4444; font-size: 13px; padding: 12px 0;">❌ Không thể kết nối dữ liệu: ${err.message}</p>`;
+  } finally {
+    if (btn) {
+      btn.disabled = false;
+      btn.innerText = '📊 Tải Bảng Điểm & Sinh Viên';
+    }
+  }
+}
+
+// 3. XUẤT HÀM RA WINDOW TOÀN CỤC ĐỂ HTML NÚT BẤM GỌI ĐƯỢC TRỰC TIẾP
+window.handleLoadStudentsAndGrades = handleLoadStudentsAndGrades;
 
 window.handleOpenAssignModal = function(examId, title) {
   const modal = document.getElementById('assignExamModal');
