@@ -1341,3 +1341,29 @@ function setUploadStatus(text, style) {
     el.setAttribute('style', `margin-top: 12px; font-weight: 600; ${style}`);
   }
 }
+
+// Gắn sự kiện click cho nút #loadMyExamsBtn và tự động tải khi mở trang
+document.addEventListener('DOMContentLoaded', () => {
+  const reloadBtn = document.getElementById('loadMyExamsBtn');
+  
+  if (reloadBtn) {
+    reloadBtn.addEventListener('click', (e) => {
+      e.preventDefault();
+      if (typeof handleLoadMyExams === 'function') {
+        handleLoadMyExams();
+      } else if (typeof window.handleLoadMyExams === 'function') {
+        window.handleLoadMyExams();
+      } else {
+        console.error('Chưa tìm thấy hàm handleLoadMyExams!');
+      }
+    });
+  }
+
+  // Tự động tải danh sách ngay khi mở trang sau 0.5s
+  setTimeout(() => {
+    if (document.getElementById('myExamsList')) {
+      if (typeof handleLoadMyExams === 'function') handleLoadMyExams();
+      else if (typeof window.handleLoadMyExams === 'function') window.handleLoadMyExams();
+    }
+  }, 500);
+});
