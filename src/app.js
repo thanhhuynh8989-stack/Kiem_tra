@@ -634,14 +634,15 @@ window.saveUserApiKey = async function() {
 
   const apiKey = input.value.trim();
   if (!apiKey) {
-    alert('Vui lòng dán Gemini API Key của bạn.');
+    alert('Vui lòng dán Gemini API Key của bạn (bắt đầu bằng AIzaSy... hoặc AQ...).');
     return;
   }
 
-  // 1. Luôn lưu tại localStorage trình duyệt
+  // 1. Lưu ngay vào LocalStorage trình duyệt để sử dụng tức thì
   localStorage.setItem('userGeminiApiKey', apiKey);
   localStorage.setItem('custom_gemini_api_key', apiKey);
 
+  // 2. Cập nhật Badge trên giao diện
   const badge = document.getElementById('aiQuotaBadge');
   if (badge) {
     badge.style.background = '#dcfce7';
@@ -649,17 +650,16 @@ window.saveUserApiKey = async function() {
     badge.innerHTML = '🔑 API Key cá nhân: Đang kích hoạt (Không giới hạn)';
   }
 
-  alert('Đã lưu API Key cá nhân thành công!');
+  // 3. Đọc Username linh hoạt từ mọi kiểu lưu trữ của currentUser
+  const userObj = JSON.parse(localStorage.getItem('currentUser') || '{}');
+  const username = userObj.username || userObj.user || userObj.User || 'admin';
 
-  // 2. Đồng bộ lên Google Sheets
   try {
-    const user = JSON.parse(localStorage.getItem('currentUser') || '{}');
-    const username = user.username || user.user || '';
-    if (username) {
-      await appsScriptService.saveUserApiKey(username, apiKey);
-    }
+    const res = await appsScriptService.saveUserApiKey(username, apiKey);
+    alert(res.message || 'Đã lưu API Key cá nhân thành công lên Hệ thống!');
   } catch (err) {
-    console.warn('Đã lưu Key tại trình duyệt local. Lỗi đồng bộ lên Hệ thống:', err.message);
+    console.warn('Key đã được lưu tại Trình duyệt. Đồng bộ Hệ thống thất bại:', err.message);
+    alert(`Đã lưu Key tại trình duyệt! (Lưu ý đồng bộ Hệ thống: ${err.message})`);
   }
 };
 
