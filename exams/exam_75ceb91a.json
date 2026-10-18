@@ -1,4 +1,6 @@
 {
+  "title": "Đề thi trắc nghiệm",
+  "durationMinutes": 45,
   "questions": [
     {
       "id": 1,
@@ -42,7 +44,7 @@
         "Quần xã sinh vật và môi trường vô sinh của chúng",
         "Các loài sinh vật và những quan hệ cạnh tranh"
       ],
-      "answerKey": "A"
+      "answerKey": "C"
     },
     {
       "id": 5,
@@ -53,7 +55,7 @@
         "Điều chỉnh số lượng sinh vật tiêu thụ bậc cao",
         "Phân hủy chất hữu cơ và giải phóng chất dinh dưỡng"
       ],
-      "answerKey": "A"
+      "answerKey": "D"
     },
     {
       "id": 6,
@@ -165,6 +167,5 @@
       ],
       "answerKey": "A"
     }
-  ],
-  "createdBy": "thanh"
+  ]
 }
