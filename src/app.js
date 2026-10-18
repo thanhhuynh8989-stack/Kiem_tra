@@ -1437,22 +1437,31 @@ window.handleEditExam = async function(examId, examCode = '') {
 };
 
 /**
- * 2. TRÌNH DỰNG GIAO DIỆN CHỈNH SỬA CÂU HỎI ĐẦY ĐỦ (HIỂN THỊ A, B, C, D VÀ ĐÁP ÁN ĐÚNG)
+ * 2. TRÌNH DỰNG GIAO DIỆN CHỈNH SỬA CÂU HỎI ĐẦY ĐỦ (TỐI ƯU DOM & PERFORMANCE)
  */
 function renderFullQuestionEditor(questions, fileName) {
   const reviewContainer = document.getElementById('reviewQuestionsContainer') || document.getElementById('myExamsListTable');
   if (!reviewContainer) return;
 
-  let editorHtml = `
+  if (!Array.isArray(questions) || questions.length === 0) {
+    reviewContainer.innerHTML = '<p style="color: #ef4444; font-size: 13px; padding: 12px;">⚠️ Không có dữ liệu câu hỏi để hiển thị.</p>';
+    return;
+  }
+
+  const escapeFn = typeof escapeHtml === 'function' ? escapeHtml : safeEscapeHtml;
+
+  // 1. Header công cụ
+  const headerHtml = `
     <div style="background: #eff6ff; border: 1px solid #bfdbfe; padding: 14px 18px; border-radius: 8px; color: #1e40af; font-weight: 600; margin-bottom: 16px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
-      <span>📝 Đang chỉnh sửa Đề thi: <strong style="color: #2563eb;">[${fileName}]</strong> (${questions.length} câu hỏi)</span>
+      <span>📝 Đang chỉnh sửa Đề thi: <strong style="color: #2563eb;">[${escapeFn(fileName)}]</strong> (${questions.length} câu hỏi)</span>
       <button type="button" onclick="handleSaveEditedExam()" style="background: #2563eb; color: white; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; font-size: 13px; font-weight: 600; box-shadow: 0 1px 2px rgba(0,0,0,0.1);">
         💾 Lưu thay đổi đề thi
       </button>
     </div>
   `;
 
-  questions.forEach((q, idx) => {
+  // 2. Render danh sách thẻ câu hỏi bằng map().join('')
+  const cardsHtml = questions.map((q, idx) => {
     const stemText = q.stem || q.text || q.value || '';
     const optionsList = Array.isArray(q.options) ? q.options : (Array.isArray(q.choices) ? q.choices : []);
     const answerKey = String(q.answerKey || q.answer || q.key || '').trim().toUpperCase();
@@ -1462,59 +1471,48 @@ function renderFullQuestionEditor(questions, fileName) {
     optionsList.forEach((opt, oIdx) => {
       if (oIdx < 4) {
         let optStr = typeof opt === 'string' ? opt : (opt.text || opt.content || String(opt || ''));
-        // Loại bỏ tiền tố A. B. C. D. nếu đã có trong chuỗi
-        optStr = optStr.replace(/^[A-D][.:)]\s*/i, '').trim();
-        formattedOptions[oIdx] = optStr;
+        formattedOptions[oIdx] = optStr.replace(/^[A-D][.:)]\s*/i, '').trim();
       }
     });
 
-    const isAnswerMissing = !answerKey || !['A', 'B', 'C', 'D'].includes(answerKey);
+    const isAnswerMissing = !['A', 'B', 'C', 'D'].includes(answerKey);
 
-    editorHtml += `
-      <div style="background: #ffffff; border: ${isAnswerMissing ? '2px solid #f97316' : '1px solid #cbd5e1'}; border-radius: 10px; padding: 16px; margin-bottom: 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
-        
-        <!-- HEADER CÂU HỎI & CANH BÁO ĐÁP ÁN -->
+    const optionsHtml = formattedOptions.map((optVal, oIdx) => {
+      const letter = String.fromCharCode(65 + oIdx);
+      const isChecked = (answerKey === letter) || (isAnswerMissing && letter === 'A');
+
+      return `
+        <div style="display: flex; align-items: center; gap: 10px;">
+          <label style="display: flex; align-items: center; gap: 6px; font-weight: 700; color: #334155; min-width: 40px; cursor: pointer;">
+            <input type="radio" name="correct_ans_${idx}" class="q-radio-ans" value="${letter}" ${isChecked ? 'checked' : ''} style="width: 16px; height: 16px; cursor: pointer;">
+            ${letter}.
+          </label>
+          <input type="text" class="q-option-input" value="${escapeFn(optVal)}" placeholder="Lựa chọn ${letter}..." style="flex: 1; padding: 8px 12px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 13px; background: #ffffff;">
+        </div>
+      `;
+    }).join('');
+
+    return `
+      <div class="question-editor-card" data-idx="${idx}" style="background: #ffffff; border: ${isAnswerMissing ? '2px solid #f97316' : '1px solid #cbd5e1'}; border-radius: 10px; padding: 16px; margin-bottom: 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
           <strong style="font-size: 15px; color: #0f172a;">Câu ${idx + 1}:</strong>
-          ${isAnswerMissing ? `
-            <span style="background: #ffedd5; color: #c2410c; border: 1px solid #fed7aa; padding: 3px 10px; border-radius: 20px; font-size: 12px; font-weight: 600;">
-              ⚠️ Chưa chọn đáp án gốc (Tạm chọn A)
-            </span>
-          ` : `
-            <span style="background: #dcfce7; color: #15803d; border: 1px solid #bbf7d0; padding: 3px 10px; border-radius: 20px; font-size: 12px; font-weight: 600;">
-              ✅ Đáp án đúng: ${answerKey}
-            </span>
-          `}
+          <span class="badge-ans-status" style="${isAnswerMissing ? 'background: #ffedd5; color: #c2410c; border: 1px solid #fed7aa;' : 'background: #dcfce7; color: #15803d; border: 1px solid #bbf7d0;'} padding: 3px 10px; border-radius: 20px; font-size: 12px; font-weight: 600;">
+            ${isAnswerMissing ? '⚠️ Chưa chọn đáp án gốc (Tạm chọn A)' : `✅ Đáp án đúng: ${answerKey}`}
+          </span>
         </div>
 
-        <!-- NỘI DUNG NỘI DUNG CÂU HỎI (STEM) -->
-        <textarea id="question_stem_${idx}" style="width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 6px; box-sizing: border-box; font-family: inherit; font-size: 14px; margin-bottom: 12px; min-height: 60px; line-height: 1.4;">${escapeHtml(stemText)}</textarea>
+        <textarea class="q-stem-input" style="width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 6px; box-sizing: border-box; font-family: inherit; font-size: 14px; margin-bottom: 12px; min-height: 60px; line-height: 1.4;">${escapeFn(stemText)}</textarea>
 
-        <!-- DANH SÁCH LỰA CHỌN A, B, C, D -->
         <div style="display: flex; flex-direction: column; gap: 8px; background: #f8fafc; padding: 12px; border-radius: 8px; border: 1px solid #f1f5f9;">
           <span style="font-size: 12px; font-weight: 600; color: #64748b; margin-bottom: 4px;">Các lựa chọn đáp án (Tích chọn nút tròn để xác định đáp án đúng):</span>
-          
-          ${formattedOptions.map((optVal, oIdx) => {
-            const letter = String.fromCharCode(65 + oIdx);
-            const isChecked = (answerKey === letter) || (isAnswerMissing && letter === 'A');
-
-            return `
-              <div style="display: flex; align-items: center; gap: 10px;">
-                <label style="display: flex; align-items: center; gap: 6px; font-weight: 700; color: #334155; min-width: 40px; cursor: pointer;">
-                  <input type="radio" name="correct_ans_${idx}" value="${letter}" ${isChecked ? 'checked' : ''} style="width: 16px; height: 16px; cursor: pointer;">
-                  ${letter}.
-                </label>
-                <input type="text" id="option_${idx}_${oIdx}" value="${escapeHtml(optVal)}" placeholder="Lựa chọn ${letter}..." style="flex: 1; padding: 8px 12px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 13px; background: #ffffff;">
-              </div>
-            `;
-          }).join('')}
+          ${optionsHtml}
         </div>
-
       </div>
     `;
-  });
+  }).join('');
 
-  editorHtml += `
+  // 3. Footer Lưu
+  const footerHtml = `
     <div style="text-align: right; margin-top: 16px; margin-bottom: 30px;">
       <button type="button" onclick="handleSaveEditedExam()" style="background: #2563eb; color: white; border: none; padding: 10px 24px; border-radius: 8px; cursor: pointer; font-size: 14px; font-weight: 600; box-shadow: 0 2px 4px rgba(37,99,235,0.2);">
         💾 Lưu thay đổi đề thi
@@ -1522,12 +1520,119 @@ function renderFullQuestionEditor(questions, fileName) {
     </div>
   `;
 
-  reviewContainer.innerHTML = editorHtml;
+  reviewContainer.innerHTML = headerHtml + cardsHtml + footerHtml;
 }
 
-// Gán hàm ra window
 window.renderFullQuestionEditor = renderFullQuestionEditor;
 
+/**
+ * CẬP NHẬT BADGE ĐÁP ÁN THỜI GIAN THỰC KHI THAY ĐỔI RADIO
+ */
+document.addEventListener('change', (e) => {
+  if (e.target && e.target.classList.contains('q-radio-ans')) {
+    const card = e.target.closest('.question-editor-card');
+    if (!card) return;
+
+    const badge = card.querySelector('.badge-ans-status');
+    const selectedLetter = e.target.value;
+
+    if (badge) {
+      badge.style.background = '#dcfce7';
+      badge.style.color = '#15803d';
+      badge.style.border = '1px solid #bbf7d0';
+      badge.innerHTML = `✅ Đáp án đúng: ${selectedLetter}`;
+    }
+    card.style.border = '1px solid #cbd5e1';
+  }
+});
+
+/**
+ * TỐI ƯU HÀM LƯU THAY ĐỔI ĐỀ THI (DUYỆT THEO CLASS SELECTOR)
+ */
+window.handleSaveEditedExam = async function() {
+  const examId = window.currentEditingExamId;
+  if (!examId) {
+    alert('⚠️ Chưa xác định được Mã đề thi đang chỉnh sửa!');
+    return;
+  }
+
+  const saveBtns = document.querySelectorAll('button[onclick*="handleSaveEditedExam"]');
+  saveBtns.forEach(btn => {
+    btn.disabled = true;
+    btn.innerText = '⏳ Đang lưu đề thi...';
+  });
+
+  try {
+    const cards = document.querySelectorAll('.question-editor-card');
+    if (!cards || cards.length === 0) {
+      throw new Error('Không tìm thấy câu hỏi nào trên màn hình chỉnh sửa.');
+    }
+
+    const updatedQuestions = Array.from(cards).map((card, idx) => {
+      const stemInput = card.querySelector('.q-stem-input');
+      const stemText = stemInput ? stemInput.value.trim() : '';
+
+      const checkedRadio = card.querySelector('.q-radio-ans:checked');
+      const answerKey = checkedRadio ? checkedRadio.value : 'A';
+
+      const optionInputs = card.querySelectorAll('.q-option-input');
+      const options = Array.from(optionInputs).map(optEl => optEl.value.trim());
+
+      // Đảm bảo luôn đủ 4 lựa chọn A, B, C, D
+      while (options.length < 4) {
+        options.push('');
+      }
+
+      return {
+        id: idx + 1,
+        stem: stemText,
+        options: options.slice(0, 4),
+        answerKey: answerKey
+      };
+    });
+
+    console.log(`💾 Đang lưu ${updatedQuestions.length} câu hỏi cho đề [${examId}]...`, updatedQuestions);
+
+    const username = typeof getLoggedInUsername === 'function' ? getLoggedInUsername() : 'admin';
+
+    let rawName = String(examId).trim();
+    if (rawName.includes('-')) {
+      rawName = rawName.split('-')[0];
+    }
+    if (!rawName.endsWith('.json')) {
+      rawName = `${rawName}.json`;
+    }
+
+    const filePath = `exams/${rawName}`;
+
+    const res = await appsScriptService.saveAndPublishExam(
+      examId,
+      'MASTER_KEY',
+      { questions: updatedQuestions },
+      filePath,
+      username
+    );
+
+    alert(res.message || `✅ Đã lưu thành công các thay đổi cho đề thi [${rawName}]!`);
+
+    if (window.examModel) {
+      window.examModel.setQuestions(updatedQuestions);
+    }
+
+    if (typeof handleLoadMyExams === 'function') {
+      handleLoadMyExams();
+    }
+
+  } catch (err) {
+    console.error('❌ Lỗi khi lưu đề thi:', err);
+    alert(`Lỗi khi lưu đề thi: ${err.message}`);
+  } finally {
+    saveBtns.forEach(btn => {
+      btn.disabled = false;
+      btn.innerText = '💾 Lưu thay đổi đề thi';
+    });
+  }
+};
 /**
  * 2. QUẢN LÝ SINH VIÊN VÀ BẢNG ĐIỂM THI
  */
