@@ -844,11 +844,11 @@ function renderQuestionListForReview(questions = []) {
     while (optionsList.length < 4) optionsList.push('');
     q.options = optionsList.slice(0, 4);
 
-    // KIỂM TRA TRỰC TIẾP TRẠNG THÁI Ô TRỐNG ĐỂ BẬT CỜ
+    // 1. KIỂM TRA ĐIỀU KIỆN CẢNH BÁO
     const hasEmptyOption = q.options.some(opt => !String(opt || '').trim());
     const isMissingOpts = Boolean(q.flags?.isMissingOptions) || (q.originalOptionCount !== undefined && q.originalOptionCount < 4) || hasEmptyOption;
     const isMissingAns = Boolean(q.flags?.isMissingAnswer);
-    const isWarning = Boolean(q.flags?.needsUserConfirmation) || isMissingOpts || isMissingAns || hasEmptyOption;
+    const isWarning = Boolean(q.flags?.needsUserConfirmation) || isMissingOpts || isMissingAns;
 
     if (isWarning) needReviewCount++;
 
@@ -868,16 +868,15 @@ function renderQuestionListForReview(questions = []) {
       const optText = typeof opt === 'string' ? opt : (opt?.text || opt?.content || String(opt || ''));
       const isEmpty = !optText.trim();
 
-      // ƯU TIÊN MÀU CAM CẢNH BÁO NẾU Ô TRỐNG, KỂ CẢ KHI DANG CHỌN LÀM ĐÁP ÁN ĐÚNG
       let inputBorder = '#d1d5db';
       let inputBg = '#ffffff';
 
       if (isEmpty) {
-        inputBorder = '#f59e0b'; // Cam cảnh báo
+        inputBorder = '#f59e0b';
         inputBg = '#fff7ed';
       } else if (isCorrect) {
-        inputBorder = '#10b981'; // Xanh lá
-        inputBg = '#f0fdf4';
+        inputBorder = isMissingAns ? '#f59e0b' : '#10b981'; // Viền cam nếu tạm chọn do thiếu đáp án
+        inputBg = isMissingAns ? '#fff7ed' : '#f0fdf4';
       }
 
       optionsHtml += `
@@ -899,17 +898,26 @@ function renderQuestionListForReview(questions = []) {
       `;
     });
 
+    // 2. TẠO THẺ HUY HIỆU CẢNH BÁO
     let warningBadges = '';
     if (isMissingOpts) {
       warningBadges += `<span style="background:#fee2e2; color:#dc2626; padding: 4px 10px; border-radius: 4px; font-size: 12px; font-weight:600; margin-left: 6px;">⚠️ Thiếu phương án</span>`;
     }
     if (isMissingAns) {
-      warningBadges += `<span style="background:#fef3c7; color:#d97706; padding: 4px 10px; border-radius: 4px; font-size: 12px; font-weight:600; margin-left: 6px;">⚠️ Chưa có đáp án gốc</span>`;
+      warningBadges += `<span style="background:#fef3c7; color:#d97706; padding: 4px 10px; border-radius: 4px; font-size: 12px; font-weight:600; margin-left: 6px;">⚠️ Chưa có đáp án gốc (Tạm chọn A)</span>`;
     }
 
     const headerBadge = isWarning 
-      ? `<span style="background:#fef3c7; color:#d97706; padding: 4px 10px; border-radius: 4px; font-size: 12px; font-weight:600;">⚠️ Cần bổ sung</span>`
+      ? `<span style="background:#fef3c7; color:#d97706; padding: 4px 10px; border-radius: 4px; font-size: 12px; font-weight:600;">⚠️ Cần xác nhận</span>`
       : `<span style="background:#d1fae5; color:#059669; padding: 4px 10px; border-radius: 4px; font-size: 12px; font-weight:600;">✓ Hoàn Thiện</span>`;
+
+    // 3. NỘI DUNG GHI CHÚ HƯỚNG DẪN
+    let noteContent = q.flags?.note || '';
+    if (isMissingAns) {
+      noteContent = '🔍 <strong>Cảnh báo đáp án:</strong> Đề gốc chưa đánh dấu đáp án đúng (hệ thống tạm chọn A). Vui lòng tích chọn lại đáp án chuẩn xác.';
+    } else if (isMissingOpts) {
+      noteContent = '🔍 <strong>Ghi chú:</strong> Vui lòng điền nội dung cho các ô lựa chọn bị trống.';
+    }
 
     card.innerHTML = `
       <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 10px;">
@@ -933,9 +941,12 @@ function renderQuestionListForReview(questions = []) {
       </div>
 
       ${isWarning ? `
-        <div style="margin-top: 12px; padding: 10px; background: #fff; border: 1px solid #fcd34d; border-left: 4px solid #f59e0b; border-radius: 4px; font-size: 13px;">
-          <strong>🔍 Ghi chú:</strong> ${q.flags?.note || 'Vui lòng bổ sung đầy đủ nội dung cho các ô lựa chọn bị trống.'}
+        <div style="margin-top: 12px; padding: 10px; background: #ffffff; border: 1px solid #fcd34d; border-left: 4px solid #f59e0b; border-radius: 4px; font-size: 13px; color: #92400e;">
+          ${noteContent}
         </div>
+        <button type="button" 
+                style="margin-top: 10px; background: #059669; color: white; border: none; padding: 8px 14px; border-radius: 6px; cursor: pointer; font-weight: 600; font-size: 13px;" 
+                onclick="window.confirmQuestionItem('${q.id}')">✓ Đã Kiểm Tra & Xác Nhận</button>
       ` : ''}
     `;
 
@@ -943,7 +954,7 @@ function renderQuestionListForReview(questions = []) {
   });
 
   if (summaryText) {
-    summaryText.innerHTML = `Tổng số <strong>${questions.length}</strong> câu hỏi. Có <strong style="color:#d97706;">${needReviewCount}</strong> câu chưa hoàn thiện cần bạn bổ sung.`;
+    summaryText.innerHTML = `Tổng số <strong>${questions.length}</strong> câu hỏi. Có <strong style="color:#d97706;">${needReviewCount}</strong> câu thiếu đáp án gốc hoặc chưa hoàn thiện cần bạn kiểm tra.`;
   }
 
   renderKaTeX(container);
@@ -962,20 +973,32 @@ window.updateOptionText = (qId, optIdx, val) => {
   if (q && q.options) q.options[optIdx] = val;
 };
 
-window.updateCorrectAnswer = (qId, optIdx) => {
-  if (!currentExamState) return;
-  const q = currentExamState.questions.find(item => item.id === qId);
+window.updateCorrectAnswer = function(qId, selectedIdx) {
+  if (!currentExamState || !currentExamState.questions) return;
+  const q = currentExamState.questions.find(item => String(item.id) === String(qId));
   if (q) {
-    q.correctAnswer = parseInt(optIdx, 10);
+    q.correctAnswer = selectedIdx;
+    if (q.flags) {
+      q.flags.isMissingAnswer = false;
+    }
     renderQuestionListForReview(currentExamState.questions);
   }
 };
 
-window.confirmQuestionItem = (qId) => {
-  if (!currentExamState) return;
-  const q = currentExamState.questions.find(item => item.id === qId);
-  if (q && q.flags) {
-    q.flags.needsUserConfirmation = false;
+window.confirmQuestionItem = function(qId) {
+  if (!currentExamState || !currentExamState.questions) return;
+  const q = currentExamState.questions.find(item => String(item.id) === String(qId));
+  if (q) {
+    const hasEmpty = q.options.some(opt => !String(opt || '').trim());
+    if (hasEmpty) {
+      alert('Vui lòng nhập đầy đủ 4 phương án trước khi xác nhận câu hỏi này!');
+      return;
+    }
+    if (q.flags) {
+      q.flags.needsUserConfirmation = false;
+      q.flags.isMissingOptions = false;
+      q.flags.isMissingAnswer = false;
+    }
     renderQuestionListForReview(currentExamState.questions);
   }
 };
