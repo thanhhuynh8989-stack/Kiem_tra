@@ -90,7 +90,7 @@ export const appsScriptService = {
   },
 
   /**
-   * Lấy danh sách đề thi của giảng viên
+   * Lấy danh sách đề thi
    */
   async getLecturerExams(username) {
     return await this.request('GET_MY_EXAMS', { username: username });
@@ -101,21 +101,33 @@ export const appsScriptService = {
    */
   async saveUserApiKey(username, apiKey) {
     return await this.request('SAVE_USER_API_KEY', { username: username, apiKey: apiKey });
-  }
-};
+  },
 
-async deleteExam(examId, username) {
+  /**
+   * Xóa đề thi
+   */
+  async deleteExam(examId, username) {
     return await this.request('DELETE_EXAM', { examId, username });
   },
 
+  /**
+   * Giao đề thi cho Lớp / Sinh viên
+   */
   async assignExam(examId, targetClass, studentCodes, dueDate, createdBy) {
     return await this.request('ASSIGN_EXAM', { examId, targetClass, studentCodes, dueDate, createdBy });
   },
 
+  /**
+   * Lấy danh sách sinh viên
+   */
   async getStudents() {
     return await this.request('GET_STUDENTS', {});
   },
 
+  /**
+   * Lấy danh sách bài nộp / điểm thi
+   */
   async getSubmissions() {
     return await this.request('GET_SUBMISSIONS', {});
   }
+};
