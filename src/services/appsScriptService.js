@@ -94,6 +94,9 @@ export const appsScriptService = {
   },
 
   async getLecturerExams(username) {
-    return await this.request('GET_MY_EXAMS', { username });
-  }
+  return await this.post({
+    action: 'GET_MY_EXAMS',
+    username: username
+  });
+}
 };
