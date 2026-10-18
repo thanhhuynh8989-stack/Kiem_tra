@@ -1280,7 +1280,7 @@ function renderExamsList(exams, currentUsername = '') {
           <button type="button" onclick="handleOpenAssignModal('${examId}', '${title}')" title="Giao đề cho Lớp / Sinh viên" style="background: #059669; color: white; border: none; padding: 6px 12px; border-radius: 6px; cursor: pointer; font-size: 12px; font-weight: 600; display: flex; align-items: center; gap: 4px;">
             📤 Giao đề
           </button>
-          <button type="button" onclick="handleEditExam('${examId}')" title="Chỉnh sửa nội dung đề" style="background: #d97706; color: white; border: none; padding: 6px 12px; border-radius: 6px; cursor: pointer; font-size: 12px; font-weight: 600; display: flex; align-items: center; gap: 4px;">
+          <button type="button" onclick="handleEditExam('${ex.examId}', '${ex.examCode || ''}')" title="Chỉnh sửa nội dung đề" style="background: #d97706; color: white; border: none; padding: 6px 12px; border-radius: 6px; cursor: pointer; font-size: 12px; font-weight: 600;">
             ✏️ Sửa
           </button>
           <button type="button" onclick="handleDeleteExam('${examId}')" title="Xóa đề thi này" style="background: #dc2626; color: white; border: none; padding: 6px 12px; border-radius: 6px; cursor: pointer; font-size: 12px; font-weight: 600; display: flex; align-items: center; gap: 4px;">
@@ -1350,8 +1350,8 @@ window.handleDeleteExam = async function(examId) {
 /**
  * TẢI ĐỀ THI LÊN TRÌNH CHỈNH SỬA (Bảo vệ đường dẫn & Bắt lỗi rõ ràng)
  */
-window.handleEditExam = async function(examId, filePath = '') {
-  console.log('✏️ Bắt đầu tải đề thi lên trình chỉnh sửa:', examId);
+window.handleEditExam = async function(examId, examCode = '') {
+  console.log('✏️ Bắt đầu tải đề thi lên trình chỉnh sửa. ID:', examId, 'Code:', examCode);
 
   const btn = event?.target?.closest('button');
   if (btn) {
@@ -1364,15 +1364,18 @@ window.handleEditExam = async function(examId, filePath = '') {
       GITHUB: { OWNER: 'thanhhuynh8989-stack', REPO: 'Kiem_tra', BRANCH: 'main' }
     });
 
-    // Chuẩn hóa tên file
-    let path = filePath;
-    if (!path) {
-      const cleanId = String(examId).trim();
-      path = cleanId.endsWith('.json') ? `exams/${cleanId}` : `exams/${cleanId}.json`;
+    // CHUẨN HÓA TÊN FILE: Ưu tiên examCode -> Cắt dấu gạch ngang đầu tiên nếu là UUID dài
+    let rawName = String(examCode || examId).trim();
+    if (rawName.includes('-')) {
+      rawName = rawName.split('-')[0]; // Biến 'exam_75ceb91a-5fde-...' thành 'exam_75ceb91a'
+    }
+    if (!rawName.endsWith('.json')) {
+      rawName = `${rawName}.json`;
     }
 
+    const path = `exams/${rawName}`;
     const cdnUrl = `https://raw.githubusercontent.com/${config.GITHUB.OWNER}/${config.GITHUB.REPO}/${config.GITHUB.BRANCH}/${path}?t=${Date.now()}`;
-    console.log('📡 Đang tải tệp đề thi từ:', cdnUrl);
+    console.log('📡 Đang tải tệp đề thi từ GitHub CDN:', cdnUrl);
 
     let examData = null;
 
@@ -1383,12 +1386,12 @@ window.handleEditExam = async function(examId, filePath = '') {
         examData = await res.json();
       }
     } catch (e) {
-      console.warn('⚠️ Lỗi kết nối GitHub CDN, chuyển sang gọi Backend...');
+      console.warn('⚠️ Không kết nối được GitHub CDN, chuyển sang gọi Backend...');
     }
 
-    // 2. Dự phòng gọi qua Apps Script Backend nếu CDN báo 404
+    // 2. Gọi Apps Script Backend dự phòng
     if (!examData && typeof appsScriptService !== 'undefined') {
-      const backendRes = await appsScriptService.request('GET_EXAM_DETAIL', { examId, filePath: path });
+      const backendRes = await appsScriptService.request('GET_EXAM_DETAIL', { examId, examCode, filePath: path });
       if (backendRes.status === 'success' && backendRes.examData) {
         examData = backendRes.examData;
       } else {
@@ -1397,7 +1400,7 @@ window.handleEditExam = async function(examId, filePath = '') {
     }
 
     if (!examData) {
-      throw new Error(`Tệp đề thi [${examId}] chưa được đẩy lên kho lưu trữ GitHub.`);
+      throw new Error(`Không tìm thấy file [${path}] trên GitHub.`);
     }
 
     // 3. Trích xuất danh sách câu hỏi
@@ -1406,12 +1409,12 @@ window.handleEditExam = async function(examId, filePath = '') {
       : (examData.questions || examData.data?.questions || []);
 
     if (!Array.isArray(questions) || questions.length === 0) {
-      throw new Error('Đề thi rỗng hoặc không đúng định dạng JSON.');
+      throw new Error('Tệp đề thi rỗng hoặc không đúng định dạng JSON.');
     }
 
     console.log(`✅ Tải thành công ${questions.length} câu hỏi.`);
 
-    // 4. Cập nhật State & Render lên UI
+    // 4. Nạp vào State & Render ra màn hình
     if (window.examModel) window.examModel.setQuestions(questions);
     window.currentEditingExamId = examId;
 
@@ -1421,7 +1424,7 @@ window.handleEditExam = async function(examId, filePath = '') {
       const reviewContainer = document.getElementById('reviewQuestionsContainer') || document.getElementById('myExamsListTable');
       if (reviewContainer) {
         let editorHtml = `<div style="background: #e0f2fe; padding: 12px; border-radius: 8px; color: #0369a1; font-weight: 600; margin-bottom: 12px;">
-          📝 Đang chỉnh sửa Đề thi: [${examId}] (${questions.length} câu)
+          📝 Đang chỉnh sửa Đề thi: [${rawName}] (${questions.length} câu)
         </div>`;
         questions.forEach((q, idx) => {
           editorHtml += `
