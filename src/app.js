@@ -2013,32 +2013,27 @@ window.renderStudentManagementUI = function(students = []) {
   container.innerHTML = `
     <div style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.02); margin-top: 20px;">
       
-      <!-- TOOLBAR QUẢN LÝ -->
       <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; margin-bottom: 20px; border-bottom: 1px solid #f1f5f9; padding-bottom: 16px;">
         <h3 style="margin: 0; font-size: 18px; color: #0f172a; display: flex; align-items: center; gap: 8px;">
           🎓 Quản Lý Sinh Viên (${students.length})
         </h3>
         
         <div style="display: flex; gap: 10px; flex-wrap: wrap;">
-          <!-- Nút Upload Excel -->
           <label style="background: #16a34a; color: white; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; font-size: 13px; font-weight: 600; display: inline-flex; align-items: center; gap: 6px;">
             📁 Nhập Danh Sách (Excel)
             <input type="file" id="excelStudentInput" accept=".xlsx, .xls, .csv" onchange="handleUploadStudentExcel(event)" style="display: none;">
           </label>
 
-          <!-- Nút Thêm 1 sinh viên -->
           <button type="button" onclick="handlePromptAddStudent()" style="background: #2563eb; color: white; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; font-size: 13px; font-weight: 600;">
             ➕ Thêm Sinh Viên
           </button>
 
-          <!-- Nút Gán Đề Thi -->
           <button type="button" onclick="handleOpenAssignExamModal()" style="background: #d97706; color: white; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; font-size: 13px; font-weight: 600;">
             📌 Gán Đề Thi
           </button>
         </div>
       </div>
 
-      <!-- BẢNG DANH SÁCH SINH VIÊN -->
       <div style="overflow-x: auto;">
         <table style="width: 100%; border-collapse: collapse; font-size: 14px; text-align: left;">
           <thead>
@@ -2059,21 +2054,24 @@ window.renderStudentManagementUI = function(students = []) {
                   Chưa có sinh viên nào. Vui lòng bấm "Nhập Danh Sách (Excel)" hoặc "Thêm Sinh Viên".
                 </td>
               </tr>
-            ` : students.map((st, idx) => `
-              <tr style="border-bottom: 1px solid #f1f5f9;">
-                <td style="padding: 10px; text-align: center;">
-                  <input type="checkbox" class="student-select-cb" value="${st.username}" style="cursor: pointer;">
-                </td>
-                <td style="padding: 10px; font-weight: 600; color: #1e293b;">${st.username}</td>
-                <td style="padding: 10px; color: #334155;">${st.fullName || st.username}</td>
-                <td style="padding: 10px; color: #64748b; font-family: monospace;">${st.password || '******'}</td>
-                <td style="padding: 10px; text-align: right;">
-                  <button type="button" onclick="handleDeleteStudentUI('${st.username}')" style="background: #ef4444; color: white; border: none; padding: 4px 10px; border-radius: 4px; cursor: pointer; font-size: 12px;">
-                    🗑️ Xóa
-                  </button>
-                </td>
-              </tr>
-            `).join('')}
+            ` : students.map((st) => {
+              const uName = toPlainText(st.username || st.user);
+              return `
+                <tr style="border-bottom: 1px solid #f1f5f9;">
+                  <td style="padding: 10px; text-align: center;">
+                    <input type="checkbox" class="student-select-cb" value="${uName}" style="cursor: pointer;">
+                  </td>
+                  <td style="padding: 10px; font-weight: 600; color: #1e293b;">${uName}</td>
+                  <td style="padding: 10px; color: #334155;">${st.fullName || uName}</td>
+                  <td style="padding: 10px; color: #64748b; font-family: monospace;">${st.password || '******'}</td>
+                  <td style="padding: 10px; text-align: right;">
+                    <button type="button" onclick="handleDeleteStudentUI('${uName}')" style="background: #ef4444; color: white; border: none; padding: 4px 10px; border-radius: 4px; cursor: pointer; font-size: 12px;">
+                      🗑️ Xóa
+                    </button>
+                  </td>
+                </tr>
+              `;
+            }).join('')}
           </tbody>
         </table>
       </div>
@@ -2083,68 +2081,94 @@ window.renderStudentManagementUI = function(students = []) {
 };
 
 /**
- * 2. TẢI FILE EXCEL VÀ IMPORT DANH SÁCH SINH VIÊN
+ * TIỆN ÍCH: CHUYỂN DỮ LIỆU SANG PLAIN TEXT CHUẨN
+ */
+function toPlainText(val) {
+  if (val === null || val === undefined) return '';
+  let str = String(val).trim();
+  if (str.startsWith("'")) str = str.substring(1);
+  return str;
+}
+
+/**
+ * 1. ĐỌC FILE EXCEL TỰ ĐỘNG NHẬN DIỆN CỘT VÀ CHUYỂN TOÀN BỘ SANG PLAIN TEXT
  */
 window.handleUploadStudentExcel = function(event) {
   const file = event.target.files[0];
   if (!file) return;
 
   if (typeof XLSX === 'undefined') {
-    alert('⚠️ Chưa nạp thư viện đọc file Excel (SheetJS). Vui lòng thêm thẻ script XLSX vào index.html!');
+    alert('⚠️ Chưa nạp thư viện đọc file Excel (SheetJS). Vui lòng kiểm tra lại index.html!');
     return;
   }
+
+  showAppLoading(`📂 Đang chuyển đổi Plain Text & đọc dữ liệu: <strong>${file.name}</strong>...`);
 
   const reader = new FileReader();
   reader.onload = async function(e) {
     try {
       const data = new Uint8Array(e.target.result);
-      const workbook = XLSX.read(data, { type: 'array' });
+      // Bật raw: false để SheetJS trả về đúng văn bản hiển thị (Plain Text)
+      const workbook = XLSX.read(data, { type: 'array', raw: false, cellText: true });
       const firstSheetName = workbook.SheetNames[0];
       const worksheet = workbook.Sheets[firstSheetName];
-      
-      // Chuyển dữ liệu Sheet thành mảng JSON
-      const jsonRows = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+
+      const jsonRows = XLSX.utils.sheet_to_json(worksheet, { header: 1, raw: false, defval: '' });
       if (jsonRows.length < 2) {
-        alert(' File Excel rỗng hoặc không có cột dữ liệu!');
-        return;
+        throw new Error('File Excel rỗng hoặc không đủ dữ liệu!');
       }
 
+      // Tự động tìm vị trí Cột (Mã SV, Họ Tên, Mật Khẩu) dựa vào dòng Header
+      let colUserIdx = 0;
+      let colNameIdx = 1;
+      let colPassIdx = 2;
+
+      const headerRow = jsonRows[0].map(h => toPlainText(h).toLowerCase());
+      headerRow.forEach((hText, idx) => {
+        if (hText.includes('mã') || hText.includes('msv') || hText.includes('user') || hText.includes('stt')) {
+          colUserIdx = idx;
+        } else if (hText.includes('họ') || hText.includes('tên') || hText.includes('name')) {
+          colNameIdx = idx;
+        } else if (hText.includes('mật khẩu') || hText.includes('pass')) {
+          colPassIdx = idx;
+        }
+      });
+
       const parsedStudents = [];
-      // Đọc từ dòng thứ 2 (bỏ qua Header)
       for (let i = 1; i < jsonRows.length; i++) {
         const row = jsonRows[i];
         if (!row || row.length === 0) continue;
 
-        const username = String(row[0] || '').trim(); // Cột A: Mã SV / Username
-        const fullName = String(row[1] || username).trim(); // Cột B: Họ Tên
-        const password = String(row[2] || '123456').trim(); // Cột C: Mật khẩu
+        const username = toPlainText(row[colUserIdx]);
+        const fullName = toPlainText(row[colNameIdx]) || username;
+        const password = toPlainText(row[colPassIdx]) || '123456';
 
-        if (username) {
+        if (username && username.toLowerCase() !== 'undefined' && !username.toLowerCase().includes('mã')) {
           parsedStudents.push({ username, fullName, password });
         }
       }
 
       if (parsedStudents.length === 0) {
-        alert(' Không tìm thấy dòng dữ liệu sinh viên hợp lệ trong file!');
-        return;
+        throw new Error('Không tìm thấy dòng dữ liệu sinh viên hợp lệ trong file!');
       }
 
-      console.log(`📥 Đã đọc được ${parsedStudents.length} sinh viên từ Excel. Đang gửi lên máy chủ...`);
+      showAppLoading(`🚀 Đang đồng bộ <strong>${parsedStudents.length} sinh viên</strong> (Plain Text) vào hệ thống...`);
 
-      // Gửi danh sách lên Google Apps Script
       const res = await appsScriptService.request('SAVE_STUDENT_LIST', { students: parsedStudents });
+
+      hideAppLoading();
       alert(res.message || '✅ Đã tải lên danh sách sinh viên thành công!');
 
-      // Làm mới lại bảng sinh viên
       if (typeof handleLoadStudents === 'function') {
         handleLoadStudents();
       }
 
     } catch (err) {
-      console.error('Lỗi đọc file Excel:', err);
-      alert(`Lỗi đọc file Excel: ${err.message}`);
+      hideAppLoading();
+      console.error('❌ Lỗi đọc file Excel:', err);
+      alert(`Lỗi xử lý file Excel: ${err.message}`);
     } finally {
-      event.target.value = ''; // Reset input file
+      event.target.value = '';
     }
   };
 
