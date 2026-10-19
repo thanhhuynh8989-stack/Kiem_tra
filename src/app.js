@@ -2242,14 +2242,45 @@ window.toggleSelectAllStudents = function(masterCb) {
 };
 
 /**
- * LẤY DANH SÁCH SINH VIÊN TỪ SERVER (GET_STUDENTS)
+ * TẢI VÀ HIỂN THỊ DANH SÁCH SINH VIÊN TỪ SERVER
  */
 window.handleLoadStudents = async function() {
+  const container = document.getElementById('studentManagementContainer');
+  if (container) {
+    container.innerHTML = `
+      <div style="text-align: center; padding: 30px; color: #2563eb; font-weight: 600;">
+        ⏳ Đang tải danh sách sinh viên từ hệ thống...
+      </div>
+    `;
+  }
+
   try {
+    // Gọi API lấy danh sách Sinh viên từ Apps Script (Role = STUDENT)
     const res = await appsScriptService.request('GET_STUDENTS', {});
+    
     const students = res.students || res.data || [];
+    console.log(`✅ Đã tải ${students.length} sinh viên từ máy chủ.`, students);
+
+    // Hiển thị giao diện bảng quản lý sinh viên
     renderStudentManagementUI(students);
+
   } catch (err) {
-    console.error('Lỗi tải danh sách sinh viên:', err);
+    console.error('❌ Lỗi tải danh sách sinh viên:', err);
+    if (container) {
+      container.innerHTML = `
+        <div style="padding: 16px; background: #fef2f2; border: 1px solid #fecaca; border-radius: 8px; color: #dc2626; font-size: 14px;">
+          ❌ Lỗi nạp danh sách sinh viên: ${err.message}. Vui lòng thử lại!
+        </div>
+      `;
+    }
   }
 };
+
+// Tự động gọi tải danh sách sinh viên khi trang web được nạp xong (nếu ở giao diện Giảng viên)
+document.addEventListener('DOMContentLoaded', () => {
+  setTimeout(() => {
+    if (document.getElementById('studentManagementContainer')) {
+      handleLoadStudents();
+    }
+  }, 500);
+});
