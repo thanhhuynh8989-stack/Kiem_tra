@@ -2284,3 +2284,116 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }, 500);
 });
+
+/**
+ * TIỆN ÍCH: HIỂN THỊ / ẨN MÀN HÌNH LOADING TOÀN CỤC (PROGRESS OVERLAY)
+ */
+window.showAppLoading = function(message = 'Đang xử lý dữ liệu...') {
+  let overlay = document.getElementById('globalAppLoadingOverlay');
+  if (!overlay) {
+    overlay = document.createElement('div');
+    overlay.id = 'globalAppLoadingOverlay';
+    overlay.style.cssText = `
+      position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+      background: rgba(15, 23, 42, 0.75); backdrop-filter: blur(4px);
+      z-index: 99999; display: flex; flex-direction: column;
+      justify-content: center; align-items: center; color: #ffffff;
+      font-family: system-ui, -apple-system, sans-serif;
+    `;
+    overlay.innerHTML = `
+      <div style="background: #1e293b; border: 1px solid #334155; padding: 28px 36px; border-radius: 16px; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.5); text-align: center; max-width: 400px; width: 90%;">
+        <div class="loading-spinner" style="width: 44px; height: 44px; border: 4px solid #38bdf8; border-top-color: transparent; border-radius: 50%; margin: 0 auto 16px auto; animation: spin 0.8s linear infinite;"></div>
+        <div id="loadingOverlayMsg" style="font-weight: 600; font-size: 15px; color: #f8fafc; line-height: 1.5;">${message}</div>
+      </div>
+      <style>
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+      </style>
+    `;
+    document.body.appendChild(overlay);
+  } else {
+    const msgEl = document.getElementById('loadingOverlayMsg');
+    if (msgEl) msgEl.innerHTML = message;
+    overlay.style.display = 'flex';
+  }
+};
+
+window.hideAppLoading = function() {
+  const overlay = document.getElementById('globalAppLoadingOverlay');
+  if (overlay) overlay.style.display = 'none';
+};
+
+/**
+ * ĐỌC FILE EXCEL & TẢI LÊN (CÓ THANH LOADING CHỐNG NGHẼN MẠNG)
+ */
+window.handleUploadStudentExcel = function(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+
+  if (typeof XLSX === 'undefined') {
+    alert('⚠️ Chưa nạp thư viện đọc file Excel (SheetJS). Vui lòng kiểm tra lại index.html!');
+    return;
+  }
+
+  showAppLoading(`📂 Đang đọc dữ liệu từ file Excel: <strong>${file.name}</strong>...`);
+
+  const reader = new FileReader();
+  reader.onload = async function(e) {
+    try {
+      const data = new Uint8Array(e.target.result);
+      const workbook = XLSX.read(data, { type: 'array' });
+      const firstSheetName = workbook.SheetNames[0];
+      const worksheet = workbook.Sheets[firstSheetName];
+      
+      const jsonRows = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+      if (jsonRows.length < 2) {
+        throw new Error('File Excel rỗng hoặc không có cột dữ liệu!');
+      }
+
+      const parsedStudents = [];
+      for (let i = 1; i < jsonRows.length; i++) {
+        const row = jsonRows[i];
+        if (!row || row.length === 0) continue;
+
+        const username = String(row[0] || '').trim();
+        const fullName = String(row[1] || username).trim();
+        const password = String(row[2] || '123456').trim();
+
+        if (username && username.toLowerCase() !== 'undefined') {
+          parsedStudents.push({ username, fullName, password });
+        }
+      }
+
+      if (parsedStudents.length === 0) {
+        throw new Error('Không tìm thấy dòng dữ liệu sinh viên hợp lệ trong file Excel!');
+      }
+
+      // Cập nhật thông báo tiến độ trên màn hình Loading
+      showAppLoading(`🚀 Đang đồng bộ <strong>${parsedStudents.length} sinh viên</strong> vào hệ thống...<br><span style="font-size:12px; color:#94a3b8; margin-top:6px; display:block;">Xử lý siêu tốc hàng loạt (Bulk API)...</span>`);
+
+      // Gửi danh sách lên Google Apps Script
+      const res = await appsScriptService.request('SAVE_STUDENT_LIST', { students: parsedStudents });
+
+      hideAppLoading();
+      alert(res.message || '✅ Đã tải lên danh sách sinh viên thành công!');
+
+      // Tải lại danh sách ngay lập tức
+      if (typeof handleLoadStudents === 'function') {
+        handleLoadStudents();
+      }
+
+    } catch (err) {
+      hideAppLoading();
+      console.error('❌ Lỗi đọc file Excel:', err);
+      alert(`Lỗi xử lý file Excel: ${err.message}`);
+    } finally {
+      event.target.value = '';
+    }
+  };
+
+  reader.onerror = function() {
+    hideAppLoading();
+    alert('Không thể đọc file Excel. Vui lòng thử lại!');
+  };
+
+  reader.readAsArrayBuffer(file);
+};
