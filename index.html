@@ -217,19 +217,35 @@
       <div id="myExamsListTable"></div>
     </div>
     
-    <!-- TAB KHU VỰC QUẢN LÝ SINH VIÊN & ĐIỂM THI -->
-    <div id="studentManagementSection" style="margin-top: 40px; background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 20px;">
-      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
-        <h3 style="margin: 0; color: #0f172a; font-size: 18px;">👨‍🎓 Quản Lý Sinh Viên & Điểm Thi</h3>
-        <button type="button" onclick="handleLoadStudentsAndGrades()" style="background: #10b981; color: white; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; font-size: 13px; font-weight: 600;">
-          📊 Tải Bảng Điểm & Sinh Viên
-        </button>
+    <!-- CỤM QUẢN LÝ SINH VIÊN VÀ ĐIỂM THI -->
+<section id="studentSection" style="margin-top: 24px;">
+  <div style="background: #ffffff; border: 1px solid #cbd5e1; border-radius: 12px; padding: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
+    
+    <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; margin-bottom: 16px;">
+      <div>
+        <h3 style="margin: 0; font-size: 18px; color: #0f172a; display: flex; align-items: center; gap: 8px;">
+          🎓 Quản Lý Sinh Viên & Điểm Thi
+        </h3>
+        <p style="margin: 4px 0 0 0; font-size: 13px; color: #64748b;">
+          Xem danh sách tài khoản sinh viên, nhập file Excel, xóa tài khoản hoặc gán đề thi.
+        </p>
       </div>
-      
-      <div id="studentsAndGradesTable" style="min-height: 80px;">
-        <p style="color: #64748b; font-size: 13px;">Nhấn nút "Tải Bảng Điểm & Sinh Viên" để xem thông tin chi tiết.</p>
+
+      <!-- NÚT NẠP/LÀM MỚI DANH SÁCH SINH VIÊN -->
+      <button type="button" onclick="handleLoadStudents()" style="background: #059669; color: white; border: none; padding: 10px 18px; border-radius: 8px; cursor: pointer; font-size: 14px; font-weight: 600; display: inline-flex; align-items: center; gap: 8px; box-shadow: 0 1px 2px rgba(0,0,0,0.1);">
+        📊 Tải Danh Sách Sinh Viên
+      </button>
+    </div>
+
+    <!-- KHUNG CHỨA BẢNG DANH SÁCH SINH VIÊN (SẼ ĐƯỢC RENDER DYNAMIC) -->
+    <div id="studentManagementContainer">
+      <div style="text-align: center; padding: 30px; background: #f8fafc; border: 1px dashed #cbd5e1; border-radius: 8px; color: #64748b;">
+        Nhấn nút <strong>"📊 Tải Danh Sách Sinh Viên"</strong> ở trên để nạp danh sách tài khoản và thực hiện các chức năng nhập Excel / Gán đề / Xóa sinh viên.
       </div>
     </div>
+
+  </div>
+</section>
     
     <!-- MODAL GIAO ĐỀ THI -->
     <div id="assignExamModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 9999; justify-content: center; align-items: center;">
