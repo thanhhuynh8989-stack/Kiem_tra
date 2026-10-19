@@ -1999,3 +1999,257 @@ function setUploadStatus(text, style) {
   }
 }
 
+// Biến lưu trữ trạng thái danh sách sinh viên hiện tại
+window.currentStudentsList = [];
+
+/**
+ * 1. DỰNG GIAO DIỆN QUẢN LÝ SINH VIÊN & GÁN ĐỀ THI
+ */
+window.renderStudentManagementUI = function(students = []) {
+  window.currentStudentsList = students;
+  const container = document.getElementById('studentManagementContainer') || document.getElementById('myExamsListTable');
+  if (!container) return;
+
+  container.innerHTML = `
+    <div style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.02); margin-top: 20px;">
+      
+      <!-- TOOLBAR QUẢN LÝ -->
+      <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; margin-bottom: 20px; border-bottom: 1px solid #f1f5f9; padding-bottom: 16px;">
+        <h3 style="margin: 0; font-size: 18px; color: #0f172a; display: flex; align-items: center; gap: 8px;">
+          🎓 Quản Lý Sinh Viên (${students.length})
+        </h3>
+        
+        <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+          <!-- Nút Upload Excel -->
+          <label style="background: #16a34a; color: white; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; font-size: 13px; font-weight: 600; display: inline-flex; align-items: center; gap: 6px;">
+            📁 Nhập Danh Sách (Excel)
+            <input type="file" id="excelStudentInput" accept=".xlsx, .xls, .csv" onchange="handleUploadStudentExcel(event)" style="display: none;">
+          </label>
+
+          <!-- Nút Thêm 1 sinh viên -->
+          <button type="button" onclick="handlePromptAddStudent()" style="background: #2563eb; color: white; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; font-size: 13px; font-weight: 600;">
+            ➕ Thêm Sinh Viên
+          </button>
+
+          <!-- Nút Gán Đề Thi -->
+          <button type="button" onclick="handleOpenAssignExamModal()" style="background: #d97706; color: white; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; font-size: 13px; font-weight: 600;">
+            📌 Gán Đề Thi
+          </button>
+        </div>
+      </div>
+
+      <!-- BẢNG DANH SÁCH SINH VIÊN -->
+      <div style="overflow-x: auto;">
+        <table style="width: 100%; border-collapse: collapse; font-size: 14px; text-align: left;">
+          <thead>
+            <tr style="background: #f8fafc; border-bottom: 2px solid #e2e8f0; color: #475569;">
+              <th style="padding: 10px; width: 40px; text-align: center;">
+                <input type="checkbox" id="selectAllStudents" onchange="toggleSelectAllStudents(this)" style="cursor: pointer;">
+              </th>
+              <th style="padding: 10px;">Mã SV (Username)</th>
+              <th style="padding: 10px;">Họ và Tên</th>
+              <th style="padding: 10px;">Mật khẩu</th>
+              <th style="padding: 10px; text-align: right;">Hành động</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${students.length === 0 ? `
+              <tr>
+                <td colspan="5" style="text-align: center; padding: 24px; color: #94a3b8;">
+                  Chưa có sinh viên nào. Vui lòng bấm "Nhập Danh Sách (Excel)" hoặc "Thêm Sinh Viên".
+                </td>
+              </tr>
+            ` : students.map((st, idx) => `
+              <tr style="border-bottom: 1px solid #f1f5f9;">
+                <td style="padding: 10px; text-align: center;">
+                  <input type="checkbox" class="student-select-cb" value="${st.username}" style="cursor: pointer;">
+                </td>
+                <td style="padding: 10px; font-weight: 600; color: #1e293b;">${st.username}</td>
+                <td style="padding: 10px; color: #334155;">${st.fullName || st.username}</td>
+                <td style="padding: 10px; color: #64748b; font-family: monospace;">${st.password || '******'}</td>
+                <td style="padding: 10px; text-align: right;">
+                  <button type="button" onclick="handleDeleteStudentUI('${st.username}')" style="background: #ef4444; color: white; border: none; padding: 4px 10px; border-radius: 4px; cursor: pointer; font-size: 12px;">
+                    🗑️ Xóa
+                  </button>
+                </td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+      </div>
+
+    </div>
+  `;
+};
+
+/**
+ * 2. TẢI FILE EXCEL VÀ IMPORT DANH SÁCH SINH VIÊN
+ */
+window.handleUploadStudentExcel = function(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+
+  if (typeof XLSX === 'undefined') {
+    alert('⚠️ Chưa nạp thư viện đọc file Excel (SheetJS). Vui lòng thêm thẻ script XLSX vào index.html!');
+    return;
+  }
+
+  const reader = new FileReader();
+  reader.onload = async function(e) {
+    try {
+      const data = new Uint8Array(e.target.result);
+      const workbook = XLSX.read(data, { type: 'array' });
+      const firstSheetName = workbook.SheetNames[0];
+      const worksheet = workbook.Sheets[firstSheetName];
+      
+      // Chuyển dữ liệu Sheet thành mảng JSON
+      const jsonRows = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+      if (jsonRows.length < 2) {
+        alert(' File Excel rỗng hoặc không có cột dữ liệu!');
+        return;
+      }
+
+      const parsedStudents = [];
+      // Đọc từ dòng thứ 2 (bỏ qua Header)
+      for (let i = 1; i < jsonRows.length; i++) {
+        const row = jsonRows[i];
+        if (!row || row.length === 0) continue;
+
+        const username = String(row[0] || '').trim(); // Cột A: Mã SV / Username
+        const fullName = String(row[1] || username).trim(); // Cột B: Họ Tên
+        const password = String(row[2] || '123456').trim(); // Cột C: Mật khẩu
+
+        if (username) {
+          parsedStudents.push({ username, fullName, password });
+        }
+      }
+
+      if (parsedStudents.length === 0) {
+        alert(' Không tìm thấy dòng dữ liệu sinh viên hợp lệ trong file!');
+        return;
+      }
+
+      console.log(`📥 Đã đọc được ${parsedStudents.length} sinh viên từ Excel. Đang gửi lên máy chủ...`);
+
+      // Gửi danh sách lên Google Apps Script
+      const res = await appsScriptService.request('SAVE_STUDENT_LIST', { students: parsedStudents });
+      alert(res.message || '✅ Đã tải lên danh sách sinh viên thành công!');
+
+      // Làm mới lại bảng sinh viên
+      if (typeof handleLoadStudents === 'function') {
+        handleLoadStudents();
+      }
+
+    } catch (err) {
+      console.error('Lỗi đọc file Excel:', err);
+      alert(`Lỗi đọc file Excel: ${err.message}`);
+    } finally {
+      event.target.value = ''; // Reset input file
+    }
+  };
+
+  reader.readAsArrayBuffer(file);
+};
+
+/**
+ * 3. THÊM 1 SINH VIÊN THỦ CÔNG
+ */
+window.handlePromptAddStudent = async function() {
+  const username = prompt('Nhập Mã Sinh Viên (Username):');
+  if (!username) return;
+
+  const fullName = prompt('Nhập Họ và Tên Sinh Viên:', username) || username;
+  const password = prompt('Nhập Mật khẩu tài khoản:', '123456') || '123456';
+
+  try {
+    const res = await appsScriptService.request('SAVE_STUDENT_LIST', {
+      students: [{ username: username.trim(), fullName: fullName.trim(), password: password.trim() }]
+    });
+    alert(res.message || '✅ Đã thêm sinh viên mới!');
+    
+    if (typeof handleLoadStudents === 'function') {
+      handleLoadStudents();
+    }
+  } catch (err) {
+    alert(`Lỗi thêm sinh viên: ${err.message}`);
+  }
+};
+
+/**
+ * 4. XÓA SINH VIÊN
+ */
+window.handleDeleteStudentUI = async function(username) {
+  if (!confirm(`Bạn có chắc chắn muốn xóa sinh viên [${username}]?`)) return;
+
+  try {
+    const res = await appsScriptService.request('DELETE_STUDENT', { username });
+    alert(res.message || '✅ Đã xóa sinh viên!');
+
+    if (typeof handleLoadStudents === 'function') {
+      handleLoadStudents();
+    }
+  } catch (err) {
+    alert(`Lỗi khi xóa sinh viên: ${err.message}`);
+  }
+};
+
+/**
+ * 5. MỞ DIALOG GÁN ĐỀ THI CHO SINH VIÊN DƯỢC CHỌN HOẶC TOÀN BỘ
+ */
+window.handleOpenAssignExamModal = async function() {
+  // Lấy các sinh viên được chọn từ Checkbox
+  const checkedBoxes = document.querySelectorAll('.student-select-cb:checked');
+  let selectedUsers = Array.from(checkedBoxes).map(cb => cb.value);
+
+  if (selectedUsers.length === 0) {
+    if (confirm('Bạn chưa chọn sinh viên cụ thể nào. Bạn có muốn GÁN ĐỀ THI CHO TOÀN BỘ sinh viên trong danh sách không?')) {
+      selectedUsers = window.currentStudentsList.map(s => s.username);
+    } else {
+      return;
+    }
+  }
+
+  if (selectedUsers.length === 0) {
+    alert('⚠️ Danh sách sinh viên rỗng, không thể thực hiện gán đề!');
+    return;
+  }
+
+  const examId = prompt(`Gán đề thi cho ${selectedUsers.length} sinh viên.\nNhập Mã đề thi (Ví dụ: exam_75ceb91a.json):`);
+  if (!examId) return;
+
+  try {
+    const username = typeof getLoggedInUsername === 'function' ? getLoggedInUsername() : 'admin';
+    
+    // Gọi API Assign Exam
+    const res = await appsScriptService.request('ASSIGN_EXAM', {
+      examId: examId.trim(),
+      targetStudents: selectedUsers,
+      assignedBy: username
+    });
+
+    alert(res.message || `✅ Đã gán thành công đề thi [${examId}] cho ${selectedUsers.length} sinh viên!`);
+  } catch (err) {
+    alert(`Lỗi gán đề thi: ${err.message}`);
+  }
+};
+
+/**
+ * HELPER: CHỌN / BỎ CHỌN TẤT CẢ CHECKBOX SINH VIÊN
+ */
+window.toggleSelectAllStudents = function(masterCb) {
+  const cbs = document.querySelectorAll('.student-select-cb');
+  cbs.forEach(cb => cb.checked = masterCb.checked);
+};
+
+/**
+ * LẤY DANH SÁCH SINH VIÊN TỪ SERVER (GET_STUDENTS)
+ */
+window.handleLoadStudents = async function() {
+  try {
+    const res = await appsScriptService.request('GET_STUDENTS', {});
+    const students = res.students || res.data || [];
+    renderStudentManagementUI(students);
+  } catch (err) {
+    console.error('Lỗi tải danh sách sinh viên:', err);
+  }
+};
