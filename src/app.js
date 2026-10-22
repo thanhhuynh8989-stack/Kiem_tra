@@ -2025,43 +2025,32 @@ window.handleUploadStudentExcel = function(event) {
   }
 
   if (typeof showAppLoading === 'function') {
-    showAppLoading(`📂 Đang chuyển đổi Plain Text & đọc dữ liệu: <strong>${file.name}</strong>...`);
+    showAppLoading(`📂 Đang đọc dữ liệu Plain Text từ file: <strong>${file.name}</strong>...`);
   }
 
   const reader = new FileReader();
   reader.onload = async function(e) {
     try {
       const data = new Uint8Array(e.target.result);
-      // raw: false & cellText: true giúp đọc nguyên văn bản hiển thị trong ô Excel
+      // raw: false & cellText: true giúp bảo toàn chuỗi văn bản thuần (giữ nguyên số 0 ở đầu)
       const workbook = XLSX.read(data, { type: 'array', raw: false, cellText: true, cellDates: false });
       const firstSheetName = workbook.SheetNames[0];
       const worksheet = workbook.Sheets[firstSheetName];
 
       const jsonRows = XLSX.utils.sheet_to_json(worksheet, { header: 1, raw: false, defval: '' });
       if (jsonRows.length < 2) {
-        throw new Error('File Excel rỗng hoặc không có cột dữ liệu!');
+        throw new Error('File Excel rỗng hoặc chỉ chứa dòng tiêu đề!');
       }
 
-      // Nhận diện chỉ số cột dựa vào tiêu đề Header
-      let colUserIdx = 0;
-      let colNameIdx = 1;
-      let colClassIdx = 2;
-      let colPassIdx = 3;
-
-      const headerRow = jsonRows[0].map(h => forcePlainText(h).toLowerCase());
-      headerRow.forEach((hText, idx) => {
-        if (hText.includes('mã') || hText.includes('msv') || hText.includes('user') || hText.includes('stt')) {
-          colUserIdx = idx;
-        } else if (hText.includes('họ') || hText.includes('tên') || hText.includes('name')) {
-          colNameIdx = idx;
-        } else if (hText.includes('lớp') || hText.includes('class')) {
-          colClassIdx = idx;
-        } else if (hText.includes('mật khẩu') || hText.includes('pass')) {
-          colPassIdx = idx;
-        }
-      });
+      // THỨ TỰ CỘT MẶC ĐỊNH CỐ ĐỊNH
+      const colUserIdx = 0;  // Cột A: Mã Sinh Viên
+      const colNameIdx = 1;  // Cột B: Họ và Tên
+      const colClassIdx = 2; // Cột C: Lớp
+      const colPassIdx = 3;  // Cột D: Mật khẩu
 
       const parsedStudents = [];
+
+      // Đọc từ dòng thứ 2 (Chỉ số 1 - Bỏ qua dòng Header đầu tiên)
       for (let i = 1; i < jsonRows.length; i++) {
         const row = jsonRows[i];
         if (!row || row.length === 0) continue;
@@ -2071,7 +2060,7 @@ window.handleUploadStudentExcel = function(event) {
         const className = forcePlainText(row[colClassIdx]);
         const password = forcePlainText(row[colPassIdx]) || '123456';
 
-        if (username && username.toLowerCase() !== 'undefined' && !username.toLowerCase().includes('mã')) {
+        if (username && username.toLowerCase() !== 'undefined') {
           parsedStudents.push({
             username: username,
             fullName: fullName,
@@ -2082,13 +2071,13 @@ window.handleUploadStudentExcel = function(event) {
       }
 
       if (parsedStudents.length === 0) {
-        throw new Error('Không tìm thấy dòng dữ liệu sinh viên hợp lệ trong file!');
+        throw new Error('Không tìm thấy dòng dữ liệu sinh viên hợp lệ trong file Excel!');
       }
 
-      console.log('📥 Dữ liệu Plain Text sinh viên chuẩn bị gửi lên:', parsedStudents);
+      console.log(`📥 Đã nạp thành công ${parsedStudents.length} sinh viên theo cột cố định (A, B, C, D):`, parsedStudents);
 
       if (typeof showAppLoading === 'function') {
-        showAppLoading(`🚀 Đang đồng bộ <strong>${parsedStudents.length} sinh viên</strong> (Plain Text) vào hệ thống...`);
+        showAppLoading(`🚀 Đang đồng bộ <strong>${parsedStudents.length} sinh viên</strong> vào hệ thống...`);
       }
 
       const res = await appsScriptService.request('SAVE_STUDENT_LIST', { students: parsedStudents });
