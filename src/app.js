@@ -2099,7 +2099,7 @@ window.handleUploadStudentExcel = function(event) {
   }
 
   if (typeof showAppLoading === 'function') {
-    showAppLoading(`📂 Đang đọc dữ liệu: <strong>${file.name}</strong>...`);
+    showAppLoading(`📂 Đang nạp dữ liệu: <strong>${file.name}</strong>...`);
   }
 
   const reader = new FileReader();
@@ -2109,56 +2109,55 @@ window.handleUploadStudentExcel = function(event) {
       const workbook = XLSX.read(data, { type: 'array', raw: false, cellText: true });
       const worksheet = workbook.Sheets[workbook.SheetNames[0]];
 
-      const jsonRows = XLSX.utils.sheet_to_json(worksheet, { header: 1, raw: false, defval: '' });
-      if (!jsonRows || jsonRows.length < 2) {
+      // 1. Đọc thành mảng Đối Tượng JSON từ file Excel
+      const rawObjects = XLSX.utils.sheet_to_json(worksheet, { defval: '' });
+      if (!rawObjects || rawObjects.length === 0) {
         throw new Error('File Excel rỗng!');
       }
 
-      // 1. Quét Dòng tiêu đề 1 (Header)
-      const headers = jsonRows[0].map(h => String(h || '').trim().toLowerCase().normalize("NFC"));
-
-      let userIdx = headers.findIndex(h => h.includes('studentcode') || h.includes('mã') || h.includes('user') || h.includes('sv'));
-      let nameIdx = headers.findIndex(h => h.includes('fullname') || h.includes('họ') || h.includes('tên') || h.includes('name'));
-      let classIdx = headers.findIndex(h => h.includes('class') || h.includes('lớp'));
-      let passIdx = headers.findIndex(h => h.includes('password') || h.includes('mật') || h.includes('pass') || h.includes('mk'));
-
-      // Dự phòng theo thứ tự cột mặc định: A(0), B(1), C(2), D(3)
-      if (userIdx === -1) userIdx = 0;
-      if (nameIdx === -1) nameIdx = 1;
-      if (classIdx === -1) classIdx = 2;
-      if (passIdx === -1) passIdx = 3;
-
       const parsedStudents = [];
 
-      // 2. Bóc tách dữ liệu từ Dòng 2 trở đi
-      for (let i = 1; i < jsonRows.length; i++) {
-        const row = jsonRows[i];
-        if (!row || row.length === 0) continue;
+      // 2. Chuyển đổi toàn bộ Key về chữ thường để quét chính xác 100%
+      rawObjects.forEach((row) => {
+        let studentCode = '';
+        let fullName = '';
+        let className = '';
+        let password = '';
 
-        const studentCode = forcePlainText(row[userIdx]);
-        const fullName = forcePlainText(row[nameIdx]) || studentCode;
-        const className = forcePlainText(row[classIdx]);
-        const password = forcePlainText(row[passIdx]) || '123456';
+        Object.keys(row).forEach(key => {
+          const cleanKey = String(key || '').trim().toLowerCase();
+          const val = String(row[key] || '').trim();
+
+          if (cleanKey === 'studentcode' || cleanKey.includes('mã') || cleanKey.includes('user') || cleanKey.includes('sv')) {
+            if (!studentCode) studentCode = val;
+          } else if (cleanKey === 'fullname' || cleanKey.includes('họ') || cleanKey.includes('tên') || cleanKey.includes('name')) {
+            if (!fullName) fullName = val;
+          } else if (cleanKey === 'class' || cleanKey.includes('lớp')) {
+            if (!className) className = val; // Khớp chuẩn xác key 'Class'
+          } else if (cleanKey === 'password' || cleanKey.includes('mật') || cleanKey.includes('pass') || cleanKey.includes('mk')) {
+            if (!password) password = val;   // Khớp chuẩn xác key 'Password'
+          }
+        });
 
         if (studentCode && studentCode.toLowerCase() !== 'undefined') {
           parsedStudents.push({
             studentCode: studentCode,
             username: studentCode,
-            fullName: fullName,
+            fullName: fullName || studentCode,
             className: className,
-            password: password
+            password: password || '123456'
           });
         }
-      }
+      });
+
+      console.log('📦 Kết quả bóc tách JSON chuẩn (Dòng đầu tiên):', parsedStudents[0]);
 
       if (parsedStudents.length === 0) {
-        throw new Error('Không có dòng dữ liệu sinh viên nào hợp lệ!');
+        throw new Error('Không bóc tách được dòng sinh viên nào!');
       }
 
-      console.log('📌 Đã đóng gói JSON sinh viên:', parsedStudents[0]);
-
       if (typeof showAppLoading === 'function') {
-        showAppLoading(`🚀 Đang đồng bộ <strong>${parsedStudents.length} sinh viên</strong> sang Google Sheets...`);
+        showAppLoading(`🚀 Đang ghi <strong>${parsedStudents.length} sinh viên</strong> vào Google Sheets...`);
       }
 
       const res = await appsScriptService.request('SAVE_STUDENT_LIST', { students: parsedStudents });
