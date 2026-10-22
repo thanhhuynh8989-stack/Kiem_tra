@@ -1844,14 +1844,177 @@ async function handleLoadStudentsAndGrades() {
 // 3. XUẤT HÀM RA WINDOW TOÀN CỤC ĐỂ HTML NÚT BẤM GỌI ĐƯỢC TRỰC TIẾP
 window.handleLoadStudentsAndGrades = handleLoadStudentsAndGrades;
 
-window.handleOpenAssignModal = function(examId, title) {
-  const modal = document.getElementById('assignExamModal');
-  const idInput = document.getElementById('assignExamId');
-  const titleEl = document.getElementById('assignExamTitle');
+= async function(examId, examTitle = '') {
+  console.log('📤 Mở modal giao đề thi:', examId);
 
-  if (idInput) idInput.value = examId;
-  if (titleEl) titleEl.innerText = `Đề thi: ${title} (${examId})`;
-  if (modal) modal.style.display = 'flex';
+  // 1. Đảm bảo có danh sách Sinh viên mới nhất
+  let students = window.currentStudentsList || [];
+  if (!students || students.length === 0) {
+    if (typeof showAppLoading === 'function') showAppLoading('⏳ Đang tải danh sách Lớp & Sinh viên...');
+    try {
+      const res = await appsScriptService.request('GET_STUDENTS', {});
+      students = res.students || res.data || [];
+      window.currentStudentsList = students;
+    } catch (e) {
+      console.warn('Không tải được sinh viên:', e);
+    } finally {
+      if (typeof hideAppLoading === 'function') hideAppLoading();
+    }
+  }
+
+  // 2. Tách danh sách Lớp duy nhất (Unique Class List)
+  const classList = [...new Set(students.map(s => String(s.className || s.class || '').trim()).filter(Boolean))];
+
+  // 3. Xóa Modal cũ nếu có
+  const oldModal = document.getElementById('assignExamModalOverlay');
+  if (oldModal) oldModal.remove();
+
+  // 4. Dựng Modal Overlay
+  const modalOverlay = document.createElement('div');
+  modalOverlay.id = 'assignExamModalOverlay';
+  modalOverlay.style.cssText = `
+    position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+    background: rgba(15, 23, 42, 0.6); backdrop-filter: blur(4px);
+    z-index: 99999; display: flex; justify-content: center; align-items: center;
+    font-family: system-ui, -apple-system, sans-serif; padding: 16px; box-sizing: border-box;
+  `;
+
+  modalOverlay.innerHTML = `
+    <div style="background: #ffffff; width: 100%; max-width: 520px; border-radius: 16px; padding: 24px; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.3); border: 1px solid #e2e8f0;">
+      
+      <!-- HEADER -->
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; border-bottom: 1px solid #f1f5f9; padding-bottom: 12px;">
+        <h3 style="margin: 0; font-size: 18px; color: #0f172a; display: flex; align-items: center; gap: 8px;">
+          📤 Giao Đề Thi
+        </h3>
+        <button type="button" onclick="document.getElementById('assignExamModalOverlay').remove()" style="background: none; border: none; font-size: 20px; cursor: pointer; color: #64748b;">✕</button>
+      </div>
+
+      <!-- TÊN ĐỀ THI -->
+      <div style="background: #eff6ff; border: 1px solid #bfdbfe; padding: 10px 14px; border-radius: 8px; color: #1e40af; font-weight: 600; font-size: 13px; margin-bottom: 16px;">
+        📖 Bài thi: <span style="color: #2563eb;">[${escapeHtml(examTitle || examId)}]</span>
+      </div>
+
+      <!-- HÌNH THỨC GIAO ĐỀ -->
+      <div style="margin-bottom: 16px;">
+        <label style="display: block; font-size: 13px; font-weight: 700; color: #334155; margin-bottom: 8px;">Chọn phạm vi giao đề:</label>
+        <div style="display: flex; gap: 16px; flex-wrap: wrap;">
+          <label style="display: flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 600; cursor: pointer; color: #1e293b;">
+            <input type="radio" name="assignTypeRadio" value="CLASS" checked onchange="toggleAssignTypeFields('CLASS')" style="cursor: pointer;">
+            Theo Lớp
+          </label>
+          <label style="display: flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 600; cursor: pointer; color: #1e293b;">
+            <input type="radio" name="assignTypeRadio" value="STUDENT" onchange="toggleAssignTypeFields('STUDENT')" style="cursor: pointer;">
+            Theo Sinh Viên cụ thể
+          </label>
+          <label style="display: flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 600; cursor: pointer; color: #1e293b;">
+            <input type="radio" name="assignTypeRadio" value="ALL" onchange="toggleAssignTypeFields('ALL')" style="cursor: pointer;">
+            Tất cả Sinh Viên
+          </label>
+        </div>
+      </div>
+
+      <!-- KHUNG 1: DROPDOWN CHỌN LỚP -->
+      <div id="assignClassContainer" style="margin-bottom: 20px;">
+        <label style="display: block; font-size: 13px; font-weight: 600; color: #475569; margin-bottom: 6px;">Chọn Lớp học từ danh sách:</label>
+        <select id="assignClassSelect" style="width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 8px; font-size: 14px; background: #ffffff;">
+          <option value="">-- Chọn Lớp học --</option>
+          ${classList.length === 0 ? '<option value="" disabled>Chưa có dữ liệu Lớp. Hãy tải danh sách SV!</option>' : ''}
+          ${classList.map(c => `<option value="${escapeHtml(c)}">🏫 Lớp: ${escapeHtml(c)}</option>`).join('')}
+        </select>
+      </div>
+
+      <!-- KHUNG 2: DROPDOWN CHỌN SINH VIÊN CỤ THỂ -->
+      <div id="assignStudentContainer" style="display: none; margin-bottom: 20px;">
+        <label style="display: block; font-size: 13px; font-weight: 600; color: #475569; margin-bottom: 6px;">Chọn Sinh viên từ danh sách:</label>
+        <select id="assignStudentSelect" style="width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 8px; font-size: 14px; background: #ffffff;">
+          <option value="">-- Chọn Sinh Viên --</option>
+          ${students.map(s => {
+            const u = s.username || s.user;
+            const name = s.fullName || u;
+            const cName = s.className || s.class || 'N/A';
+            return `<option value="${escapeHtml(u)}">🎓 ${u} - ${escapeHtml(name)} (${escapeHtml(cName)})</option>`;
+          }).join('')}
+        </select>
+      </div>
+
+      <!-- NÚT XÁC NHẬN -->
+      <div style="display: flex; justify-content: flex-end; gap: 10px; margin-top: 24px;">
+        <button type="button" onclick="document.getElementById('assignExamModalOverlay').remove()" style="background: #f1f5f9; color: #475569; border: 1px solid #cbd5e1; padding: 10px 18px; border-radius: 8px; font-size: 13px; font-weight: 600; cursor: pointer;">
+          Hủy bỏ
+        </button>
+        <button type="button" onclick="handleConfirmAssignExam('${examId}')" style="background: #059669; color: #ffffff; border: none; padding: 10px 22px; border-radius: 8px; font-size: 13px; font-weight: 600; cursor: pointer; box-shadow: 0 2px 4px rgba(5,150,105,0.2);">
+          🚀 Xác nhận Giao đề
+        </button>
+      </div>
+
+    </div>
+  `;
+
+  document.body.appendChild(modalOverlay);
+};
+
+/**
+ * 2. CHUYỂN ĐỔI BẬT/ẨN CÁC Ô NHẬP THEO RADIO BUTTON
+ */
+window.toggleAssignTypeFields = function(type) {
+  const classBox = document.getElementById('assignClassContainer');
+  const studentBox = document.getElementById('assignStudentContainer');
+
+  if (classBox) classBox.style.display = type === 'CLASS' ? 'block' : 'none';
+  if (studentBox) studentBox.style.display = type === 'STUDENT' ? 'block' : 'none';
+};
+
+/**
+ * 3. XÁC NHẬN LỆNH GIAO ĐỀ VÀ GỬI LÊN SERVER
+ */
+window.handleConfirmAssignExam = async function(examId) {
+  const selectedType = document.querySelector('input[name="assignTypeRadio"]:checked')?.value || 'CLASS';
+  let targetValue = '';
+  let targetStudents = [];
+
+  if (selectedType === 'CLASS') {
+    const classSel = document.getElementById('assignClassSelect');
+    targetValue = classSel ? classSel.value.trim() : '';
+    if (!targetValue) {
+      alert('⚠️ Vui lòng chọn Lớp cần giao đề!');
+      return;
+    }
+  } else if (selectedType === 'STUDENT') {
+    const studentSel = document.getElementById('assignStudentSelect');
+    const stUser = studentSel ? studentSel.value.trim() : '';
+    if (!stUser) {
+      alert('⚠️ Vui lòng chọn Sinh viên cần giao đề!');
+      return;
+    }
+    targetStudents = [stUser];
+  }
+
+  const username = typeof getLoggedInUsername === 'function' ? getLoggedInUsername() : 'admin';
+
+  if (typeof showAppLoading === 'function') showAppLoading('⏳ Đang lưu thông tin giao đề...');
+
+  try {
+    const res = await appsScriptService.request('ASSIGN_EXAM', {
+      examId: examId,
+      assignType: selectedType,
+      targetValue: targetValue,
+      targetStudents: targetStudents,
+      assignedBy: username
+    });
+
+    if (typeof hideAppLoading === 'function') hideAppLoading();
+
+    alert(res.message || '✅ Đã giao đề thi thành công!');
+
+    // Đóng Modal
+    const modal = document.getElementById('assignExamModalOverlay');
+    if (modal) modal.remove();
+
+  } catch (err) {
+    if (typeof hideAppLoading === 'function') hideAppLoading();
+    alert(`Lỗi giao đề thi: ${err.message}`);
+  }
 };
 
 window.closeAssignModal = function() {
