@@ -66,38 +66,71 @@
     
     <hr style="margin: 24px 0; border: 0; border-top: 1px solid #e2e8f0;">
     
-    <p style="text-align: center;">Bạn là Học sinh / Sinh viên? <a href="#" id="gotoStudentBtn" style="color: var(--primary); font-weight: bold;">Chuyển đến trang Làm bài thi</a></p>
   </div>
 
-  <!-- 2. GIAO DIỆN SINH VIÊN -->
+  <!-- 2. GIAO DIỆN SINH VIÊN (TỰ ĐỘNG ĐỒNG BỘ THEO PHÂN QUYỀN) -->
   <div id="studentView" class="view-section">
-    <div id="examSearchSection">
-      <h3>Nhập Mã Đề Thi</h3>
-      <div class="form-group">
-        <input type="text" id="examCodeInput" placeholder="Ví dụ: exam_a1b2c3d4.json">
+    
+    <!-- THANH THÔNG TIN TÀI KHOẢN SINH VIÊN & ĐĂNG XUẤT -->
+    <div style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 16px 20px; margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.03);">
+      <div style="display: flex; align-items: center; gap: 12px;">
+        <div style="width: 44px; height: 44px; background: #eff6ff; color: #2563eb; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 22px; font-weight: 700;">
+          🎓
+        </div>
+        <div>
+          <div style="font-size: 16px; font-weight: 700; color: #0f172a;" id="studentProfileName">Sinh Viên</div>
+          <div style="font-size: 13px; color: #64748b;">Mã SV: <strong id="studentProfileCode" style="color: #2563eb;">--</strong></div>
+        </div>
       </div>
-      <button id="loadExamBtn">Vào Thi</button>
-      <p style="text-align: right; margin-top: 10px;"><a href="#" class="backToAuthLink" style="font-size: 14px;">Quay lại Đăng nhập cán bộ</a></p>
+  
+      <button type="button" onclick="handleLogout()" style="background: #fef2f2; color: #dc2626; border: 1px solid #fecaca; padding: 8px 16px; border-radius: 8px; font-size: 13px; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 6px;">
+        🚪 Đăng xuất
+      </button>
     </div>
-
-    <div id="examContainer" style="display: none;">
-      <h2 id="examTitle">Đề Thi Trực Tuyến</h2>
-      <div class="form-group">
-        <label>Họ và Tên</label>
-        <input type="text" id="studentName" required placeholder="Nguyễn Văn A">
+  
+    <!-- KHUNG 1: BẢNG ĐIỀU KHIỂN & DANH SÁCH BÀI THI ĐƯỢC GÁN -->
+    <div id="studentExamContainer">
+      <!-- Danh sách bài thi được tự động tải và hiển thị qua hàm renderStudentDashboard() -->
+    </div>
+  
+    <!-- KHUNG 2: MÀN HÌNH LÀM BÀI THI (TỰ ĐỘNG ẨN/HIỆN KHI BẤM "LÀM BÀI") -->
+    <div id="examContainer" style="display: none; background: #ffffff; border-radius: 12px; padding: 20px; border: 1px solid #cbd5e1; box-shadow: 0 2px 8px rgba(0,0,0,0.05);">
+      
+      <!-- Thanh đồng hồ đếm ngược ghim trên cùng -->
+      <div style="position: sticky; top: 10px; z-index: 100; background: #0f172a; color: #ffffff; padding: 14px 20px; border-radius: 10px; display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);">
+        <div>
+          <h2 id="examTitle" style="margin: 0; font-size: 18px; color: #f8fafc;">Đề Thi Trực Tuyến</h2>
+          <span style="font-size: 12px; color: #94a3b8;">Thí sinh: <strong id="examStudentInfo" style="color: #38bdf8;">--</strong></span>
+        </div>
+        <div id="examTimerDisplay" style="font-size: 20px; font-weight: 700; color: #38bdf8; background: #1e293b; padding: 6px 14px; border-radius: 6px; border: 1px solid #334155;">
+          ⏱️ --:--
+        </div>
       </div>
-      <div class="form-group">
-        <label>Mã Sinh Viên / Lớp</label>
-        <input type="text" id="studentCode" required placeholder="123456">
-      </div>
+  
+      <!-- Danh sách các thẻ câu hỏi trắc nghiệm -->
       <div id="questionsList"></div>
-      <button id="submitExamBtn" style="margin-top: 20px;">Nộp Bài Thi</button>
+  
+      <!-- Nút nộp bài thi -->
+      <div style="text-align: right; margin-top: 24px; border-top: 1px solid #f1f5f9; padding-top: 16px;">
+        <button type="button" id="submitExamBtn" style="background: #16a34a; color: #ffffff; border: none; padding: 12px 28px; border-radius: 8px; font-size: 15px; font-weight: 700; cursor: pointer; box-shadow: 0 2px 4px rgba(22,163,74,0.2);">
+          🚀 Nộp Bài Thi
+        </button>
+      </div>
     </div>
-
-    <div id="resultContainer" style="display: none; text-align: center;">
-      <h2>Kết Quả Làm Bài</h2>
-      <p id="scoreText" style="font-size: 24px; font-weight: bold; color: var(--primary);"></p>
+  
+    <!-- KHUNG 3: MÀN HÌNH BÁO KẾT QUẢ / XEM LẠI BÀI LÀM -->
+    <div id="resultContainer" style="display: none; background: #ffffff; border-radius: 12px; padding: 28px; border: 1px solid #cbd5e1; text-align: center; box-shadow: 0 2px 8px rgba(0,0,0,0.05);">
+      <div style="width: 64px; height: 64px; background: #dcfce7; color: #15803d; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 32px; margin: 0 auto 16px auto;">
+        🎉
+      </div>
+      <h2 style="margin: 0 0 8px 0; color: #0f172a;">Kết Quản Làm Bài</h2>
+      <p id="scoreText" style="font-size: 32px; font-weight: 800; color: #2563eb; margin: 12px 0;"></p>
+      <p style="color: #64748b; font-size: 14px; margin-bottom: 24px;">Bài làm của bạn đã được ghi nhận thành công trên hệ thống.</p>
+      <button type="button" onclick="handleLoadStudentDashboard()" style="background: #2563eb; color: #ffffff; border: none; padding: 10px 24px; border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer;">
+        ↩️ Quay về Danh sách Bài thi
+      </button>
     </div>
+  
   </div>
 
   <!-- 3. GIAO DIỆN GIẢNG VIÊN -->
