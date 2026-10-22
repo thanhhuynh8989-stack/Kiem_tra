@@ -2099,7 +2099,7 @@ window.handleUploadStudentExcel = function(event) {
   }
 
   if (typeof showAppLoading === 'function') {
-    showAppLoading(`📂 Đang đọc file: <strong>${file.name}</strong>...`);
+    showAppLoading(`📂 Đang đọc file Excel: <strong>${file.name}</strong>...`);
   }
 
   const reader = new FileReader();
@@ -2109,7 +2109,7 @@ window.handleUploadStudentExcel = function(event) {
       const workbook = XLSX.read(data, { type: 'array', raw: false, cellText: true });
       const worksheet = workbook.Sheets[workbook.SheetNames[0]];
 
-      // Lấy dữ liệu dạng mảng 2 chiều [[dòng 1], [dòng 2], ...]
+      // Lấy dạng mảng 2 chiều [[dòng 1], [dòng 2], ...]
       const jsonRows = XLSX.utils.sheet_to_json(worksheet, { header: 1, raw: false, defval: '' });
       if (!jsonRows || jsonRows.length < 2) {
         throw new Error('File Excel rỗng!');
@@ -2117,39 +2117,44 @@ window.handleUploadStudentExcel = function(event) {
 
       const parsedStudents = [];
 
-      // Bắt đầu đọc từ Dòng 2 (index 1), lấy đúng 4 vị trí: row[0], row[1], row[2], row[3]
+      // BỎ QUA DÒNG 1 TIÊU ĐỀ (index 0). Bắt đầu đọc dữ liệu từ Dòng 2 (index 1 trở đi)
       for (let i = 1; i < jsonRows.length; i++) {
         const row = jsonRows[i];
         if (!row || row.length === 0) continue;
 
-        const colA = forcePlainText(row[0]); // Cột 1 (A) -> Mã SV
-        const colB = forcePlainText(row[1]); // Cột 2 (B) -> Họ và Tên
-        const colC = forcePlainText(row[2]); // Cột 3 (C) -> Lớp
-        const colD = forcePlainText(row[3]); // Cột 4 (D) -> Mật khẩu
+        // BẤT KỂ TÊN TIÊU ĐỀ LÀ GÌ, LẤY ĐÚNG VỊ TRÍ 4 CỘT ĐẦU TIÊN
+        const studentCode = forcePlainText(row[0]);             // Cột A (0)
+        const fullName = forcePlainText(row[1]) || studentCode; // Cột B (1)
+        const className = forcePlainText(row[2]);            // Cột C (2)
+        const password = forcePlainText(row[3]) || '123456'; // Cột D (3)
 
-        if (colA && colA.toLowerCase() !== 'undefined') {
+        if (studentCode && studentCode.toLowerCase() !== 'undefined') {
           parsedStudents.push({
-            studentCode: colA,
-            fullName: colB || colA,
-            className: colC,
-            password: colD || '123456'
+            studentCode: studentCode,
+            username: studentCode,
+            fullName: fullName,
+            className: className,
+            password: password
           });
         }
       }
 
+      console.log(`📌 Bóc tách thành công ${parsedStudents.length} sinh viên. Mẫu dòng 1:`, parsedStudents[0]);
+
       if (parsedStudents.length === 0) {
-        throw new Error('Không có dòng dữ liệu sinh viên nào hợp lệ!');
+        throw new Error('Không tìm thấy sinh viên nào có Mã SV!');
       }
 
       if (typeof showAppLoading === 'function') {
-        showAppLoading(`🚀 Đang ghi <strong>${parsedStudents.length} sinh viên</strong> sang Google Sheets...`);
+        showAppLoading(`🚀 Đang ghi <strong>${parsedStudents.length} sinh viên</strong> lên Google Sheets...`);
       }
 
       const res = await appsScriptService.request('SAVE_STUDENT_LIST', { students: parsedStudents });
 
       if (typeof hideAppLoading === 'function') hideAppLoading();
-      alert(res.message || '✅ Tải lên thành công!');
+      alert(res.message || '✅ Đã tải lên danh sách sinh viên thành công!');
 
+      // Tải lại danh sách để cập nhật lên màn hình ngay lập tức
       if (typeof handleLoadStudents === 'function') {
         handleLoadStudents();
       }
