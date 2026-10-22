@@ -1844,7 +1844,7 @@ async function handleLoadStudentsAndGrades() {
 // 3. XUẤT HÀM RA WINDOW TOÀN CỤC ĐỂ HTML NÚT BẤM GỌI ĐƯỢC TRỰC TIẾP
 window.handleLoadStudentsAndGrades = handleLoadStudentsAndGrades;
 
-= async function(examId, examTitle = '') {
+window.handleOpenAssignModal = async function(examId, examTitle = '') {
   console.log('📤 Mở modal giao đề thi:', examId);
 
   // 1. Đảm bảo có danh sách Sinh viên mới nhất
