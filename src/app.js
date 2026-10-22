@@ -2896,3 +2896,44 @@ function renderExamReviewUI(fileName, questions, studentAnswers, score, submitte
 
   container.innerHTML = html;
 }
+
+/**
+ * TỰ ĐỘNG ĐIỀU HƯỚNG GIAO DIỆN THEO VAI TRÒ (ROLE-BASED ROUTING)
+ */
+window.checkAndRouteUserView = function() {
+  const userRole = (localStorage.getItem('userRole') || sessionStorage.getItem('userRole') || '').toUpperCase();
+  const username = typeof getLoggedInUsername === 'function' ? getLoggedInUsername() : '';
+
+  if (!username) {
+    // Chưa đăng nhập -> Hiện Form Đăng nhập
+    showSection('loginSection');
+    return;
+  }
+
+  // 1. Nếu là Sinh viên -> Tự động nạp Bảng điều khiển Sinh viên
+  if (userRole === 'STUDENT') {
+    console.log(`🎓 Tự động chuyển hướng sang Giao diện Sinh viên [${username}]`);
+    
+    // Ẩn các phần của Giảng viên / Admin
+    hideSection('lecturerDashboardSection');
+    hideSection('adminSection');
+    
+    // Hiển thị phần bài thi Sinh viên
+    showSection('studentExamContainer');
+    
+    if (typeof handleLoadStudentDashboard === 'function') {
+      handleLoadStudentDashboard();
+    }
+  } 
+  // 2. Nếu là Giảng viên / Admin -> Tự động nạp Bảng điều khiển Giảng viên
+  else if (userRole === 'LECTURER' || userRole === 'ADMIN') {
+    console.log(`👨‍🏫 Tự động chuyển hướng sang Giao diện Giảng viên [${username}]`);
+    
+    hideSection('studentExamContainer');
+    showSection('lecturerDashboardSection');
+    
+    if (typeof handleLoadMyExams === 'function') {
+      handleLoadMyExams();
+    }
+  }
+};
