@@ -2188,14 +2188,14 @@ window.handleUploadStudentExcel = function(event) {
   }
 
   if (typeof showAppLoading === 'function') {
-    showAppLoading(`📂 Đang đọc dữ liệu Plain Text từ file: <strong>${file.name}</strong>...`);
+    showAppLoading(`📂 Đang đọc dữ liệu từ file: <strong>${file.name}</strong>...`);
   }
 
   const reader = new FileReader();
   reader.onload = async function(e) {
     try {
       const data = new Uint8Array(e.target.result);
-      // raw: false & cellText: true giúp bảo toàn chuỗi văn bản thuần (giữ nguyên số 0 ở đầu)
+      // raw: false & cellText: true để giữ nguyên chuỗi văn bản thuần (không mất số 0)
       const workbook = XLSX.read(data, { type: 'array', raw: false, cellText: true, cellDates: false });
       const firstSheetName = workbook.SheetNames[0];
       const worksheet = workbook.Sheets[firstSheetName];
@@ -2205,7 +2205,7 @@ window.handleUploadStudentExcel = function(event) {
         throw new Error('File Excel rỗng hoặc chỉ chứa dòng tiêu đề!');
       }
 
-      // THỨ TỰ CỘT MẶC ĐỊNH CỐ ĐỊNH
+      // THỨ TỰ CỘT CỐ ĐỊNH THEO FILE MẪU EXCEL
       const colUserIdx = 0;  // Cột A: Mã Sinh Viên
       const colNameIdx = 1;  // Cột B: Họ và Tên
       const colClassIdx = 2; // Cột C: Lớp
@@ -2213,7 +2213,7 @@ window.handleUploadStudentExcel = function(event) {
 
       const parsedStudents = [];
 
-      // Đọc từ dòng thứ 2 (Chỉ số 1 - Bỏ qua dòng Header đầu tiên)
+      // Đọc từ dòng thứ 2 (chỉ số 1)
       for (let i = 1; i < jsonRows.length; i++) {
         const row = jsonRows[i];
         if (!row || row.length === 0) continue;
@@ -2234,10 +2234,10 @@ window.handleUploadStudentExcel = function(event) {
       }
 
       if (parsedStudents.length === 0) {
-        throw new Error('Không tìm thấy dòng dữ liệu sinh viên hợp lệ trong file Excel!');
+        throw new Error('Không tìm thấy dữ liệu sinh viên hợp lệ trong file!');
       }
 
-      console.log(`📥 Đã nạp thành công ${parsedStudents.length} sinh viên theo cột cố định (A, B, C, D):`, parsedStudents);
+      console.log(`📥 Đọc thành công ${parsedStudents.length} sinh viên (A:Mã SV, B:Tên, C:Lớp, D:Pass):`, parsedStudents);
 
       if (typeof showAppLoading === 'function') {
         showAppLoading(`🚀 Đang đồng bộ <strong>${parsedStudents.length} sinh viên</strong> vào hệ thống...`);
@@ -2336,20 +2336,18 @@ window.renderStudentManagementUI = function(students = []) {
               <th style="padding: 10px;">Mã SV (Username)</th>
               <th style="padding: 10px;">Họ và Tên</th>
               <th style="padding: 10px;">Lớp</th>
-              <th style="padding: 10px;">Mật khẩu</th>
               <th style="padding: 10px; text-align: right;">Hành động</th>
             </tr>
           </thead>
           <tbody>
             ${students.length === 0 ? `
               <tr>
-                <td colspan="6" style="text-align: center; padding: 24px; color: #94a3b8;">
-                  Chưa có sinh viên nào. Vui lòng bấm "Nhập Danh Sách" hoặc "Thêm Sinh Viên".
+                <td colspan="5" style="text-align: center; padding: 24px; color: #94a3b8;">
+                  Chưa có sinh viên nào. Vui lòng bấm "Nhập Danh Sách (Excel)" hoặc "Thêm Sinh Viên".
                 </td>
               </tr>
             ` : students.map((st) => {
               const uName = forcePlainText(st.username || st.user);
-              const pWord = forcePlainText(st.password || '******');
               const cName = forcePlainText(st.className || st.class || '--');
 
               return `
@@ -2360,7 +2358,6 @@ window.renderStudentManagementUI = function(students = []) {
                   <td style="padding: 10px; font-weight: 600; color: #1e293b; font-family: monospace;">${uName}</td>
                   <td style="padding: 10px; color: #334155;">${forcePlainText(st.fullName) || uName}</td>
                   <td style="padding: 10px; color: #2563eb; font-weight: 600;">${cName}</td>
-                  <td style="padding: 10px; color: #059669; font-family: monospace; font-weight: 600;">${pWord}</td>
                   <td style="padding: 10px; text-align: right;">
                     <button type="button" onclick="handleDeleteStudentUI('${uName}')" style="background: #ef4444; color: white; border: none; padding: 4px 10px; border-radius: 4px; cursor: pointer; font-size: 12px;">
                       🗑️ Xóa
