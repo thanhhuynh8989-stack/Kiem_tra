@@ -2188,14 +2188,13 @@ window.handleUploadStudentExcel = function(event) {
   }
 
   if (typeof showAppLoading === 'function') {
-    showAppLoading(`📂 Đang đọc dữ liệu từ file: <strong>${file.name}</strong>...`);
+    showAppLoading(`📂 Đang nạp dữ liệu từ file: <strong>${file.name}</strong>...`);
   }
 
   const reader = new FileReader();
   reader.onload = async function(e) {
     try {
       const data = new Uint8Array(e.target.result);
-      // raw: false & cellText: true để giữ nguyên chuỗi văn bản thuần (không mất số 0)
       const workbook = XLSX.read(data, { type: 'array', raw: false, cellText: true, cellDates: false });
       const firstSheetName = workbook.SheetNames[0];
       const worksheet = workbook.Sheets[firstSheetName];
@@ -2205,30 +2204,25 @@ window.handleUploadStudentExcel = function(event) {
         throw new Error('File Excel rỗng hoặc chỉ chứa dòng tiêu đề!');
       }
 
-      // THỨ TỰ CỘT CỐ ĐỊNH THEO FILE MẪU EXCEL
-      const colUserIdx = 0;  // Cột A: Mã Sinh Viên
-      const colNameIdx = 1;  // Cột B: Họ và Tên
-      const colClassIdx = 2; // Cột C: Lớp
-      const colPassIdx = 3;  // Cột D: Mật khẩu
-
       const parsedStudents = [];
 
-      // Đọc từ dòng thứ 2 (chỉ số 1)
+      // Đọc từ dòng thứ 2 (chỉ số i = 1, bỏ qua tiêu đề)
       for (let i = 1; i < jsonRows.length; i++) {
         const row = jsonRows[i];
         if (!row || row.length === 0) continue;
 
-        const username = forcePlainText(row[colUserIdx]);
-        const fullName = forcePlainText(row[colNameIdx]) || username;
-        const className = forcePlainText(row[colClassIdx]);
-        const password = forcePlainText(row[colPassIdx]) || '123456';
+        // BÓC TÁCH CHÍNH XÁC THEO CỘT EXCEL (A:0, B:1, C:2, D:3)
+        const username = forcePlainText(row[0]); // Cột A: Mã Sinh Viên
+        const fullName = forcePlainText(row[1]) || username; // Cột B: Họ và Tên
+        const className = forcePlainText(row[2]); // Cột C: Lớp
+        const password = forcePlainText(row[3]) || '123456'; // Cột D: Mật khẩu
 
         if (username && username.toLowerCase() !== 'undefined') {
           parsedStudents.push({
             username: username,
             fullName: fullName,
-            className: className,
-            password: password
+            className: className, // Gửi đúng key className
+            password: password    // Gửi đúng key password
           });
         }
       }
@@ -2237,7 +2231,7 @@ window.handleUploadStudentExcel = function(event) {
         throw new Error('Không tìm thấy dữ liệu sinh viên hợp lệ trong file!');
       }
 
-      console.log(`📥 Đọc thành công ${parsedStudents.length} sinh viên (A:Mã SV, B:Tên, C:Lớp, D:Pass):`, parsedStudents);
+      console.log('📦 JSON Sinh viên chuẩn bị gửi sang Backend:', parsedStudents);
 
       if (typeof showAppLoading === 'function') {
         showAppLoading(`🚀 Đang đồng bộ <strong>${parsedStudents.length} sinh viên</strong> vào hệ thống...`);
