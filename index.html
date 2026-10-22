@@ -58,9 +58,27 @@
       <label>Tên đăng nhập</label>
       <input type="text" id="loginUsername" placeholder="Nhập username...">
     </div>
-    <div class="form-group">
-      <label>Mật khẩu</label>
-      <input type="password" id="loginPassword" placeholder="Nhập password...">
+    <div class="form-group" style="margin-bottom: 16px;">
+      <label for="loginPassword" style="display: block; font-weight: 600; margin-bottom: 6px; color: #334155;">Mật khẩu</label>
+      
+      <div style="position: relative; display: flex; align-items: center;">
+        <input 
+          type="password" 
+          id="loginPassword" 
+          placeholder="Nhập mật khẩu..." 
+          style="width: 100%; padding: 10px 40px 10px 12px; border: 1px solid #cbd5e1; border-radius: 8px; font-size: 14px; box-sizing: border-box;"
+        >
+        <!-- Nút Mắt toggle ẩn/hiện -->
+        <button 
+          type="button" 
+          id="togglePasswordBtn" 
+          onclick="togglePasswordVisibility()" 
+          title="Ẩn/Hiện mật khẩu" 
+          style="position: absolute; right: 8px; background: none; border: none; cursor: pointer; font-size: 16px; padding: 4px; color: #64748b; display: flex; align-items: center; justify-content: center;"
+        >
+          👁️
+        </button>
+      </div>
     </div>
     <button id="loginBtn">Đăng Nhập</button>
     
