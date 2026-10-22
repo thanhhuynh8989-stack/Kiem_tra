@@ -2089,70 +2089,109 @@ async function extractTextFromFile(file) {
 /**
  * Tải danh sách Sinh viên bằng Excel (.xlsx)
  */
-async function handleUploadStudentsExcel() {
-  const fileInput = document.getElementById('studentExcelInput');
-  const statusEl = document.getElementById('studentUploadStatus');
+window.handleUploadStudentExcel = function(event) {
+  const file = event.target.files[0];
+  if (!file) return;
 
-  if (!fileInput || !fileInput.files.length) {
-    return alert('Vui lòng chọn 1 file Excel (.xlsx) danh sách sinh viên!');
+  if (typeof XLSX === 'undefined') {
+    alert('⚠️ Chưa nạp thư viện đọc Excel!');
+    return;
   }
 
-  const file = fileInput.files[0];
-  if (!window.XLSX) {
-    return alert('Thư viện XLSX chưa tải xong. Vui lòng thử lại sau vài giây!');
+  if (typeof showAppLoading === 'function') {
+    showAppLoading(`📂 Đang đọc dữ liệu từ file: <strong>${file.name}</strong>...`);
   }
 
-  if (statusEl) {
-    statusEl.style.color = '#2563eb';
-    statusEl.textContent = '⏳ Đang đọc file Excel...';
-  }
+  const reader = new FileReader();
+  reader.onload = async function(e) {
+    try {
+      const data = new Uint8Array(e.target.result);
+      const workbook = XLSX.read(data, { type: 'array', raw: false, cellText: true });
+      const worksheet = workbook.Sheets[workbook.SheetNames[0]];
 
-  try {
-    const arrayBuffer = await file.arrayBuffer();
-    const workbook = window.XLSX.read(arrayBuffer, { type: 'array' });
-    const firstSheetName = workbook.SheetNames[0];
-    const worksheet = workbook.Sheets[firstSheetName];
-    const rawData = window.XLSX.utils.sheet_to_json(worksheet);
+      // 1. Đọc trực tiếp dạng Danh sách Đối Tượng { "Mã Sinh Viên": "...", "Mật khẩu": "..." }
+      const rawObjects = XLSX.utils.sheet_to_json(worksheet, { defval: '' });
+      if (!rawObjects || rawObjects.length === 0) {
+        throw new Error('File Excel rỗng hoặc không đúng định dạng!');
+      }
 
-    if (!rawData || rawData.length === 0) {
-      throw new Error('File Excel rỗng hoặc không đúng định dạng!');
+      // Hàm chuẩn hóa chuỗi tiếng Việt (chuyển về NFC, viết thường, xóa khoảng trắng)
+      const cleanKey = (str) => String(str || '').toLowerCase().normalize("NFC").trim();
+
+      const parsedStudents = [];
+
+      rawObjects.forEach((row) => {
+        let username = '';
+        let fullName = '';
+        let className = '';
+        let password = '';
+
+        // 2. Duyệt qua từng Key trong dòng để bắt chính xác cột
+        Object.keys(row).forEach(key => {
+          const k = cleanKey(key);
+          const val = String(row[key] || '').trim();
+
+          // Nhận diện cột Mã SV
+          if (k.includes('user') || k.includes('sv')) {
+            if (!username) username = val;
+          } 
+          // Nhận diện cột Họ và Tên
+          else if (k.includes('họ') || k.includes('tên') || k.includes('name')) {
+            if (!fullName) fullName = val;
+          } 
+          // Nhận diện cột Lớp
+          else if (k.includes('lớp') || k.includes('class')) {
+            if (!className) className = val;
+          } 
+          // Nhận diện cột Mật khẩu (Password)
+          else if (k.includes('mật') || k.includes('pass') || k.includes('mk')) {
+            if (!password) password = val;
+          }
+        });
+
+        // Dự phòng nếu không tìm thấy tên cột Mật khẩu, lấy giá trị ở vị trí thứ 4
+        if (!password) {
+          const values = Object.values(row);
+          if (values.length >= 4) password = String(values[3] || '').trim();
+        }
+
+        if (username && username.toLowerCase() !== 'undefined') {
+          parsedStudents.push({
+            username: username,
+            fullName: fullName || username,
+            className: className,
+            password: password || '123456'
+          });
+        }
+      });
+
+      console.log('📌 Bóc tách thành công sinh viên đầu tiên:', parsedStudents[0]);
+
+      if (parsedStudents.length === 0) {
+        throw new Error('Không tìm thấy dòng dữ liệu sinh viên nào hợp lệ!');
+      }
+
+      if (typeof showAppLoading === 'function') {
+        showAppLoading(`🚀 Đang đồng bộ <strong>${parsedStudents.length} sinh viên</strong>...`);
+      }
+
+      const res = await appsScriptService.request('SAVE_STUDENT_LIST', { students: parsedStudents });
+
+      if (typeof hideAppLoading === 'function') hideAppLoading();
+      alert(res.message || '✅ Đã tải lên danh sách sinh viên thành công!');
+
+      if (typeof handleLoadStudents === 'function') handleLoadStudents();
+
+    } catch (err) {
+      if (typeof hideAppLoading === 'function') hideAppLoading();
+      alert(`Lỗi đọc file Excel: ${err.message}`);
+    } finally {
+      event.target.value = '';
     }
+  };
 
-    const parsedStudents = rawData.map(row => {
-      const studentCode = row['Mã Sinh Viên'] || row['Mã SV'] || row['MaSV'] || row['studentCode'] || '';
-      const fullName = row['Họ và Tên'] || row['Họ tên'] || row['FullName'] || row['fullName'] || '';
-      const className = row['Lớp'] || row['Lop'] || row['Class'] || row['className'] || 'Chưa phân lớp';
-
-      return { studentCode, fullName, className };
-    }).filter(s => s.studentCode && s.fullName);
-
-    if (parsedStudents.length === 0) {
-      throw new Error('Không tìm thấy dữ liệu sinh viên hợp lệ. Đảm bảo file có tiêu đề cột: "Mã Sinh Viên", "Họ và Tên", "Lớp".');
-    }
-
-    if (statusEl) {
-      statusEl.textContent = `⏳ Đang lưu ${parsedStudents.length} sinh viên lên Google Sheets...`;
-    }
-
-    const res = await appsScriptService.request('UPLOAD_STUDENTS_LIST', { students: parsedStudents });
-    const { addedCount, skippedCount } = res.data || res;
-
-    if (statusEl) {
-      statusEl.style.color = '#10b981';
-      statusEl.textContent = `✅ Thành công! Đã thêm ${addedCount} sinh viên mới (${skippedCount} mã đã tồn tại).`;
-    }
-
-    alert(`Tải lên hoàn tất!\n- Đã thêm mới: ${addedCount} sinh viên\n- Bỏ qua (trùng mã): ${skippedCount}`);
-    fileInput.value = '';
-
-  } catch (err) {
-    console.error('Upload Students Error:', err);
-    if (statusEl) {
-      statusEl.style.color = '#ef4444';
-      statusEl.textContent = `❌ Lỗi: ${err.message}`;
-    }
-  }
-}
+  reader.readAsArrayBuffer(file);
+};
 
 function setUploadStatus(text, style) {
   const el = document.getElementById('uploadStatus');
