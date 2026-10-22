@@ -2952,3 +2952,53 @@ window.checkAndRouteUserView = function() {
     }
   }
 };
+
+/**
+ * 1. BẬT / TẮT HIỂN THỊ MẬT KHẨU (TOGGLE PASSWORD VISIBILITY)
+ */
+window.togglePasswordVisibility = function() {
+  const passInput = document.getElementById('loginPassword');
+  const eyeBtn = document.getElementById('togglePasswordBtn');
+  if (!passInput) return;
+
+  if (passInput.type === 'password') {
+    passInput.type = 'text';
+    if (eyeBtn) eyeBtn.innerText = '🙈'; // Chuyển biểu tượng thành ẩn
+  } else {
+    passInput.type = 'password';
+    if (eyeBtn) eyeBtn.innerText = '👁️'; // Chuyển biểu tượng thành hiện
+  }
+};
+
+/**
+ * 2. KÍCH HOẠT SỰ KIỆN PHÍM ENTER CHO FORM ĐĂNG NHẬP
+ */
+document.addEventListener('DOMContentLoaded', () => {
+  const attachEnterEvent = () => {
+    const userEl = document.getElementById('loginUsername') || document.getElementById('usernameInput');
+    const passEl = document.getElementById('loginPassword') || document.getElementById('passwordInput');
+
+    const triggerLogin = (e) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        
+        // Gọi hàm xử lý đăng nhập khả dụng
+        if (typeof handleLogin === 'function') {
+          handleLogin();
+        } else if (typeof handleAuthLecturer === 'function') {
+          handleAuthLecturer();
+        } else {
+          const loginBtn = document.getElementById('loginBtn') || document.querySelector('button[onclick*="Login"]');
+          if (loginBtn) loginBtn.click();
+        }
+      }
+    };
+
+    if (userEl) userEl.addEventListener('keyup', triggerLogin);
+    if (passEl) passEl.addEventListener('keyup', triggerLogin);
+  };
+
+  // Thử gán sự kiện lập tức và sau khi DOM ổn định
+  attachEnterEvent();
+  setTimeout(attachEnterEvent, 500);
+});
