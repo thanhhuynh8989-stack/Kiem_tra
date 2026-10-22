@@ -2421,3 +2421,478 @@ window.handleUploadStudentExcel = function(event) {
 
   reader.readAsArrayBuffer(file);
 };
+
+// =========================================================================
+// 1. QUẢN LÝ BỘ NHỚ TẠM (LOCALSTORAGE DRAFT) - CHỐNG MẤT MẠNG / F5
+// =========================================================================
+window.ExamDraftManager = {
+  getDraftKey(username, examId) {
+    return `exam_draft_${String(username).trim()}_${String(examId).trim()}`;
+  },
+
+  // Lưu tiến trình làm bài dở
+  saveDraft(username, examId, userAnswers, remainingSeconds) {
+    if (!username || !examId) return;
+    const key = this.getDraftKey(username, examId);
+    const draftData = {
+      answers: userAnswers,
+      remainingSeconds: remainingSeconds,
+      updatedAt: Date.now()
+    };
+    localStorage.setItem(key, JSON.stringify(draftData));
+  },
+
+  // Lấy bài làm dở
+  getDraft(username, examId) {
+    if (!username || !examId) return null;
+    const key = this.getDraftKey(username, examId);
+    const item = localStorage.getItem(key);
+    if (!item) return null;
+    try {
+      return JSON.parse(item);
+    } catch (e) {
+      return null;
+    }
+  },
+
+  // Xóa bài dở sau khi đã nộp bài thành công
+  clearDraft(username, examId) {
+    if (!username || !examId) return;
+    const key = this.getDraftKey(username, examId);
+    localStorage.removeItem(key);
+  }
+};
+
+// =========================================================================
+// 2. BẢNG ĐIỀU KHIỂN SINH VIÊN (CÓ NÚT "XEM LẠI BÀI LÀM")
+// =========================================================================
+window.renderStudentDashboard = function(exams = []) {
+  const container = document.getElementById('studentExamContainer') || document.getElementById('appMainContent');
+  if (!container) return;
+
+  let html = `
+    <div style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.03);">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; border-bottom: 1px solid #f1f5f9; padding-bottom: 12px;">
+        <h2 style="margin: 0; font-size: 20px; color: #0f172a; display: flex; align-items: center; gap: 8px;">
+          📝 Danh Sách Bài Thi Được Gán (${exams.length})
+        </h2>
+        <button type="button" onclick="handleLoadStudentDashboard()" style="background: #f1f5f9; color: #334155; border: 1px solid #cbd5e1; padding: 6px 14px; border-radius: 6px; cursor: pointer; font-size: 13px; font-weight: 600;">
+          🔄 Tải lại
+        </button>
+      </div>
+
+      <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 16px;">
+  `;
+
+  if (exams.length === 0) {
+    html += `
+      <div style="grid-column: 1 / -1; text-align: center; padding: 40px; color: #94a3b8; background: #f8fafc; border-radius: 8px; border: 1px dashed #cbd5e1;">
+        🎓 Hiện tại bạn chưa có bài thi nào được gán.
+      </div>
+    `;
+  } else {
+    const username = typeof getLoggedInUsername === 'function' ? getLoggedInUsername() : '';
+
+    exams.forEach(ex => {
+      const hasScore = ex.score !== null && ex.score !== undefined && ex.score !== '';
+      const isCompleted = ex.isCompleted || hasScore;
+      const displayScore = hasScore ? `${ex.score} / 10` : '--';
+
+      // Kiểm tra xem bài này có bản lưu dở không
+      const draft = ExamDraftManager.getDraft(username, ex.examId);
+      const hasDraft = !isCompleted && draft && Object.keys(draft.answers || {}).length > 0;
+
+      html += `
+        <div style="border: 1px solid ${isCompleted ? '#bbf7d0' : (hasDraft ? '#fde68a' : '#e2e8f0')}; background: ${isCompleted ? '#f0fdf4' : '#ffffff'}; border-radius: 10px; padding: 18px; display: flex; flex-direction: column; justify-content: space-between;">
+          
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+            ${isCompleted ? `
+              <span style="background: #dcfce7; color: #15803d; border: 1px solid #86efac; padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight: 700;">
+                ✅ Đã hoàn thành
+              </span>
+            ` : (hasDraft ? `
+              <span style="background: #fef3c7; color: #b45309; border: 1px solid #fcd34d; padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight: 700;">
+                ⚠️ Đang làm dở (Cần làm tiếp)
+              </span>
+            ` : `
+              <span style="background: #eff6ff; color: #1d4ed8; border: 1px solid #bfdbfe; padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight: 700;">
+                ⏳ Chưa làm bài
+              </span>
+            `)}
+            <span style="font-size: 12px; color: #64748b; font-weight: 600;">⏱️ ${ex.durationMinutes} phút</span>
+          </div>
+
+          <div style="margin-bottom: 16px;">
+            <h3 style="margin: 0 0 6px 0; font-size: 16px; color: #0f172a;">${escapeHtml(ex.title)}</h3>
+            <p style="margin: 0; font-size: 12px; color: #64748b; font-family: monospace;">Mã đề: ${ex.examCode || ex.examId}</p>
+          </div>
+
+          <div style="display: flex; justify-content: space-between; align-items: center; border-top: 1px solid #f1f5f9; padding-top: 12px; margin-top: auto;">
+            <div>
+              <span style="font-size: 11px; color: #64748b; text-transform: uppercase; font-weight: 600; display: block;">Điểm số</span>
+              <strong style="font-size: 18px; color: ${hasScore ? '#15803d' : '#94a3b8'};">${displayScore}</strong>
+            </div>
+
+            <div>
+              ${isCompleted ? `
+                <!-- NÚT XEM LẠI BÀI LÀM -->
+                <button type="button" onclick="handleReviewSubmittedExam('${ex.examId}', '${ex.examCode}')" style="background: #0d9488; color: #ffffff; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; font-size: 13px; font-weight: 600; box-shadow: 0 2px 4px rgba(13,148,136,0.2);">
+                  👁️ Xem lại bài làm
+                </button>
+              ` : `
+                <!-- NÚT LÀM BÀI HOẶC LÀM TIẾP BÀI DỞ -->
+                <button type="button" onclick="handleStartTakeExam('${ex.examId}', '${ex.examCode}')" style="background: ${hasDraft ? '#d97706' : '#2563eb'}; color: #ffffff; border: none; padding: 8px 18px; border-radius: 6px; cursor: pointer; font-size: 13px; font-weight: 600;">
+                  ${hasDraft ? '🔄 Làm tiếp bài dở' : '✍️ Làm bài'}
+                </button>
+              `}
+            </div>
+          </div>
+
+        </div>
+      `;
+    });
+  }
+
+  html += `</div></div>`;
+  container.innerHTML = html;
+};
+
+// =========================================================================
+// 3. LOGIC LÀM BÀI THI & TỰ ĐỘNG KHÔI PHỤC BÀI DỞ KHI MẤT MẠNG / REFRESH
+// =========================================================================
+window.handleStartTakeExam = async function(examId, examCode = '') {
+  const username = typeof getLoggedInUsername === 'function' ? getLoggedInUsername() : '';
+  
+  if (typeof showAppLoading === 'function') showAppLoading('⏳ Đang tải nội dung đề thi...');
+
+  try {
+    // 1. Tải đề thi từ GitHub CDN
+    let rawName = String(examCode || examId).trim();
+    if (rawName.includes('-')) rawName = rawName.split('-')[0];
+    if (!rawName.endsWith('.json')) rawName = `${rawName}.json`;
+
+    const filePath = `exams/${rawName}`;
+    const cdnUrl = `https://raw.githubusercontent.com/thanhhuynh8989-stack/Kiem_tra/main/${filePath}?v=${Date.now()}`;
+    
+    const res = await fetch(cdnUrl);
+    if (!res.ok) throw new Error('Không thể tải bài thi từ hệ thống.');
+    const examData = await res.json();
+    const questions = examData.questions || examData;
+
+    if (typeof hideAppLoading === 'function') hideAppLoading();
+
+    // 2. Kiểm tra bản lưu dở từ LocalStorage
+    const draft = ExamDraftManager.getDraft(username, examId);
+    let initialAnswers = {};
+    let initialTimeSeconds = (examData.durationMinutes || 45) * 60;
+
+    if (draft) {
+      const confirmResume = confirm('Hệ thống phát hiện bạn có bài làm dở chưa nộp. Bạn có muốn tiếp tục bài làm này không?');
+      if (confirmResume) {
+        initialAnswers = draft.answers || {};
+        if (draft.remainingSeconds && draft.remainingSeconds > 0) {
+          initialTimeSeconds = draft.remainingSeconds;
+        }
+      } else {
+        ExamDraftManager.clearDraft(username, examId);
+      }
+    }
+
+    // 3. Khởi chạy giao diện làm bài thi cho SV
+    renderTakeExamScreen(examId, rawName, questions, initialAnswers, initialTimeSeconds);
+
+  } catch (err) {
+    if (typeof hideAppLoading === 'function') hideAppLoading();
+    alert(`Lỗi khi mở bài thi: ${err.message}`);
+  }
+};
+
+/**
+ * RENDER MÀN HÌNH LÀM BÀI KÈM CƠ CHẾ AUTO-SAVE DRAFT BẤT CỨ KHI NÀO CHỌN ĐÁP ÁN
+ */
+function renderTakeExamScreen(examId, fileName, questions, savedAnswers = {}, totalSeconds = 2700) {
+  const container = document.getElementById('studentExamContainer') || document.getElementById('appMainContent');
+  if (!container) return;
+
+  const username = typeof getLoggedInUsername === 'function' ? getLoggedInUsername() : '';
+  let currentAnswers = { ...savedAnswers };
+  let remainingSeconds = totalSeconds;
+
+  // Render HTML bài thi
+  let html = `
+    <div style="background: #ffffff; border-radius: 12px; padding: 20px; border: 1px solid #cbd5e1;">
+      <!-- TIMER BAR -->
+      <div style="position: sticky; top: 10px; z-index: 100; background: #0f172a; color: white; padding: 12px 20px; border-radius: 8px; display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+        <span style="font-weight: 600; font-size: 15px;">📝 ${escapeHtml(fileName)}</span>
+        <div style="font-size: 18px; font-weight: 700; color: #38bdf8;" id="examTimerDisplay">⏱️ 00:00</div>
+      </div>
+
+      <!-- QUESTIONS LIST -->
+      <div id="takeExamQuestionsList">
+        ${questions.map((q, idx) => {
+          const selectedAns = currentAnswers[idx + 1] || '';
+          const options = q.options || [];
+
+          return `
+            <div class="take-q-card" style="background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 8px; padding: 16px; margin-bottom: 16px;">
+              <strong style="color: #0f172a; font-size: 15px;">Câu ${idx + 1}:</strong>${escapeHtml(q.stem || q.text || '')}
+              
+              <div style="margin-top: 12px; display: flex; flex-direction: column; gap: 8px;">
+                ${options.map((opt, oIdx) => {
+                  const letter = String.fromCharCode(65 + oIdx);
+                  const isChecked = selectedAns === letter;
+
+                  return `
+                    <label style="display: flex; align-items: center; gap: 10px; background: #ffffff; padding: 10px; border-radius: 6px; border: 1px solid ${isChecked ? '#2563eb' : '#e2e8f0'}; cursor: pointer;">
+                      <input type="radio" name="take_ans_${idx}" value="${letter}" ${isChecked ? 'checked' : ''} onchange="handleStudentSelectOption('${examId}', ${idx + 1}, '${letter}')" style="width: 18px; height: 18px;">
+                      <strong>${letter}.</strong> ${escapeHtml(String(opt).replace(/^[A-D][.:)]\s*/i, ''))}
+                    </label>
+                  `;
+                }).join('')}
+              </div>
+            </div>
+          `;
+        }).join('')}
+      </div>
+
+      <div style="text-align: right; margin-top: 20px;">
+        <button type="button" onclick="handleConfirmSubmitExam('${examId}', ${questions.length})" style="background: #16a34a; color: white; border: none; padding: 12px 28px; border-radius: 8px; font-size: 15px; font-weight: 700; cursor: pointer; box-shadow: 0 2px 4px rgba(22,163,74,0.2);">
+          🚀 Nộp bài thi
+        </button>
+      </div>
+    </div>
+  `;
+
+  container.innerHTML = html;
+
+  // Lắng nghe sự kiện chọn đáp án để AUTO-SAVE DRAFT ngay lập tức
+  window.handleStudentSelectOption = function(eId, qNum, letter) {
+    currentAnswers[qNum] = letter;
+    // Tự động lưu dở ngay vào LocalStorage
+    ExamDraftManager.saveDraft(username, eId, currentAnswers, remainingSeconds);
+  };
+
+  // Đồng hồ đếm ngược
+  const timerEl = document.getElementById('examTimerDisplay');
+  const timerInterval = setInterval(() => {
+    remainingSeconds--;
+    
+    // Lưu thời gian làm dở mỗi 5 giây
+    if (remainingSeconds % 5 === 0) {
+      ExamDraftManager.saveDraft(username, examId, currentAnswers, remainingSeconds);
+    }
+
+    if (remainingSeconds <= 0) {
+      clearInterval(timerInterval);
+      alert('⏰ Đã hết thời gian làm bài! Hệ thống sẽ tự động nộp bài.');
+      executeSubmitExam(examId, questions, currentAnswers);
+      return;
+    }
+
+    const mins = Math.floor(remainingSeconds / 60);
+    const secs = remainingSeconds % 60;
+    if (timerEl) {
+      timerEl.innerText = `⏱️ ${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+    }
+  }, 1000);
+
+  window.activeExamTimer = timerInterval;
+}
+
+// XÁC NHẬN VÀ NỘP BÀI THI
+window.handleConfirmSubmitExam = async function(examId, totalQuestions) {
+  if (confirm(`Bạn có chắc chắn muốn NỘP BÀI THI ngay bây giờ?`)) {
+    if (window.activeExamTimer) clearInterval(window.activeExamTimer);
+    
+    // Thu thập toàn bộ đáp án đã chọn
+    const username = getLoggedInUsername();
+    const draft = ExamDraftManager.getDraft(username, examId);
+    const answers = draft ? draft.answers : {};
+
+    executeSubmitExam(examId, window.examModel?.questions || [], answers);
+  }
+};
+
+// THỰC THI NỘP BÀI VÀ TÍNH ĐIỂM DYNAMIC
+async function executeSubmitExam(examId, questions, answers) {
+  if (typeof showAppLoading === 'function') showAppLoading('⏳ Đang tính điểm và gửi bài làm...');
+
+  try {
+    const username = getLoggedInUsername();
+    let correctCount = 0;
+
+    questions.forEach((q, idx) => {
+      const qNum = idx + 1;
+      const userAns = String(answers[qNum] || '').trim().toUpperCase();
+      const keyAns = String(q.answerKey || q.answer || '').trim().toUpperCase();
+
+      if (userAns && userAns === keyAns) {
+        correctCount++;
+      }
+    });
+
+    // Thang điểm 10
+    const totalQ = questions.length || 1;
+    const finalScore = Math.round((correctCount / totalQ) * 10 * 10) / 10; // Làm tròn 1 chữ số thập phân
+
+    // Gửi kết quả lên Google Sheets (Submissions Tab)
+    const res = await appsScriptService.request('SUBMIT_EXAM', {
+      examId: examId,
+      username: username,
+      score: finalScore,
+      answers: answers
+    });
+
+    // Xóa bài dở trong LocalStorage vì đã nộp thành công
+    ExamDraftManager.clearDraft(username, examId);
+
+    if (typeof hideAppLoading === 'function') hideAppLoading();
+
+    alert(`🎉 Bạn đã nộp bài thành công!\nĐiểm số của bạn: ${finalScore} / 10 (Đúng ${correctCount}/${totalQ} câu)`);
+
+    // Tải lại Bảng điều khiển Sinh viên
+    if (typeof handleLoadStudentDashboard === 'function') {
+      handleLoadStudentDashboard();
+    }
+
+  } catch (err) {
+    if (typeof hideAppLoading === 'function') hideAppLoading();
+    alert(`Lỗi khi nộp bài: ${err.message}`);
+  }
+}
+
+// =========================================================================
+// 4. CHỨC NĂNG "XEM LẠI BÀI LÀM" (REVIEW SUBMITTED EXAM)
+// =========================================================================
+window.handleReviewSubmittedExam = async function(examId, examCode = '') {
+  const username = typeof getLoggedInUsername === 'function' ? getLoggedInUsername() : '';
+
+  if (typeof showAppLoading === 'function') showAppLoading('🔍 Đang tải bài làm đã nộp...');
+
+  try {
+    // 1. Tải đề gốc từ GitHub CDN
+    let rawName = String(examCode || examId).trim();
+    if (rawName.includes('-')) rawName = rawName.split('-')[0];
+    if (!rawName.endsWith('.json')) rawName = `${rawName}.json`;
+
+    const filePath = `exams/${rawName}`;
+    const cdnUrl = `https://raw.githubusercontent.com/thanhhuynh8989-stack/Kiem_tra/main/${filePath}?v=${Date.now()}`;
+    
+    const resExam = await fetch(cdnUrl);
+    if (!resExam.ok) throw new Error('Không tìm thấy đề thi gốc.');
+    const examData = await resExam.json();
+    const questions = examData.questions || examData;
+
+    // 2. Lấy đáp án đã nộp từ Server
+    const resSub = await appsScriptService.request('GET_SUBMISSION_DETAIL', { examId, username });
+    if (typeof hideAppLoading === 'function') hideAppLoading();
+
+    if (resSub.status !== 'success') {
+      throw new Error(resSub.message || 'Không thể lấy bài làm đã nộp.');
+    }
+
+    const studentAnswers = resSub.answers || {};
+    const score = resSub.score;
+    const submittedAt = resSub.submittedAt;
+
+    // 3. Render giao diện Xem lại bài
+    renderExamReviewUI(rawName, questions, studentAnswers, score, submittedAt);
+
+  } catch (err) {
+    if (typeof hideAppLoading === 'function') hideAppLoading();
+    alert(`Không thể xem lại bài làm: ${err.message}`);
+  }
+};
+
+/**
+ * GIAO DIỆN XEM LẠI BÀI LÀM (TÔ MÀU ĐÁP ÁN ĐÚNG/SAI CỦA SINH VIÊN)
+ */
+function renderExamReviewUI(fileName, questions, studentAnswers, score, submittedAt) {
+  const container = document.getElementById('studentExamContainer') || document.getElementById('appMainContent');
+  if (!container) return;
+
+  let html = `
+    <div style="background: #ffffff; border-radius: 12px; padding: 20px; border: 1px solid #cbd5e1;">
+      
+      <!-- HEADER BÀI LÀM -->
+      <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; padding: 16px; margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
+        <div>
+          <h2 style="margin: 0 0 6px 0; font-size: 18px; color: #0f172a;">👁️ Xem lại Bài làm: [${escapeHtml(fileName)}]</h2>
+          <span style="font-size: 13px; color: #64748b;">Thời gian nộp: ${submittedAt || '--'}</span>
+        </div>
+        <div style="display: flex; align-items: center; gap: 16px;">
+          <div style="text-align: right;">
+            <span style="font-size: 12px; color: #64748b; font-weight: 600; display: block;">Điểm số đạt được</span>
+            <strong style="font-size: 22px; color: #15803d;">${score} / 10</strong>
+          </div>
+          <button type="button" onclick="handleLoadStudentDashboard()" style="background: #2563eb; color: white; border: none; padding: 8px 18px; border-radius: 6px; font-size: 13px; font-weight: 600; cursor: pointer;">
+            ↩️ Quay lại
+          </button>
+        </div>
+      </div>
+
+      <!-- DANH SÁCH CÂU HỎI & ĐÁP ÁN -->
+      <div>
+        ${questions.map((q, idx) => {
+          const qNum = idx + 1;
+          const userAns = String(studentAnswers[qNum] || '').trim().toUpperCase();
+          const keyAns = String(q.answerKey || q.answer || '').trim().toUpperCase();
+          const isCorrect = userAns && userAns === keyAns;
+
+          return `
+            <div style="background: #ffffff; border: 2px solid ${isCorrect ? '#86efac' : (userAns ? '#fca5a5' : '#cbd5e1')}; border-radius: 10px; padding: 16px; margin-bottom: 16px;">
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                <strong style="font-size: 15px; color: #0f172a;">Câu ${qNum}:</strong>${isCorrect ? `
+                  <span style="background: #dcfce7; color: #15803d; border: 1px solid #bbf7d0; padding: 3px 10px; border-radius: 20px; font-size: 12px; font-weight: 700;">
+                    ✅ Đúng (+${Math.round((10 / questions.length) * 10) / 10} đ)
+                  </span>
+                ` : `
+                  <span style="background: #fef2f2; color: #dc2626; border: 1px solid #fecaca; padding: 3px 10px; border-radius: 20px; font-size: 12px; font-weight: 700;">
+                    ${userAns ? '❌ Sai' : '⚠️ Bỏ trống'}
+                  </span>
+                `}
+              </div>
+
+              <div style="font-size: 14px; color: #1e293b; margin-bottom: 12px;">${escapeHtml(q.stem || q.text || '')}</div>
+
+              <div style="display: flex; flex-direction: column; gap: 8px;">
+                ${(q.options || []).map((opt, oIdx) => {
+                  const letter = String.fromCharCode(65 + oIdx);
+                  const isStudentChoice = userAns === letter;
+                  const isKey = keyAns === letter;
+
+                  let optionBg = '#f8fafc';
+                  let optionBorder = '#e2e8f0';
+                  let badgeText = '';
+
+                  if (isKey) {
+                    optionBg = '#dcfce7';
+                    optionBorder = '#86efac';
+                    badgeText = ' (Đáp án đúng)';
+                  }
+                  if (isStudentChoice && !isKey) {
+                    optionBg = '#fee2e2';
+                    optionBorder = '#fca5a5';
+                    badgeText = ' (Lựa chọn của bạn)';
+                  } else if (isStudentChoice && isKey) {
+                    badgeText = ' (Lựa chọn đúng của bạn)';
+                  }
+
+                  return `
+                    <div style="background: ${optionBg}; border: 1px solid ${optionBorder}; padding: 10px 14px; border-radius: 6px; font-size: 13px; display: flex; justify-content: space-between; align-items: center;">
+                      <span><strong>${letter}.</strong> ${escapeHtml(String(opt).replace(/^[A-D][.:)]\s*/i, ''))}</span>
+                      <strong style="font-size: 12px; color: ${isKey ? '#15803d' : '#dc2626'};">${badgeText}</strong>
+                    </div>
+                  `;
+                }).join('')}
+              </div>
+            </div>
+          `;
+        }).join('')}
+      </div>
+
+    </div>
+  `;
+
+  container.innerHTML = html;
+}
