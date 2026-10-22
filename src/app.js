@@ -2405,7 +2405,7 @@ window.handleLoadStudents = async function() {
 };
 
 /**
- * 2. RENDER BẢNG QUẢN LÝ SINH VIÊN (NÚT DÁN VÀ UPLOAD CHẠY SONG SONG)
+ * 1. BỔ SUNG NÚT ĐỒNG BỘ TRÊN UI QUẢN LÝ SINH VIÊN
  */
 window.renderStudentManagementUI = function(students = []) {
   window.currentStudentsList = students;
@@ -2421,18 +2421,23 @@ window.renderStudentManagementUI = function(students = []) {
         </h3>
         
         <div style="display: flex; gap: 10px; flex-wrap: wrap;">
-          <!-- NÚT 1: DÁN TRỰC TIẾP COPY-PASTE -->
+          <!-- NÚT 1: ĐỒNG BỘ TỪ TAB TẠM GOOGLE SHEET -->
+          <button type="button" onclick="handleSyncFromImportTabUI()" style="background: #8b5cf6; color: white; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; font-size: 13px; font-weight: 600; display: inline-flex; align-items: center; gap: 6px; box-shadow: 0 2px 4px rgba(139,92,246,0.2);">
+            📊 Đồng Bộ Từ Sheet Tạm (Import_Temp)
+          </button>
+
+          <!-- NÚT 2: DÁN TRỰC TIẾP COPY-PASTE TẠI WEB -->
           <button type="button" onclick="handleOpenPasteStudentsModal()" style="background: #16a34a; color: white; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; font-size: 13px; font-weight: 600; display: inline-flex; align-items: center; gap: 6px;">
             📋 Dán Danh Sách (Ctrl+V)
           </button>
 
-          <!-- NÚT 2: UPLOAD FILE EXCEL THUẦN 4 CỘT -->
+          <!-- NÚT 3: UPLOAD FILE EXCEL -->
           <label style="background: #0284c7; color: white; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; font-size: 13px; font-weight: 600; display: inline-flex; align-items: center; gap: 6px;">
             📁 Nhập File Excel
             <input type="file" accept=".xlsx, .xls, .csv" onchange="handleUploadStudentExcel(event)" style="display: none;">
           </label>
 
-          <!-- NÚT 3: THÊM LẺ 1 SINH VIÊN -->
+          <!-- NÚT 4: THÊM LẺ 1 SV -->
           <button type="button" onclick="handlePromptAddStudent()" style="background: #2563eb; color: white; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; font-size: 13px; font-weight: 600;">
             ➕ Thêm 1 SV
           </button>
@@ -2451,7 +2456,7 @@ window.renderStudentManagementUI = function(students = []) {
           </thead>
           <tbody>
             ${students.length === 0 ? `
-              <tr><td colspan="4" style="text-align: center; padding: 24px; color: #94a3b8;">Chưa có dữ liệu sinh viên. Vui lòng bấm "Dán Danh Sách" hoặc "Nhập File Excel".</td></tr>
+              <tr><td colspan="4" style="text-align: center; padding: 24px; color: #94a3b8;">Chưa có dữ liệu sinh viên. Vui lòng bấm "Đồng Bộ Từ Sheet Tạm", "Dán Danh Sách" hoặc "Nhập File Excel".</td></tr>
             ` : students.map((st) => `
               <tr style="border-bottom: 1px solid #f1f5f9;">
                 <td style="padding: 10px; font-weight: 600; color: #1e293b; font-family: monospace;">${st.studentCode || st.username}</td>
@@ -2468,6 +2473,28 @@ window.renderStudentManagementUI = function(students = []) {
 
     </div>
   `;
+};
+
+/**
+ * 2. HÀM KÍCH HOẠT LỆNH ĐỒNG BỘ TỪ SHEET TẠM
+ */
+window.handleSyncFromImportTabUI = async function() {
+  if (typeof showAppLoading === 'function') {
+    showAppLoading('🔄 Đang kiểm tra dữ liệu từ tab Import_Temp trên Google Sheet...');
+  }
+  try {
+    const res = await appsScriptService.request('SYNC_IMPORT_TEMP', {});
+    if (typeof hideAppLoading === 'function') hideAppLoading();
+
+    alert(res.message || '✅ Đã hoàn tất đồng bộ!');
+
+    if (res.status === 'success' && typeof handleLoadStudents === 'function') {
+      handleLoadStudents();
+    }
+  } catch (err) {
+    if (typeof hideAppLoading === 'function') hideAppLoading();
+    alert(`Lỗi đồng bộ dữ liệu: ${err.message}`);
+  }
 };
 
 // Tự động gọi tải danh sách sinh viên khi trang web được nạp xong (nếu ở giao diện Giảng viên)
