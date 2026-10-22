@@ -2003,7 +2003,147 @@ function setUploadStatus(text, style) {
 window.currentStudentsList = [];
 
 /**
- * 1. DỰNG GIAO DIỆN QUẢN LÝ SINH VIÊN & GÁN ĐỀ THI
+ * HELPER: CHUYỂN BẤT KỲ DỮ LIỆU NÀO SANG PLAIN TEXT STRING NGUYÊN BẢN (GIỮ SỐ 0 ĐẦU)
+ */
+function forcePlainText(val) {
+  if (val === null || val === undefined) return '';
+  let str = String(val).trim();
+  if (str.startsWith("'")) str = str.substring(1);
+  return str;
+}
+
+/**
+ * 1. ĐỌC FILE EXCEL TỰ ĐỘNG BỎ LỌC SỐ, LẤY ĐÚNG CHUỖI VĂN BẢN (PLAIN TEXT)
+ */
+window.handleUploadStudentExcel = function(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+
+  if (typeof XLSX === 'undefined') {
+    alert('⚠️ Chưa nạp thư viện đọc file Excel (SheetJS). Vui lòng kiểm tra lại index.html!');
+    return;
+  }
+
+  if (typeof showAppLoading === 'function') {
+    showAppLoading(`📂 Đang chuyển đổi Plain Text & đọc dữ liệu: <strong>${file.name}</strong>...`);
+  }
+
+  const reader = new FileReader();
+  reader.onload = async function(e) {
+    try {
+      const data = new Uint8Array(e.target.result);
+      // raw: false & cellText: true giúp đọc nguyên văn bản hiển thị trong ô Excel
+      const workbook = XLSX.read(data, { type: 'array', raw: false, cellText: true, cellDates: false });
+      const firstSheetName = workbook.SheetNames[0];
+      const worksheet = workbook.Sheets[firstSheetName];
+
+      const jsonRows = XLSX.utils.sheet_to_json(worksheet, { header: 1, raw: false, defval: '' });
+      if (jsonRows.length < 2) {
+        throw new Error('File Excel rỗng hoặc không có cột dữ liệu!');
+      }
+
+      // Nhận diện chỉ số cột dựa vào tiêu đề Header
+      let colUserIdx = 0;
+      let colNameIdx = 1;
+      let colClassIdx = 2;
+      let colPassIdx = 3;
+
+      const headerRow = jsonRows[0].map(h => forcePlainText(h).toLowerCase());
+      headerRow.forEach((hText, idx) => {
+        if (hText.includes('mã') || hText.includes('msv') || hText.includes('user') || hText.includes('stt')) {
+          colUserIdx = idx;
+        } else if (hText.includes('họ') || hText.includes('tên') || hText.includes('name')) {
+          colNameIdx = idx;
+        } else if (hText.includes('lớp') || hText.includes('class')) {
+          colClassIdx = idx;
+        } else if (hText.includes('mật khẩu') || hText.includes('pass')) {
+          colPassIdx = idx;
+        }
+      });
+
+      const parsedStudents = [];
+      for (let i = 1; i < jsonRows.length; i++) {
+        const row = jsonRows[i];
+        if (!row || row.length === 0) continue;
+
+        const username = forcePlainText(row[colUserIdx]);
+        const fullName = forcePlainText(row[colNameIdx]) || username;
+        const className = forcePlainText(row[colClassIdx]);
+        const password = forcePlainText(row[colPassIdx]) || '123456';
+
+        if (username && username.toLowerCase() !== 'undefined' && !username.toLowerCase().includes('mã')) {
+          parsedStudents.push({
+            username: username,
+            fullName: fullName,
+            className: className,
+            password: password
+          });
+        }
+      }
+
+      if (parsedStudents.length === 0) {
+        throw new Error('Không tìm thấy dòng dữ liệu sinh viên hợp lệ trong file!');
+      }
+
+      console.log('📥 Dữ liệu Plain Text sinh viên chuẩn bị gửi lên:', parsedStudents);
+
+      if (typeof showAppLoading === 'function') {
+        showAppLoading(`🚀 Đang đồng bộ <strong>${parsedStudents.length} sinh viên</strong> (Plain Text) vào hệ thống...`);
+      }
+
+      const res = await appsScriptService.request('SAVE_STUDENT_LIST', { students: parsedStudents });
+
+      if (typeof hideAppLoading === 'function') hideAppLoading();
+      alert(res.message || '✅ Đã tải lên danh sách sinh viên thành công!');
+
+      if (typeof handleLoadStudents === 'function') {
+        handleLoadStudents();
+      }
+
+    } catch (err) {
+      if (typeof hideAppLoading === 'function') hideAppLoading();
+      console.error('❌ Lỗi đọc file Excel:', err);
+      alert(`Lỗi xử lý file Excel: ${err.message}`);
+    } finally {
+      event.target.value = '';
+    }
+  };
+
+  reader.readAsArrayBuffer(file);
+};
+
+/**
+ * 2. THÊM SINH VIÊN THỦ CÔNG KÈM LỚP (PLAIN TEXT)
+ */
+window.handlePromptAddStudent = async function() {
+  const username = prompt('Nhập Mã Sinh Viên (Username):');
+  if (!username) return;
+
+  const fullName = prompt('Nhập Họ và Tên Sinh Viên:', username) || username;
+  const className = prompt('Nhập Lớp học:', '') || '';
+  const password = prompt('Nhập Mật khẩu tài khoản (Giữ nguyên số 0 đầu nếu có):', '123456') || '123456';
+
+  try {
+    const res = await appsScriptService.request('SAVE_STUDENT_LIST', {
+      students: [{
+        username: forcePlainText(username),
+        fullName: forcePlainText(fullName),
+        className: forcePlainText(className),
+        password: forcePlainText(password)
+      }]
+    });
+    alert(res.message || '✅ Đã thêm sinh viên mới!');
+    
+    if (typeof handleLoadStudents === 'function') {
+      handleLoadStudents();
+    }
+  } catch (err) {
+    alert(`Lỗi thêm sinh viên: ${err.message}`);
+  }
+};
+
+/**
+ * 3. GIAO DIỆN BẢNG QUẢN LÝ SINH VIÊN (HIỂN THỊ CỘT LỚP)
  */
 window.renderStudentManagementUI = function(students = []) {
   window.currentStudentsList = students;
@@ -2043,6 +2183,7 @@ window.renderStudentManagementUI = function(students = []) {
               </th>
               <th style="padding: 10px;">Mã SV (Username)</th>
               <th style="padding: 10px;">Họ và Tên</th>
+              <th style="padding: 10px;">Lớp</th>
               <th style="padding: 10px;">Mật khẩu</th>
               <th style="padding: 10px; text-align: right;">Hành động</th>
             </tr>
@@ -2050,20 +2191,24 @@ window.renderStudentManagementUI = function(students = []) {
           <tbody>
             ${students.length === 0 ? `
               <tr>
-                <td colspan="5" style="text-align: center; padding: 24px; color: #94a3b8;">
-                  Chưa có sinh viên nào. Vui lòng bấm "Nhập Danh Sách (Excel)" hoặc "Thêm Sinh Viên".
+                <td colspan="6" style="text-align: center; padding: 24px; color: #94a3b8;">
+                  Chưa có sinh viên nào. Vui lòng bấm "Nhập Danh Sách" hoặc "Thêm Sinh Viên".
                 </td>
               </tr>
             ` : students.map((st) => {
-              const uName = toPlainText(st.username || st.user);
+              const uName = forcePlainText(st.username || st.user);
+              const pWord = forcePlainText(st.password || '******');
+              const cName = forcePlainText(st.className || st.class || '--');
+
               return `
                 <tr style="border-bottom: 1px solid #f1f5f9;">
                   <td style="padding: 10px; text-align: center;">
                     <input type="checkbox" class="student-select-cb" value="${uName}" style="cursor: pointer;">
                   </td>
-                  <td style="padding: 10px; font-weight: 600; color: #1e293b;">${uName}</td>
-                  <td style="padding: 10px; color: #334155;">${st.fullName || uName}</td>
-                  <td style="padding: 10px; color: #64748b; font-family: monospace;">${st.password || '******'}</td>
+                  <td style="padding: 10px; font-weight: 600; color: #1e293b; font-family: monospace;">${uName}</td>
+                  <td style="padding: 10px; color: #334155;">${forcePlainText(st.fullName) || uName}</td>
+                  <td style="padding: 10px; color: #2563eb; font-weight: 600;">${cName}</td>
+                  <td style="padding: 10px; color: #059669; font-family: monospace; font-weight: 600;">${pWord}</td>
                   <td style="padding: 10px; text-align: right;">
                     <button type="button" onclick="handleDeleteStudentUI('${uName}')" style="background: #ef4444; color: white; border: none; padding: 4px 10px; border-radius: 4px; cursor: pointer; font-size: 12px;">
                       🗑️ Xóa
@@ -2078,125 +2223,6 @@ window.renderStudentManagementUI = function(students = []) {
 
     </div>
   `;
-};
-
-/**
- * TIỆN ÍCH: CHUYỂN DỮ LIỆU SANG PLAIN TEXT CHUẨN
- */
-function toPlainText(val) {
-  if (val === null || val === undefined) return '';
-  let str = String(val).trim();
-  if (str.startsWith("'")) str = str.substring(1);
-  return str;
-}
-
-/**
- * 1. ĐỌC FILE EXCEL TỰ ĐỘNG NHẬN DIỆN CỘT VÀ CHUYỂN TOÀN BỘ SANG PLAIN TEXT
- */
-window.handleUploadStudentExcel = function(event) {
-  const file = event.target.files[0];
-  if (!file) return;
-
-  if (typeof XLSX === 'undefined') {
-    alert('⚠️ Chưa nạp thư viện đọc file Excel (SheetJS). Vui lòng kiểm tra lại index.html!');
-    return;
-  }
-
-  showAppLoading(`📂 Đang chuyển đổi Plain Text & đọc dữ liệu: <strong>${file.name}</strong>...`);
-
-  const reader = new FileReader();
-  reader.onload = async function(e) {
-    try {
-      const data = new Uint8Array(e.target.result);
-      // Bật raw: false để SheetJS trả về đúng văn bản hiển thị (Plain Text)
-      const workbook = XLSX.read(data, { type: 'array', raw: false, cellText: true });
-      const firstSheetName = workbook.SheetNames[0];
-      const worksheet = workbook.Sheets[firstSheetName];
-
-      const jsonRows = XLSX.utils.sheet_to_json(worksheet, { header: 1, raw: false, defval: '' });
-      if (jsonRows.length < 2) {
-        throw new Error('File Excel rỗng hoặc không đủ dữ liệu!');
-      }
-
-      // Tự động tìm vị trí Cột (Mã SV, Họ Tên, Mật Khẩu) dựa vào dòng Header
-      let colUserIdx = 0;
-      let colNameIdx = 1;
-      let colPassIdx = 2;
-
-      const headerRow = jsonRows[0].map(h => toPlainText(h).toLowerCase());
-      headerRow.forEach((hText, idx) => {
-        if (hText.includes('mã') || hText.includes('msv') || hText.includes('user') || hText.includes('stt')) {
-          colUserIdx = idx;
-        } else if (hText.includes('họ') || hText.includes('tên') || hText.includes('name')) {
-          colNameIdx = idx;
-        } else if (hText.includes('mật khẩu') || hText.includes('pass')) {
-          colPassIdx = idx;
-        }
-      });
-
-      const parsedStudents = [];
-      for (let i = 1; i < jsonRows.length; i++) {
-        const row = jsonRows[i];
-        if (!row || row.length === 0) continue;
-
-        const username = toPlainText(row[colUserIdx]);
-        const fullName = toPlainText(row[colNameIdx]) || username;
-        const password = toPlainText(row[colPassIdx]) || '123456';
-
-        if (username && username.toLowerCase() !== 'undefined' && !username.toLowerCase().includes('mã')) {
-          parsedStudents.push({ username, fullName, password });
-        }
-      }
-
-      if (parsedStudents.length === 0) {
-        throw new Error('Không tìm thấy dòng dữ liệu sinh viên hợp lệ trong file!');
-      }
-
-      showAppLoading(`🚀 Đang đồng bộ <strong>${parsedStudents.length} sinh viên</strong> (Plain Text) vào hệ thống...`);
-
-      const res = await appsScriptService.request('SAVE_STUDENT_LIST', { students: parsedStudents });
-
-      hideAppLoading();
-      alert(res.message || '✅ Đã tải lên danh sách sinh viên thành công!');
-
-      if (typeof handleLoadStudents === 'function') {
-        handleLoadStudents();
-      }
-
-    } catch (err) {
-      hideAppLoading();
-      console.error('❌ Lỗi đọc file Excel:', err);
-      alert(`Lỗi xử lý file Excel: ${err.message}`);
-    } finally {
-      event.target.value = '';
-    }
-  };
-
-  reader.readAsArrayBuffer(file);
-};
-
-/**
- * 3. THÊM 1 SINH VIÊN THỦ CÔNG
- */
-window.handlePromptAddStudent = async function() {
-  const username = prompt('Nhập Mã Sinh Viên (Username):');
-  if (!username) return;
-
-  const fullName = prompt('Nhập Họ và Tên Sinh Viên:', username) || username;
-  const password = prompt('Nhập Mật khẩu tài khoản:', '123456') || '123456';
-
-  try {
-    const res = await appsScriptService.request('SAVE_STUDENT_LIST', {
-      students: [{ username: username.trim(), fullName: fullName.trim(), password: password.trim() }]
-    });
-    alert(res.message || '✅ Đã thêm sinh viên mới!');
-    
-    if (typeof handleLoadStudents === 'function') {
-      handleLoadStudents();
-    }
-  } catch (err) {
-    alert(`Lỗi thêm sinh viên: ${err.message}`);
-  }
 };
 
 /**
