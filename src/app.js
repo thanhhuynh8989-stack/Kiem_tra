@@ -2319,73 +2319,20 @@ window.handlePromptAddStudent = async function() {
 };
 
 /**
- * 3. GIAO DIỆN BẢNG QUẢN LÝ SINH VIÊN (HIỂN THỊ CỘT LỚP)
- */
-window.renderStudentManagementUI = function(students = []) {
-  window.currentStudentsList = students;
-  const container = document.getElementById('studentManagementContainer') || document.getElementById('myExamsListTable');
-  if (!container) return;
-
-  container.innerHTML = `
-    <div style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 20px; margin-top: 20px;">
-      
-      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-        <h3 style="margin: 0; font-size: 18px; color: #0f172a;">🎓 Quản Lý Sinh Viên (${students.length})</h3>
-        
-        <div style="display: flex; gap: 10px;">
-          <label style="background: #16a34a; color: white; padding: 8px 16px; border-radius: 6px; cursor: pointer; font-size: 13px; font-weight: 600;">
-            📁 Nhập Danh Sách (Excel)
-            <input type="file" accept=".xlsx, .xls, .csv" onchange="handleUploadStudentExcel(event)" style="display: none;">
-          </label>
-        </div>
-      </div>
-
-      <div style="overflow-x: auto;">
-        <table style="width: 100%; border-collapse: collapse; font-size: 14px; text-align: left;">
-          <thead>
-            <tr style="background: #f8fafc; border-bottom: 2px solid #e2e8f0;">
-              <th style="padding: 10px;">Mã SV</th>
-              <th style="padding: 10px;">Họ và Tên</th>
-              <th style="padding: 10px;">Lớp</th>
-              <th style="padding: 10px; text-align: right;">Hành động</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${students.length === 0 ? `
-              <tr><td colspan="4" style="text-align: center; padding: 20px; color: #94a3b8;">Chưa có dữ liệu sinh viên</td></tr>
-            ` : students.map((st) => `
-              <tr style="border-bottom: 1px solid #f1f5f9;">
-                <td style="padding: 10px; font-weight: 600; font-family: monospace;">${forcePlainText(st.username)}</td>
-                <td style="padding: 10px;">${forcePlainText(st.fullName)}</td>
-                <td style="padding: 10px; color: #2563eb; font-weight: 600;">${forcePlainText(st.className || '--')}</td>
-                <td style="padding: 10px; text-align: right;">
-                  <button type="button" onclick="handleDeleteStudentUI('${st.username}')" style="background: #ef4444; color: white; border: none; padding: 4px 10px; border-radius: 4px; cursor: pointer;">🗑️ Xóa</button>
-                </td>
-              </tr>
-            `).join('')}
-          </tbody>
-        </table>
-      </div>
-
-    </div>
-  `;
-};
-
-/**
  * 4. XÓA SINH VIÊN
  */
-window.handleDeleteStudentUI = async function(username) {
-  if (!confirm(`Bạn có chắc chắn muốn xóa sinh viên [${username}]?`)) return;
+window.handleDeleteStudentUI = async function(studentCode) {
+  if (!confirm(`❓ Bạn có chắc chắn muốn xóa sinh viên [${studentCode}]?`)) return;
 
+  if (typeof showAppLoading === 'function') showAppLoading('⏳ Đang xóa sinh viên...');
   try {
-    const res = await appsScriptService.request('DELETE_STUDENT', { username });
+    const res = await appsScriptService.request('DELETE_STUDENT', { studentCode: studentCode });
     alert(res.message || '✅ Đã xóa sinh viên!');
-
-    if (typeof handleLoadStudents === 'function') {
-      handleLoadStudents();
-    }
+    handleLoadStudents();
   } catch (err) {
-    alert(`Lỗi khi xóa sinh viên: ${err.message}`);
+    alert(`Lỗi xóa sinh viên: ${err.message}`);
+  } finally {
+    if (typeof hideAppLoading === 'function') hideAppLoading();
   }
 };
 
@@ -2441,35 +2388,86 @@ window.toggleSelectAllStudents = function(masterCb) {
  * TẢI VÀ HIỂN THỊ DANH SÁCH SINH VIÊN TỪ SERVER
  */
 window.handleLoadStudents = async function() {
-  const container = document.getElementById('studentManagementContainer');
-  if (container) {
-    container.innerHTML = `
-      <div style="text-align: center; padding: 30px; color: #2563eb; font-weight: 600;">
-        ⏳ Đang tải danh sách sinh viên từ hệ thống...
-      </div>
-    `;
-  }
-
+  if (typeof showAppLoading === 'function') showAppLoading('⏳ Đang tải danh sách sinh viên...');
   try {
-    // Gọi API lấy danh sách Sinh viên từ Apps Script (Role = STUDENT)
     const res = await appsScriptService.request('GET_STUDENTS', {});
-    
     const students = res.students || res.data || [];
-    console.log(`✅ Đã tải ${students.length} sinh viên từ máy chủ.`, students);
-
-    // Hiển thị giao diện bảng quản lý sinh viên
-    renderStudentManagementUI(students);
-
-  } catch (err) {
-    console.error('❌ Lỗi tải danh sách sinh viên:', err);
-    if (container) {
-      container.innerHTML = `
-        <div style="padding: 16px; background: #fef2f2; border: 1px solid #fecaca; border-radius: 8px; color: #dc2626; font-size: 14px;">
-          ❌ Lỗi nạp danh sách sinh viên: ${err.message}. Vui lòng thử lại!
-        </div>
-      `;
+    window.currentStudentsList = students;
+    
+    if (typeof renderStudentManagementUI === 'function') {
+      renderStudentManagementUI(students);
     }
+  } catch (err) {
+    console.error('Lỗi tải sinh viên:', err);
+  } finally {
+    if (typeof hideAppLoading === 'function') hideAppLoading();
   }
+};
+
+/**
+ * 2. RENDER BẢNG QUẢN LÝ SINH VIÊN (NÚT DÁN VÀ UPLOAD CHẠY SONG SONG)
+ */
+window.renderStudentManagementUI = function(students = []) {
+  window.currentStudentsList = students;
+  const container = document.getElementById('studentManagementContainer') || document.getElementById('myExamsListTable');
+  if (!container) return;
+
+  container.innerHTML = `
+    <div style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 20px; margin-top: 20px;">
+      
+      <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; margin-bottom: 20px; border-bottom: 1px solid #f1f5f9; padding-bottom: 16px;">
+        <h3 style="margin: 0; font-size: 18px; color: #0f172a; display: flex; align-items: center; gap: 8px;">
+          🎓 Quản Lý Sinh Viên (${students.length})
+        </h3>
+        
+        <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+          <!-- NÚT 1: DÁN TRỰC TIẾP COPY-PASTE -->
+          <button type="button" onclick="handleOpenPasteStudentsModal()" style="background: #16a34a; color: white; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; font-size: 13px; font-weight: 600; display: inline-flex; align-items: center; gap: 6px;">
+            📋 Dán Danh Sách (Ctrl+V)
+          </button>
+
+          <!-- NÚT 2: UPLOAD FILE EXCEL THUẦN 4 CỘT -->
+          <label style="background: #0284c7; color: white; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; font-size: 13px; font-weight: 600; display: inline-flex; align-items: center; gap: 6px;">
+            📁 Nhập File Excel
+            <input type="file" accept=".xlsx, .xls, .csv" onchange="handleUploadStudentExcel(event)" style="display: none;">
+          </label>
+
+          <!-- NÚT 3: THÊM LẺ 1 SINH VIÊN -->
+          <button type="button" onclick="handlePromptAddStudent()" style="background: #2563eb; color: white; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; font-size: 13px; font-weight: 600;">
+            ➕ Thêm 1 SV
+          </button>
+        </div>
+      </div>
+
+      <div style="overflow-x: auto;">
+        <table style="width: 100%; border-collapse: collapse; font-size: 14px; text-align: left;">
+          <thead>
+            <tr style="background: #f8fafc; border-bottom: 2px solid #e2e8f0; color: #475569;">
+              <th style="padding: 10px;">Mã SV (studentCode)</th>
+              <th style="padding: 10px;">Họ và Tên (FullName)</th>
+              <th style="padding: 10px;">Lớp (Class)</th>
+              <th style="padding: 10px; text-align: right;">Hành động</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${students.length === 0 ? `
+              <tr><td colspan="4" style="text-align: center; padding: 24px; color: #94a3b8;">Chưa có dữ liệu sinh viên. Vui lòng bấm "Dán Danh Sách" hoặc "Nhập File Excel".</td></tr>
+            ` : students.map((st) => `
+              <tr style="border-bottom: 1px solid #f1f5f9;">
+                <td style="padding: 10px; font-weight: 600; color: #1e293b; font-family: monospace;">${st.studentCode || st.username}</td>
+                <td style="padding: 10px; color: #334155;">${st.fullName}</td>
+                <td style="padding: 10px; color: #2563eb; font-weight: 600;">${st.className || '--'}</td>
+                <td style="padding: 10px; text-align: right;">
+                  <button type="button" onclick="handleDeleteStudentUI('${st.studentCode || st.username}')" style="background: #ef4444; color: white; border: none; padding: 4px 10px; border-radius: 4px; cursor: pointer; font-size: 12px;">🗑️ Xóa</button>
+                </td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+      </div>
+
+    </div>
+  `;
 };
 
 // Tự động gọi tải danh sách sinh viên khi trang web được nạp xong (nếu ở giao diện Giảng viên)
