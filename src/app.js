@@ -2183,35 +2183,53 @@ window.handleUploadStudentExcel = function(event) {
   if (!file) return;
 
   if (typeof XLSX === 'undefined') {
-    alert('⚠️ Chưa nạp thư viện đọc Excel!');
+    alert('⚠️ Chưa nạp thư viện đọc Excel (SheetJS)!');
     return;
   }
 
   if (typeof showAppLoading === 'function') {
-    showAppLoading(`📂 Đang tải file: <strong>${file.name}</strong>...`);
+    showAppLoading(`📂 Đang đọc file Excel: <strong>${file.name}</strong>...`);
   }
 
   const reader = new FileReader();
   reader.onload = async function(e) {
     try {
       const data = new Uint8Array(e.target.result);
-      const workbook = XLSX.read(data, { type: 'array', raw: false, cellText: true, cellDates: false });
+      const workbook = XLSX.read(data, { type: 'array', raw: false, cellText: true });
       const worksheet = workbook.Sheets[workbook.SheetNames[0]];
 
       const jsonRows = XLSX.utils.sheet_to_json(worksheet, { header: 1, raw: false, defval: '' });
-      if (jsonRows.length < 2) throw new Error('File Excel rỗng!');
+      if (!jsonRows || jsonRows.length < 2) {
+        throw new Error('File Excel rỗng hoặc không đúng định dạng!');
+      }
+
+      // 1. TỰ ĐỘNG QUÉT VỊ TRÍ CỘT DỰA TRÊN DÒNG 1 (HEADER)
+      const headerRow = jsonRows[0].map(cell => String(cell || '').trim().toLowerCase());
+      
+      let userIdx = headerRow.findIndex(h => h.includes('mã') || h.includes('user') || h.includes('sv'));
+      let nameIdx = headerRow.findIndex(h => h.includes('họ') || h.includes('tên') || h.includes('name'));
+      let classIdx = headerRow.findIndex(h => h.includes('lớp') || h.includes('class'));
+      let passIdx = headerRow.findIndex(h => h.includes('mật') || h.includes('pass'));
+
+      // Dự phòng nếu file không có dòng tiêu đề chuẩn
+      if (userIdx === -1) userIdx = 0;
+      if (nameIdx === -1) nameIdx = 1;
+      if (classIdx === -1) classIdx = 2;
+      if (passIdx === -1) passIdx = 3;
+
+      console.log(`📌 Phát hiện chỉ số cột Excel -> Mã SV: [${userIdx}], Họ Tên: [${nameIdx}], Lớp: [${classIdx}], Pass: [${passIdx}]`);
 
       const parsedStudents = [];
 
-      // Bắt đầu từ dòng 2 (index 1)
+      // Đọc dữ liệu từ dòng 2 (index 1)
       for (let i = 1; i < jsonRows.length; i++) {
         const row = jsonRows[i];
         if (!row || row.length === 0) continue;
 
-        const username = forcePlainText(row[0]);               // Col A: Mã SV
-        const fullName = forcePlainText(row[1]) || username;   // Col B: Họ Tên
-        const className = forcePlainText(row[2]);              // Col C: Lớp
-        const password = forcePlainText(row[3]) || '123456';   // Col D: Mật khẩu
+        const username = forcePlainText(row[userIdx]);
+        const fullName = forcePlainText(row[nameIdx]) || username;
+        const className = forcePlainText(row[classIdx]);
+        const password = forcePlainText(row[passIdx]) || '123456';
 
         if (username && username.toLowerCase() !== 'undefined') {
           parsedStudents.push({
@@ -2223,22 +2241,29 @@ window.handleUploadStudentExcel = function(event) {
         }
       }
 
-      if (parsedStudents.length === 0) throw new Error('Không có dữ liệu sinh viên!');
+      if (parsedStudents.length === 0) {
+        throw new Error('Không tìm thấy dòng dữ liệu sinh viên nào hợp lệ!');
+      }
+
+      // In log dòng đầu tiên ra Console để kiểm tra chính xác trước khi gửi
+      console.log('📦 Dữ liệu chuẩn bị gửi sang Sheet Students:', parsedStudents[0]);
 
       if (typeof showAppLoading === 'function') {
-        showAppLoading(`🚀 Đang đồng bộ <strong>${parsedStudents.length} sinh viên</strong> vào sheet 'Students'...`);
+        showAppLoading(`🚀 Đang ghi <strong>${parsedStudents.length} sinh viên</strong> vào sheet 'Students'...`);
       }
 
       const res = await appsScriptService.request('SAVE_STUDENT_LIST', { students: parsedStudents });
 
       if (typeof hideAppLoading === 'function') hideAppLoading();
-      alert(res.message || '✅ Đã tải lên thành công!');
+      alert(res.message || '✅ Tải lên danh sách sinh viên thành công!');
 
-      if (typeof handleLoadStudents === 'function') handleLoadStudents();
+      if (typeof handleLoadStudents === 'function') {
+        handleLoadStudents();
+      }
 
     } catch (err) {
       if (typeof hideAppLoading === 'function') hideAppLoading();
-      alert(`Lỗi: ${err.message}`);
+      alert(`Lỗi đọc file Excel: ${err.message}`);
     } finally {
       event.target.value = '';
     }
