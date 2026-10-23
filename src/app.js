@@ -2411,7 +2411,7 @@ window.handleLoadStudents = async function() {
 };
 
 /**
- * 1. BỔ SUNG NÚT ĐỒNG BỘ TRÊN UI QUẢN LÝ SINH VIÊN
+ * 2. CẬP NHẬT GIAO DIỆN BẢNG QUẢN LÝ SINH VIÊN (CÓ NÚT RESET PASS)
  */
 window.renderStudentManagementUI = function(students = []) {
   window.currentStudentsList = students;
@@ -2428,11 +2428,10 @@ window.renderStudentManagementUI = function(students = []) {
           <h3 style="margin: 0; font-size: 18px; color: #0f172a; display: flex; align-items: center; gap: 8px;">
             🎓 Quản Lý Sinh Viên (${students.length})
           </h3>
-          <span style="font-size: 12px; color: #64748b;">Đang xem danh sách của tài khoản: <strong style="color: #2563eb;">${username}</strong></span>
+          <span style="font-size: 12px; color: #64748b;">Đang hiển thị danh sách cho tài khoản: <strong style="color: #2563eb;">${username}</strong></span>
         </div>
         
         <div style="display: flex; gap: 10px; flex-wrap: wrap;">
-          <!-- NÚT NẠP EXCEL MỚI -->
           <label style="background: #16a34a; color: white; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; font-size: 13px; font-weight: 600; display: inline-flex; align-items: center; gap: 6px; box-shadow: 0 2px 4px rgba(22,163,74,0.2);">
             📁 Nhập Danh Sách (Excel)
             <input type="file" accept=".xlsx, .xls" onchange="handleUploadExcelDrive(event)" style="display: none;">
@@ -2450,8 +2449,8 @@ window.renderStudentManagementUI = function(students = []) {
             <tr style="background: #f8fafc; border-bottom: 2px solid #e2e8f0; color: #475569;">
               <th style="padding: 10px;">Mã SV (studentCode)</th>
               <th style="padding: 10px;">Họ và Tên (FullName)</th>
-              <th style="padding: 10px;">Lớp (Class)</th>
-              <th style="padding: 10px;">Người Upload</th>
+              <th style="padding: 10px;">Lớp Học Phấn</th>
+              <th style="padding: 10px;">Mật Khẩu</th>
               <th style="padding: 10px; text-align: right;">Hành động</th>
             </tr>
           </thead>
@@ -2463,8 +2462,12 @@ window.renderStudentManagementUI = function(students = []) {
                 <td style="padding: 10px; font-weight: 600; color: #1e293b; font-family: monospace;">${st.studentCode || st.username}</td>
                 <td style="padding: 10px; color: #334155;">${st.fullName}</td>
                 <td style="padding: 10px; color: #2563eb; font-weight: 600;">${st.className || '--'}</td>
-                <td style="padding: 10px; color: #64748b; font-size: 12px;">${st.uploadedBy || 'admin'}</td>
-                <td style="padding: 10px; text-align: right;">
+                <td style="padding: 10px; font-family: monospace; color: #059669; font-weight: 600;">${st.password || '******'}</td>
+                <td style="padding: 10px; text-align: right; white-space: nowrap;">
+                  <!-- NÚT RESET PASS -->
+                  <button type="button" onclick="handleResetPasswordUI('${st.studentCode || st.username}', '${st.password}')" style="background: #f59e0b; color: white; border: none; padding: 4px 10px; border-radius: 4px; cursor: pointer; font-size: 12px; margin-right: 6px;">🔑 Đặt MK</button>
+                  
+                  <!-- NÚT XÓA -->
                   <button type="button" onclick="handleDeleteStudentUI('${st.studentCode || st.username}')" style="background: #ef4444; color: white; border: none; padding: 4px 10px; border-radius: 4px; cursor: pointer; font-size: 12px;">🗑️ Xóa</button>
                 </td>
               </tr>
@@ -3205,4 +3208,36 @@ window.handleUploadExcelDrive = function(event) {
   };
 
   reader.readAsArrayBuffer(file);
+};
+
+/**
+ * 1. HÀM RESET MẬT KHẨU TỪ NÚT BẤM TRÊN WEB
+ */
+window.handleResetPasswordUI = async function(studentCode, currentPass) {
+  const defaultSuggest = studentCode.length >= 4 ? studentCode.slice(-4) : '123456';
+  const newPassword = prompt(`🔑 Đặt lại mật khẩu cho SV [${studentCode}]:\n(Nhập mật khẩu mới bên dưới)`, defaultSuggest);
+
+  if (newPassword === null) return; // Người dùng bấm Hủy
+  if (!newPassword.trim()) {
+    alert('⚠️ Mật khẩu không được để trống!');
+    return;
+  }
+
+  if (typeof showAppLoading === 'function') showAppLoading('⏳ Đang đổi mật khẩu...');
+  try {
+    const res = await appsScriptService.request('RESET_STUDENT_PASSWORD', {
+      studentCode: studentCode,
+      newPassword: newPassword.trim()
+    });
+
+    if (typeof hideAppLoading === 'function') hideAppLoading();
+    alert(res.message || '✅ Đã đổi mật khẩu thành công!');
+
+    if (typeof handleLoadStudents === 'function') {
+      handleLoadStudents();
+    }
+  } catch (err) {
+    if (typeof hideAppLoading === 'function') hideAppLoading();
+    alert(`Lỗi đặt lại mật khẩu: ${err.message}`);
+  }
 };
