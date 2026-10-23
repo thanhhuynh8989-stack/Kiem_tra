@@ -219,6 +219,8 @@ function processViolation() {
   if (violationCount >= max) {
     alert(`⚠️ VI PHẠM QUY CHẾ (${violationCount}/${max}): Bạn đã rời khỏi màn hình thi!\nHệ thống TỰ ĐỘNG NỘP BÀI TỨC THỜI.`);
     stopViolationTracking();
+    
+    // Gọi hàm tự động nộp bài và dọn sạch bản nháp
     if (typeof window.executeSubmitExam === 'function') {
       window.executeSubmitExam();
     }
