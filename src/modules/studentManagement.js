@@ -174,6 +174,7 @@ export async function handleDeleteStudentUI(studentCode) {
 // =========================================================================
 export function handleOpenAssignModal(examId, examTitle = '') {
   let students = window.currentStudentsList || [];
+  // Trích xuất danh sách Lớp học độc nhất
   const classList = [...new Set(students.map(s => String(s.className || s.class || '').trim()).filter(Boolean))];
 
   const oldModal = document.getElementById('assignExamModalOverlay');
@@ -189,48 +190,66 @@ export function handleOpenAssignModal(examId, examTitle = '') {
   `;
 
   modalOverlay.innerHTML = `
-    <div style="background: #ffffff; width: 100%; max-width: 480px; max-height: 90vh; overflow-y: auto; border-radius: 12px; padding: 20px; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.2);">
+    <div style="background: #ffffff; width: 100%; max-width: 500px; max-height: 90vh; overflow-y: auto; border-radius: 12px; padding: 20px; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.2);">
       
       <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; border-bottom: 1px solid #f1f5f9; padding-bottom: 10px;">
-        <h3 style="margin: 0; font-size: 16px; color: #0f172a;">📤 Giao Đề Thi</h3>
-        <button type="button" onclick="document.getElementById('assignExamModalOverlay').remove()" style="background: none; border: none; font-size: 20px; color: #64748b; min-height: auto; padding: 0;">✕</button>
+        <h3 style="margin: 0; font-size: 16px; color: #0f172a;">📤 Giao Đề Thi Cho Sinh Viên</h3>
+        <button type="button" onclick="document.getElementById('assignExamModalOverlay').remove()" style="background: none; border: none; font-size: 20px; color: #64748b; cursor: pointer; min-height: auto; padding: 0;">✕</button>
       </div>
 
-      <div style="background: #eff6ff; padding: 8px 12px; border-radius: 6px; color: #1e40af; font-size: 12px; font-weight: 600; margin-bottom: 14px;">
-        📖 ${escapeHtml(examTitle || examId)}
+      <div style="background: #eff6ff; border: 1px solid #bfdbfe; padding: 10px 12px; border-radius: 8px; color: #1e40af; font-size: 13px; font-weight: 600; margin-bottom: 16px;">
+        📖 Đề thi: ${escapeHtml(examTitle || examId)}
       </div>
 
+      <!-- Chọn phạm vi giao đề -->
       <div style="margin-bottom: 14px;">
-        <label>Phạm vi giao đề:</label>
+        <label style="font-weight: 600; font-size: 13px; color: #334155; display: block; margin-bottom: 6px;">Phạm vi giao đề:</label>
         <div style="display: flex; gap: 12px; flex-wrap: wrap;">
-          <label style="display: inline-flex; align-items: center; gap: 4px; font-size: 13px; font-weight: normal; margin: 0;">
+          <label style="display: inline-flex; align-items: center; gap: 4px; font-size: 13px; font-weight: normal; cursor: pointer;">
             <input type="radio" name="assignTypeRadio" value="CLASS" checked onchange="toggleAssignTypeFields('CLASS')"> Theo Lớp
           </label>
-          <label style="display: inline-flex; align-items: center; gap: 4px; font-size: 13px; font-weight: normal; margin: 0;">
-            <input type="radio" name="assignTypeRadio" value="STUDENT" onchange="toggleAssignTypeFields('STUDENT')"> Theo SV
+          <label style="display: inline-flex; align-items: center; gap: 4px; font-size: 13px; font-weight: normal; cursor: pointer;">
+            <input type="radio" name="assignTypeRadio" value="STUDENT" onchange="toggleAssignTypeFields('STUDENT')"> Theo Sinh viên
+          </label>
+          <label style="display: inline-flex; align-items: center; gap: 4px; font-size: 13px; font-weight: normal; cursor: pointer;">
+            <input type="radio" name="assignTypeRadio" value="ALL" onchange="toggleAssignTypeFields('ALL')"> Tất cả Sinh viên
           </label>
         </div>
       </div>
 
-      <div id="assignClassContainer" style="margin-bottom: 16px;">
-        <label>Chọn Lớp học:</label>
-        <select id="assignClassSelect">
+      <!-- Khung Chọn Lớp -->
+      <div id="assignClassContainer" style="margin-bottom: 14px;">
+        <label style="font-weight: 600; font-size: 13px; color: #334155; display: block; margin-bottom: 4px;">Chọn Lớp học:</label>
+        <select id="assignClassSelect" style="width: 100%; padding: 8px 12px; border-radius: 6px; border: 1px solid #cbd5e1;">
           <option value="">-- Chọn Lớp --</option>
           ${classList.map(c => `<option value="${escapeHtml(c)}">Lớp: ${escapeHtml(c)}</option>`).join('')}
         </select>
       </div>
 
-      <div id="assignStudentContainer" style="display: none; margin-bottom: 16px;">
-        <label>Chọn Sinh viên:</label>
-        <select id="assignStudentSelect">
+      <!-- Khung Chọn Sinh viên cụ thể -->
+      <div id="assignStudentContainer" style="display: none; margin-bottom: 14px;">
+        <label style="font-weight: 600; font-size: 13px; color: #334155; display: block; margin-bottom: 4px;">Chọn Sinh viên:</label>
+        <select id="assignStudentSelect" style="width: 100%; padding: 8px 12px; border-radius: 6px; border: 1px solid #cbd5e1;">
           <option value="">-- Chọn Sinh Viên --</option>
-          ${students.map(s => `<option value="${escapeHtml(s.username || s.user)}">${s.username} - ${escapeHtml(s.fullName)}</option>`).join('')}
+          ${students.map(s => `<option value="${escapeHtml(s.username || s.studentCode)}">${s.username || s.studentCode} - ${escapeHtml(s.fullName)} (${escapeHtml(s.className || 'Chưa xếp lớp')})</option>`).join('')}
         </select>
       </div>
 
-      <div style="display: flex; justify-content: flex-end; gap: 8px; margin-top: 20px;">
-        <button type="button" onclick="document.getElementById('assignExamModalOverlay').remove()" style="background: #f1f5f9; color: #475569; min-height: 36px; padding: 6px 14px;">Hủy</button>
-        <button type="button" onclick="handleConfirmAssignExam('${examId}')" style="background: #059669; min-height: 36px; padding: 6px 16px;">🚀 Giao Đề</button>
+      <!-- Cài đặt bổ sung: Mật khẩu & Hạn chót -->
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 16px;">
+        <div>
+          <label style="font-weight: 600; font-size: 12px; color: #334155; display: block; margin-bottom: 4px;">Mật khẩu vào thi (Tùy chọn):</label>
+          <input type="text" id="assignPasscode" placeholder="VD: 123456" style="width: 100%; padding: 8px; border-radius: 6px; border: 1px solid #cbd5e1; font-size: 13px;">
+        </div>
+        <div>
+          <label style="font-weight: 600; font-size: 12px; color: #334155; display: block; margin-bottom: 4px;">Hạn chót làm bài (Tùy chọn):</label>
+          <input type="datetime-local" id="assignDeadline" style="width: 100%; padding: 8px; border-radius: 6px; border: 1px solid #cbd5e1; font-size: 13px;">
+        </div>
+      </div>
+
+      <div style="display: flex; justify-content: flex-end; gap: 8px; margin-top: 20px; border-top: 1px solid #f1f5f9; padding-top: 12px;">
+        <button type="button" onclick="document.getElementById('assignExamModalOverlay').remove()" style="background: #f1f5f9; color: #475569; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; font-size: 13px;">Hủy</button>
+        <button type="button" onclick="handleConfirmAssignExam('${examId}')" style="background: #059669; color: white; border: none; padding: 8px 18px; border-radius: 6px; cursor: pointer; font-size: 13px; font-weight: 600;">🚀 XÁC NHẬN GIAO ĐỀ</button>
       </div>
     </div>
   `;
@@ -253,15 +272,22 @@ export async function handleConfirmAssignExam(examId) {
   if (selectedType === 'CLASS') {
     const classSel = document.getElementById('assignClassSelect');
     targetValue = classSel ? classSel.value.trim() : '';
-    if (!targetValue) return alert('⚠️ Vui lòng chọn Lớp!');
+    if (!targetValue) return alert('⚠️ Vui lòng chọn Lớp học!');
   } else if (selectedType === 'STUDENT') {
     const studentSel = document.getElementById('assignStudentSelect');
     const stUser = studentSel ? studentSel.value.trim() : '';
     if (!stUser) return alert('⚠️ Vui lòng chọn Sinh viên!');
     targetStudents = [stUser];
+    targetValue = stUser;
+  } else if (selectedType === 'ALL') {
+    targetValue = 'ALL_STUDENTS';
   }
 
+  const passcode = document.getElementById('assignPasscode')?.value.trim() || '';
+  const deadline = document.getElementById('assignDeadline')?.value || '';
   const username = getLoggedInUsername();
+
+  showAppLoading('⏳ Đang phân phối đề thi...');
 
   try {
     const res = await appsScriptService.request('ASSIGN_EXAM', {
@@ -269,12 +295,16 @@ export async function handleConfirmAssignExam(examId) {
       assignType: selectedType,
       targetValue: targetValue,
       targetStudents: targetStudents,
+      passcode: passcode,
+      deadline: deadline,
       assignedBy: username
     });
 
+    hideAppLoading();
     alert(res.message || '✅ Đã giao đề thi thành công!');
     document.getElementById('assignExamModalOverlay')?.remove();
   } catch (err) {
+    hideAppLoading();
     alert(`Lỗi giao đề thi: ${err.message}`);
   }
 }
