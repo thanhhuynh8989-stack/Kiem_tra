@@ -66,7 +66,8 @@ export function renderStudentDashboard(exams = []) {
     exams.forEach(ex => {
       const hasScore = ex.score !== null && ex.score !== undefined && ex.score !== '';
       const isCompleted = ex.isCompleted || hasScore;
-      const draft = ExamDraftManager.getDraft(username, ex.examId);
+      
+      const draft = ExamDraftManager.getDraft(username, ex.examId) || ExamDraftManager.getDraft(username, ex.examCode);
       const hasDraft = !isCompleted && draft && Object.keys(draft.answers || {}).length > 0;
 
       html += `
@@ -78,9 +79,9 @@ export function renderStudentDashboard(exams = []) {
           <div style="display:flex; justify-content:space-between; align-items:center; border-top:1px solid #f1f5f9; padding-top:8px;">
             <span style="font-weight:700; color:${hasScore ? '#15803d' : '#94a3b8'}; font-size:14px;">${hasScore ? `${ex.score}/10` : '--'}</span>
             ${isCompleted ? `
-              <button type="button" onclick="handleReviewSubmittedExam('${ex.examId}', '${ex.examCode}')" style="background:#0d9488; min-height:32px; padding:4px 10px; font-size:12px;">👁️ Xem lại</button>
+              <button type="button" onclick="handleReviewSubmittedExam('${ex.examId}', '${ex.examCode}')" style="background:#0d9488; min-height:32px; padding:4px 10px; font-size:12px; color:#fff; border:none; border-radius:6px; cursor:pointer;">👁️ Xem lại bài</button>
             ` : `
-              <button type="button" onclick="handleStartTakeExam('${ex.examId}', '${ex.examCode}')" style="background:${hasDraft ? '#d97706' : '#2563eb'}; min-height:32px; padding:4px 10px; font-size:12px;">
+              <button type="button" onclick="handleStartTakeExam('${ex.examId}', '${ex.examCode}')" style="background:${hasDraft ? '#d97706' : '#2563eb'}; min-height:32px; padding:4px 10px; font-size:12px; color:#fff; border:none; border-radius:6px; cursor:pointer;">
                 ${hasDraft ? '🔄 Làm tiếp' : '✍️ Làm bài'}
               </button>
             `}
@@ -222,7 +223,11 @@ export async function handleConfirmSubmitExam(examId, totalQuestions) {
   }
 }
 
-export async function executeSubmitExam(examId = window.currentActiveExamId, questions = window.currentActiveQuestionsForExam || [], answers = window.currentActiveAnswersForExam || {}) {
+export async function executeSubmitExam(
+  examId = window.currentActiveExamId, 
+  questions = window.currentActiveQuestionsForExam || [], 
+  answers = window.currentActiveAnswersForExam || {}
+) {
   showAppLoading('⏳ Đang tính điểm & gửi bài...');
   stopViolationTracking();
 
@@ -241,10 +246,18 @@ export async function executeSubmitExam(examId = window.currentActiveExamId, que
     const finalScore = Math.round((correctCount / totalQ) * 10 * 10) / 10;
 
     await appsScriptService.request('SUBMIT_EXAM', {
-      examId: examId, username: username, score: finalScore, answers: answers
+      examId: examId, 
+      username: username, 
+      score: finalScore, 
+      answers: answers
     });
 
+    // Dọn dẹp tất cả các dạng khóa Draft (cả mã đầy đủ lẫn mã ngắn)
     ExamDraftManager.clearDraft(username, examId);
+    if (window.currentActiveExamCode) {
+      ExamDraftManager.clearDraft(username, window.currentActiveExamCode);
+    }
+
     hideAppLoading();
 
     alert(`🎉 Đã nộp bài thành công!\nĐiểm số: ${finalScore} / 10`);
