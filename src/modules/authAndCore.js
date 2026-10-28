@@ -168,23 +168,64 @@ export function showView(viewId) {
   }
 }
 
+// =========================================================================
+// 1. LẤY MÃ SV ĐĂNG NHẬP AN TOÀN NGUYÊN KHỐI
+// =========================================================================
 export function getLoggedInUsername() {
-  const possibleKeys = ['currentUser', 'user', 'loggedInUser', 'username'];
+  try {
+    const raw = sessionStorage.getItem('currentUser') || 
+                sessionStorage.getItem('userSession') || 
+                localStorage.getItem('currentUser') || 
+                localStorage.getItem('userSession');
+    if (!raw) return '';
+    const u = JSON.parse(raw);
+    const code = u.studentCode || u.username || u.code || u.user || u.id || '';
+    return String(code).trim();
+  } catch (e) {
+    return '';
+  }
+}
+
+// =========================================================================
+// 2. CẬP NHẬT THÔNG TIN THÍ SINH LÊN GIAO DIỆN HEADER
+// =========================================================================
+export function renderStudentHeaderInfo() {
+  let loggedUser = {};
+  try {
+    const raw = sessionStorage.getItem('currentUser') || sessionStorage.getItem('userSession');
+    if (raw) loggedUser = JSON.parse(raw);
+  } catch(e) {}
+
+  const code = loggedUser.studentCode || loggedUser.username || loggedUser.code || getLoggedInUsername();
+  const name = loggedUser.fullName || loggedUser.name || loggedUser.displayName || 'Sinh Viên';
+
+  // Đẩy dữ liệu ra giao diện HTML
+  const nameEl = document.getElementById('studentNameDisplay');
+  const codeEl = document.getElementById('studentCodeDisplay');
+  const tagEl = document.getElementById('studentTagDisplay');
+
+  if (nameEl) nameEl.innerText = name;
+  if (codeEl) codeEl.innerText = `Mã SV: ${code || 'N/A'}`;
+  if (tagEl) tagEl.innerText = `${name} (Sinh viên)`;
+}
+
+// =========================================================================
+// HÀM BỔ SUNG: CHỈ DÙNG ĐỂ LẤY HỌ TÊN HIỂN THỊ TRÊN GIAO DIỆN HEADER
+// =========================================================================
+export function getLoggedInFullName() {
+  const possibleKeys = ['currentUser', 'userSession', 'user', 'loggedInUser'];
   for (const key of possibleKeys) {
     const rawVal = localStorage.getItem(key) || sessionStorage.getItem(key);
     if (!rawVal) continue;
     try {
       const parsed = JSON.parse(rawVal);
-      if (typeof parsed === 'string' && parsed.trim()) return parsed.trim();
       if (typeof parsed === 'object' && parsed !== null) {
-        const name = parsed.username || parsed.user || parsed.fullName || parsed.studentCode;
+        const name = parsed.fullName || parsed.name || parsed.displayName;
         if (name && String(name).trim()) return String(name).trim();
       }
-    } catch (e) {
-      if (typeof rawVal === 'string' && rawVal.trim()) return rawVal.replace(/"/g, '').trim();
-    }
+    } catch (e) {}
   }
-  return '';
+  return getLoggedInUsername() || 'Sinh Viên';
 }
 
 // =========================================================================
