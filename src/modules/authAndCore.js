@@ -34,8 +34,8 @@ export function normalizeUserData(raw) {
   let username = obj.username || obj.User || obj.user || raw.username || raw.User || '';
   if (typeof username === 'object') username = '';
 
-  let studentCode = obj.studentCode || obj.code || obj.studentId || username;
-  if (typeof studentCode === 'object') studentCode = '';
+  let codeId = obj.lecturerCode || obj.studentCode || obj.code || obj.studentId || username;
+  if (typeof codeId === 'object') codeId = '';
 
   let className = obj.className || obj.class || obj.Class || obj.studentClass || '';
   if (typeof className === 'object') className = '';
@@ -63,7 +63,8 @@ export function normalizeUserData(raw) {
   return {
     authenticated: raw.authenticated !== undefined ? raw.authenticated : (raw.status === 'success' || !!normalizedRole),
     username: String(username).trim(),
-    studentCode: String(studentCode || username).trim(),
+    lecturerCode: String(codeId || username).trim(), // Mã Giảng viên
+    studentCode: String(codeId || username).trim(),  // Mã Sinh viên
     className: String(className).trim(),
     fullName: String(fullName).trim(),
     role: normalizedRole
