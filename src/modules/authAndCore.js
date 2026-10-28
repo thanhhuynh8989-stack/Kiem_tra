@@ -1,11 +1,19 @@
 import { appsScriptService } from '../services/appsScriptService.js';
 
 // =========================================================================
-// 1. TRẠNG THÁI TOÀN CỤC (GLOBAL STATE)
+// 1. TRẠNG THÁI TOÀN CỤC (GLOBAL STATE) & KHÔI PHỤC PHIÊN ĐĂNG NHẬP
 // =========================================================================
 export let currentUser = null;
 export let violationCount = 0;
 export let isExamActive = false;
+
+// Tự động khôi phục currentUser khi F5 tải lại trang
+try {
+  const savedUser = sessionStorage.getItem('currentUser') || sessionStorage.getItem('userSession');
+  if (savedUser) {
+    currentUser = JSON.parse(savedUser);
+  }
+} catch (e) {}
 
 // =========================================================================
 // 2. CHUẨN HÓA DỮ LIỆU & QUẢN LÝ PHIÊN (AUTH & SESSION)
@@ -25,6 +33,12 @@ export function normalizeUserData(raw) {
 
   let username = obj.username || obj.User || obj.user || raw.username || raw.User || '';
   if (typeof username === 'object') username = '';
+
+  let studentCode = obj.studentCode || obj.code || obj.studentId || username;
+  if (typeof studentCode === 'object') studentCode = '';
+
+  let className = obj.className || obj.class || obj.Class || obj.studentClass || '';
+  if (typeof className === 'object') className = '';
 
   let fullName = obj.fullName || obj['Full name'] || obj.fullname || obj.Fullname || obj['full_name'] || obj.name || raw.fullName || '';
   if (typeof fullName === 'object') fullName = '';
@@ -47,9 +61,11 @@ export function normalizeUserData(raw) {
   }
 
   return {
-    authenticated: raw.authenticated !== undefined ? raw.authenticated : true,
-    username: String(username),
-    fullName: String(fullName),
+    authenticated: raw.authenticated !== undefined ? raw.authenticated : (raw.status === 'success' || !!normalizedRole),
+    username: String(username).trim(),
+    studentCode: String(studentCode || username).trim(),
+    className: String(className).trim(),
+    fullName: String(fullName).trim(),
     role: normalizedRole
   };
 }
@@ -101,9 +117,6 @@ export async function handleLogin() {
         showView(currentUser.role === 'ADMIN' ? 'adminView' : 'lecturerView');
       } else {
         showView('studentView');
-        if (typeof window.handleLoadStudentDashboard === 'function') {
-          window.handleLoadStudentDashboard();
-        }
       }
     } else {
       alert(res.message || 'Tên đăng nhập hoặc mật khẩu không chính xác!');
@@ -157,22 +170,30 @@ export function showView(viewId) {
 
     if (viewId === 'lecturerView' && typeof window.handleLoadMyExams === 'function') {
       window.handleLoadMyExams();
-    } else if (viewId === 'studentView' && typeof window.handleLoadStudentDashboard === 'function') {
-      window.handleLoadStudentDashboard();
+    } else if (viewId === 'studentView') {
+      renderStudentHeaderInfo();
+      if (typeof window.handleLoadStudentDashboard === 'function') {
+        window.handleLoadStudentDashboard();
+      }
     }
   } else if (viewId === 'studentView') {
     if (userInfo) userInfo.style.display = 'flex';
     if (userBadge) userBadge.textContent = 'HỌC SINH / SINH VIÊN';
+    renderStudentHeaderInfo();
   } else {
     if (userInfo) userInfo.style.display = 'none';
   }
 }
 
 // =========================================================================
-// 1. LẤY MÃ SV ĐĂNG NHẬP AN TOÀN NGUYÊN KHỐI
+// 3. TRA CỨU MÃ SV VÀ HỌ TÊN ĐĂNG NHẬP (TRUY CẤP AN TOÀN)
 // =========================================================================
 export function getLoggedInUsername() {
   try {
+    if (currentUser && (currentUser.studentCode || currentUser.username)) {
+      return String(currentUser.studentCode || currentUser.username).trim();
+    }
+
     const raw = sessionStorage.getItem('currentUser') || 
                 sessionStorage.getItem('userSession') || 
                 localStorage.getItem('currentUser') || 
@@ -186,33 +207,10 @@ export function getLoggedInUsername() {
   }
 }
 
-// =========================================================================
-// 2. CẬP NHẬT THÔNG TIN THÍ SINH LÊN GIAO DIỆN HEADER
-// =========================================================================
-export function renderStudentHeaderInfo() {
-  let loggedUser = {};
-  try {
-    const raw = sessionStorage.getItem('currentUser') || sessionStorage.getItem('userSession');
-    if (raw) loggedUser = JSON.parse(raw);
-  } catch(e) {}
-
-  const code = loggedUser.studentCode || loggedUser.username || loggedUser.code || getLoggedInUsername();
-  const name = loggedUser.fullName || loggedUser.name || loggedUser.displayName || 'Sinh Viên';
-
-  // Đẩy dữ liệu ra giao diện HTML
-  const nameEl = document.getElementById('studentNameDisplay');
-  const codeEl = document.getElementById('studentCodeDisplay');
-  const tagEl = document.getElementById('studentTagDisplay');
-
-  if (nameEl) nameEl.innerText = name;
-  if (codeEl) codeEl.innerText = `Mã SV: ${code || 'N/A'}`;
-  if (tagEl) tagEl.innerText = `${name} (Sinh viên)`;
-}
-
-// =========================================================================
-// HÀM BỔ SUNG: CHỈ DÙNG ĐỂ LẤY HỌ TÊN HIỂN THỊ TRÊN GIAO DIỆN HEADER
-// =========================================================================
 export function getLoggedInFullName() {
+  if (currentUser && currentUser.fullName) {
+    return String(currentUser.fullName).trim();
+  }
   const possibleKeys = ['currentUser', 'userSession', 'user', 'loggedInUser'];
   for (const key of possibleKeys) {
     const rawVal = localStorage.getItem(key) || sessionStorage.getItem(key);
@@ -228,8 +226,29 @@ export function getLoggedInFullName() {
   return getLoggedInUsername() || 'Sinh Viên';
 }
 
+export function renderStudentHeaderInfo() {
+  let loggedUser = currentUser || {};
+  if (!loggedUser.username) {
+    try {
+      const raw = sessionStorage.getItem('currentUser') || sessionStorage.getItem('userSession');
+      if (raw) loggedUser = JSON.parse(raw);
+    } catch(e) {}
+  }
+
+  const code = loggedUser.studentCode || loggedUser.username || loggedUser.code || getLoggedInUsername();
+  const name = loggedUser.fullName || loggedUser.name || loggedUser.displayName || 'Sinh Viên';
+
+  const nameEl = document.getElementById('studentNameDisplay');
+  const codeEl = document.getElementById('studentCodeDisplay');
+  const tagEl = document.getElementById('studentTagDisplay');
+
+  if (nameEl) nameEl.innerText = name;
+  if (codeEl) codeEl.innerText = `Mã SV: ${code || 'N/A'}`;
+  if (tagEl) tagEl.innerText = `${name} (Sinh viên)`;
+}
+
 // =========================================================================
-// 3. GIÁM SÁT VI PHẠM (ANTI-CHEAT VIOLATION TRACKER)
+// 4. GIÁM SÁT VI PHẠM (ANTI-CHEAT VIOLATION TRACKER)
 // =========================================================================
 export function startViolationTracking() {
   violationCount = 0;
@@ -261,7 +280,6 @@ function processViolation() {
     alert(`⚠️ VI PHẠM QUY CHẾ (${violationCount}/${max}): Bạn đã rời khỏi màn hình thi!\nHệ thống TỰ ĐỘNG NỘP BÀI TỨC THỜI.`);
     stopViolationTracking();
     
-    // Gọi hàm tự động nộp bài và dọn sạch bản nháp
     if (typeof window.executeSubmitExam === 'function') {
       window.executeSubmitExam();
     }
@@ -273,7 +291,7 @@ function processViolation() {
 }
 
 // =========================================================================
-// 4. TIỆN ÍCH GIAO DIỆN VÀ OVERLAY LOADING
+// 5. TIỆN ÍCH GIAO DIỆN VÀ OVERLAY LOADING
 // =========================================================================
 export function showAppLoading(message = 'Đang xử lý dữ liệu...') {
   let overlay = document.getElementById('globalAppLoadingOverlay');
@@ -332,3 +350,6 @@ window.showView = showView;
 window.togglePasswordVisibility = togglePasswordVisibility;
 window.showAppLoading = showAppLoading;
 window.hideAppLoading = hideAppLoading;
+window.renderStudentHeaderInfo = renderStudentHeaderInfo;
+window.getLoggedInUsername = getLoggedInUsername;
+window.getLoggedInFullName = getLoggedInFullName;
