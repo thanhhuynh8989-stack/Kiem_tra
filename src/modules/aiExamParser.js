@@ -378,10 +378,14 @@ export async function handlePublishExam() {
   try {
     setUploadStatus('⏳ Đang tạo đề thi và lưu lên kho dữ liệu...', 'color: #2563eb');
 
+    // Ưu tiên lấy Mã Giảng viên thực tế đang đăng nhập
+    const lecturerId = getLoggedInUsername() || currentUser?.username || 'admin';
+    console.log("🔍 [FE_LOG] handlePublishExam - ID Giảng viên tạo đề:", lecturerId);
+
     currentExamState.title = examTitle;
     currentExamState.durationMinutes = durationMinutes;
     currentExamState.maxViolations = maxViolations;
-    currentExamState.createdBy = currentUser ? currentUser.username : 'anonymous';
+    currentExamState.createdBy = lecturerId;
 
     const { studentExam, masterKey } = examModel.splitExamForPublishing(currentExamState);
     const rawId = String(studentExam.examId || `exam_${Date.now()}`);
@@ -389,13 +393,16 @@ export async function handlePublishExam() {
     const fileNameOnGithub = `exams/exam_${cleanExamCode.slice(0, 8)}.json`;
 
     await appsScriptService.saveAndPublishExam(
-      studentExam.examId, masterKey, studentExam, fileNameOnGithub, currentUser?.username
+      studentExam.examId, masterKey, studentExam, fileNameOnGithub, lecturerId
     );
 
     setUploadStatus(`🎉 Xuất bản thành công! Mã đề thi: <strong>${fileNameOnGithub}</strong>`, 'color: #10b981');
     alert(`🎉 Xuất bản đề thi thành công!\nMã đề: ${fileNameOnGithub}`);
+    
+    // Tải lại danh sách đề thi ngay sau khi xuất bản thành công
     handleLoadMyExams();
   } catch (err) {
+    console.error("❌ [FE_LOG] handlePublishExam Error:", err);
     setUploadStatus(`❌ Lỗi xuất bản: ${err.message}`, 'color: #ef4444');
   }
 }
@@ -418,14 +425,28 @@ export async function handleLoadMyExams() {
   container.innerHTML = '<p style="color: #2563eb; font-size: 13px;">🔄 Đang lấy danh sách đề thi...</p>';
 
   try {
+    // Trích xuất Mã Giảng viên đăng nhập
     const username = getLoggedInUsername();
+    console.log("🔍 [FE_LOG] handleLoadMyExams - Extracted Lecturer ID:", username);
+
     if (!username) {
-      container.innerHTML = '<p style="color: #ef4444; font-size: 13px;">⚠️ Chưa đăng nhập!</p>';
+      console.warn("⚠️ [FE_LOG] handleLoadMyExams: Không tìm thấy ID Giảng viên đăng nhập!");
+      container.innerHTML = '<p style="color: #ef4444; font-size: 13px;">⚠️ Chưa đăng nhập hoặc phiên đăng nhập hết hạn!</p>';
       return;
     }
 
-    const response = await appsScriptService.getLecturerExams(username);
-    const exams = Array.isArray(response.exams) ? response.exams : (Array.isArray(response.data) ? response.data : []);
+    // Truyền đồng thời cả lecturerCode và username về Apps Script + Log theo dõi
+    const response = await appsScriptService.request('GET_MY_EXAMS', { 
+      lecturerCode: username, 
+      username: username 
+    });
+
+    console.log("✅ [FE_LOG] handleLoadMyExams Response from BE:", response);
+
+    const exams = Array.isArray(response.exams) 
+      ? response.exams 
+      : (Array.isArray(response.data) ? response.data : []);
+      
     window.rawFetchedExams = exams;
 
     const isAdmin = String(username).trim().toLowerCase() === 'admin';
@@ -441,9 +462,14 @@ export async function handleLoadMyExams() {
       filterWrapper.style.display = 'none';
     }
 
-    renderExamsList(exams, username);
+    if (typeof renderExamsList === 'function') {
+      renderExamsList(exams, username);
+    } else if (typeof window.renderExamsList === 'function') {
+      window.renderExamsList(exams, username);
+    }
 
   } catch (err) {
+    console.error("❌ [FE_LOG] handleLoadMyExams Error:", err);
     container.innerHTML = `<p style="color: #ef4444; font-size: 13px;">❌ Lỗi kết nối: ${err.message}</p>`;
   } finally {
     if (btnReload) {
