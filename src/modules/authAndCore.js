@@ -31,42 +31,20 @@ export function normalizeUserData(raw) {
   let rawRole = obj.role || obj.Role || obj.ROLE || obj.userRole || raw.role || raw.Role || '';
   let normalizedRole = String(rawRole).toUpperCase().trim();
 
-  let username = obj.username || obj.User || obj.user || raw.username || raw.User || '';
-  if (typeof username === 'object') username = '';
+  let username = String(obj.username || obj.User || obj.user || raw.username || raw.User || '').trim();
+  let codeId = String(obj.lecturerCode || obj.studentCode || obj.code || obj.studentId || username).trim();
+  let className = String(obj.className || obj.class || obj.Class || obj.studentClass || '').trim();
+  let fullName = String(obj.fullName || obj['Full name'] || obj.fullname || obj.Fullname || obj['full_name'] || obj.name || raw.fullName || '').trim();
 
-  let codeId = obj.lecturerCode || obj.studentCode || obj.code || obj.studentId || username;
-  if (typeof codeId === 'object') codeId = '';
-
-  let className = obj.className || obj.class || obj.Class || obj.studentClass || '';
-  if (typeof className === 'object') className = '';
-
-  let fullName = obj.fullName || obj['Full name'] || obj.fullname || obj.Fullname || obj['full_name'] || obj.name || raw.fullName || '';
-  if (typeof fullName === 'object') fullName = '';
-
-  const knownRoles = ['ADMIN', 'LECTURER', 'STUDENT'];
-  
-  if (!fullName || knownRoles.includes(String(fullName).toUpperCase().trim())) {
-    fullName = (username && !knownRoles.includes(String(username).toUpperCase().trim())) 
-               ? username 
-               : (normalizedRole === 'ADMIN' ? 'Quản trị hệ thống' : 
-                  normalizedRole === 'LECTURER' ? 'Giảng viên' : 'Sinh viên');
-  }
-
-  if (!normalizedRole || !knownRoles.includes(normalizedRole)) {
-    if (knownRoles.includes(String(obj.Role || raw.Role).toUpperCase().trim())) {
-      normalizedRole = String(obj.Role || raw.Role).toUpperCase().trim();
-    } else if (knownRoles.includes(String(username).toUpperCase().trim())) {
-      normalizedRole = String(username).toUpperCase().trim();
-    }
-  }
+  const isStudent = (normalizedRole === 'STUDENT');
 
   return {
     authenticated: raw.authenticated !== undefined ? raw.authenticated : (raw.status === 'success' || !!normalizedRole),
-    username: String(username).trim(),
-    lecturerCode: String(codeId || username).trim(), // Mã Giảng viên
-    studentCode: String(codeId || username).trim(),  // Mã Sinh viên
-    className: String(className).trim(),
-    fullName: String(fullName).trim(),
+    username: username,
+    lecturerCode: isStudent ? '' : codeId,  // Chỉ gán nếu là Giảng viên / Admin
+    studentCode: isStudent ? codeId : '',   // Chỉ gán nếu là Sinh viên
+    className: className,
+    fullName: fullName || (isStudent ? 'Sinh viên' : 'Giảng viên'),
     role: normalizedRole
   };
 }
