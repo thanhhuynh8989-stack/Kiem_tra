@@ -9,16 +9,32 @@ import {
 } from './authAndCore.js';
 
 // =========================================================================
-// 1. DRAFT MANAGER (TỰ ĐỘNG LƯU BÀI DỞ VÀO LOCAL STORAGE)
+// 1. THUẬT TOÁN XÁO TRỘN NGUYÊN TẮC FISHER-YATES
+// =========================================================================
+function shuffleArray(arr) {
+  const array = [...arr];
+  for (let i = array.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [array[i], array[j]] = [array[j], array[i]];
+  }
+  return array;
+}
+
+// =========================================================================
+// 2. DRAFT MANAGER (LƯU BÀI DỞ & BỐ CỤC XÁO TRỘN VÀO LOCAL STORAGE)
 // =========================================================================
 export const ExamDraftManager = {
   getDraftKey(username, examId) {
     return `exam_draft_${String(username).trim()}_${String(examId).trim()}`;
   },
-  saveDraft(username, examId, userAnswers, remainingSeconds) {
+  saveDraft(username, examId, userAnswers, remainingSeconds, layout = null) {
     if (!username || !examId) return;
+    const existing = this.getDraft(username, examId) || {};
     localStorage.setItem(this.getDraftKey(username, examId), JSON.stringify({
-      answers: userAnswers, remainingSeconds, updatedAt: Date.now()
+      answers: userAnswers,
+      remainingSeconds: remainingSeconds,
+      layout: layout || existing.layout || null,
+      updatedAt: Date.now()
     }));
   },
   getDraft(username, examId) {
@@ -32,7 +48,7 @@ export const ExamDraftManager = {
 };
 
 // =========================================================================
-// 2. BẢNG ĐIỀU KHIỂN & BÀI THI CỦA SINH VIÊN (STUDENT DASHBOARD)
+// 3. BẢNG ĐIỀU KHIỂN & BÀI THI CỦA SINH VIÊN (STUDENT DASHBOARD)
 // =========================================================================
 export async function handleLoadStudentDashboard() {
   const container = document.getElementById('studentExamContainer');
@@ -66,7 +82,6 @@ export function renderStudentDashboard(exams = []) {
     exams.forEach(ex => {
       const hasScore = ex.score !== null && ex.score !== undefined && ex.score !== '';
       const isCompleted = ex.isCompleted || hasScore;
-      
       const draft = ExamDraftManager.getDraft(username, ex.examId) || ExamDraftManager.getDraft(username, ex.examCode);
       const hasDraft = !isCompleted && draft && Object.keys(draft.answers || {}).length > 0;
 
@@ -79,9 +94,9 @@ export function renderStudentDashboard(exams = []) {
           <div style="display:flex; justify-content:space-between; align-items:center; border-top:1px solid #f1f5f9; padding-top:8px;">
             <span style="font-weight:700; color:${hasScore ? '#15803d' : '#94a3b8'}; font-size:14px;">${hasScore ? `${ex.score}/10` : '--'}</span>
             ${isCompleted ? `
-              <button type="button" onclick="handleReviewSubmittedExam('${ex.examId}', '${ex.examCode}')" style="background:#0d9488; min-height:32px; padding:4px 10px; font-size:12px; color:#fff; border:none; border-radius:6px; cursor:pointer;">👁️ Xem lại bài</button>
+              <button type="button" onclick="handleReviewSubmittedExam('${ex.examId}', '${ex.examCode}')" style="background:#0d9488; color:#fff; border:none; padding:6px 12px; border-radius:6px; cursor:pointer; font-size:12px;">👁️ Xem lại bài</button>
             ` : `
-              <button type="button" onclick="handleStartTakeExam('${ex.examId}', '${ex.examCode}')" style="background:${hasDraft ? '#d97706' : '#2563eb'}; min-height:32px; padding:4px 10px; font-size:12px; color:#fff; border:none; border-radius:6px; cursor:pointer;">
+              <button type="button" onclick="handleStartTakeExam('${ex.examId}', '${ex.examCode}')" style="background:${hasDraft ? '#d97706' : '#2563eb'}; color:#fff; border:none; padding:6px 12px; border-radius:6px; cursor:pointer; font-size:12px;">
                 ${hasDraft ? '🔄 Làm tiếp' : '✍️ Làm bài'}
               </button>
             `}
@@ -95,11 +110,11 @@ export function renderStudentDashboard(exams = []) {
 }
 
 // =========================================================================
-// 3. MÀN HÌNH LÀM BÀI & ĐỒNG HỒ ĐẾM NGƯỢC
+// 4. KHỞI TẠO BÀI THI & XÁO TRỘN ĐỀ THI TỰ ĐỘNG
 // =========================================================================
 export async function handleStartTakeExam(examId, examCode = '') {
   const username = getLoggedInUsername();
-  showAppLoading('⏳ Đang tải bài thi...');
+  showAppLoading('⏳ Đang tải đề thi & khởi tạo xáo trộn...');
 
   try {
     let rawName = String(examCode || examId).trim();
@@ -111,27 +126,50 @@ export async function handleStartTakeExam(examId, examCode = '') {
     const res = await fetch(cdnUrl);
     if (!res.ok) throw new Error('Không thể tải file bài thi.');
     const examData = await res.json();
-    const questions = examData.questions || examData;
+    const rawQuestions = examData.questions || examData;
 
     hideAppLoading();
 
-    const draft = ExamDraftManager.getDraft(username, examId);
+    const draft = ExamDraftManager.getDraft(username, examId) || ExamDraftManager.getDraft(username, rawName);
     let initialAnswers = {};
     let initialTimeSeconds = (examData.durationMinutes || 45) * 60;
+    let shuffledLayout = null;
 
     if (draft && confirm('Bạn có muốn làm tiếp bài thi dở không?')) {
       initialAnswers = draft.answers || {};
       if (draft.remainingSeconds > 0) initialTimeSeconds = draft.remainingSeconds;
+      shuffledLayout = draft.layout || null;
     }
 
-    renderTakeExamScreen(examId, rawName, questions, initialAnswers, initialTimeSeconds);
+    // Nếu chưa có layout xáo trộn được lưu sẵn, tiến hành xáo trộn mới
+    if (!shuffledLayout) {
+      shuffledLayout = rawQuestions.map((q, idx) => {
+        const qId = q.id || (idx + 1);
+        const originalOptions = (q.options || []).map((optText, oIdx) => ({
+          originalLetter: String.fromCharCode(65 + oIdx), // 0->A, 1->B, 2->C, 3->D
+          text: String(optText).replace(/^[A-D][.:)]\s*/i, '')
+        }));
+        
+        return {
+          qId: qId,
+          stem: q.stem || q.text || '',
+          shuffledOptions: shuffleArray(originalOptions) // Xáo trộn 4 đáp án
+        };
+      });
+      shuffledLayout = shuffleArray(shuffledLayout); // Xáo trộn thứ tự các câu hỏi
+    }
+
+    renderTakeExamScreen(examId, rawName, shuffledLayout, initialAnswers, initialTimeSeconds);
   } catch (err) {
     hideAppLoading();
     alert(`Lỗi: ${err.message}`);
   }
 }
 
-export function renderTakeExamScreen(examId, fileName, questions, savedAnswers = {}, totalSeconds = 2700) {
+// =========================================================================
+// 5. MÀN HÌNH LÀM BÀI VÀ XỬ LÝ MAPPING NGUỢC KHI CHỌN ĐÁP ÁN
+// =========================================================================
+export function renderTakeExamScreen(examId, fileName, shuffledQuestions, savedAnswers = {}, totalSeconds = 2700) {
   const container = document.getElementById('studentExamContainer');
   if (!container) return;
 
@@ -139,27 +177,34 @@ export function renderTakeExamScreen(examId, fileName, questions, savedAnswers =
   let currentAnswers = { ...savedAnswers };
   let remainingSeconds = totalSeconds;
 
+  // Lưu bố cục xáo trộn vào Draft để F5 làm tiếp không bị đảo linh tinh
+  ExamDraftManager.saveDraft(username, examId, currentAnswers, remainingSeconds, shuffledQuestions);
+
   let html = `
     <div style="background:#fff; border-radius:10px; padding:16px; border:1px solid var(--border);">
-      <div style="position:sticky; top:10px; z-index:100; background:#0f172a; color:#fff; padding:10px 16px; border-radius:8px; display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
-        <span style="font-weight:600; font-size:14px;">📝 ${escapeHtml(fileName)}</span>
+      <div style="position:sticky; top:10px; z-index:100; background:#0f172a; color:#fff; padding:10px 16px; border-radius:8px; display:flex; justify-content:space-between; align-items:center; margin-bottom:16px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);">
+        <span style="font-weight:600; font-size:14px;">📝 ${escapeHtml(fileName)} <small style="color:#94a3b8; margin-left:8px;">(Đã xáo trộn đề)</small></span>
         <div id="examTimerDisplay" style="font-size:16px; font-weight:700; color:#38bdf8;">⏱️ 00:00</div>
       </div>
 
       <div>
-        ${questions.map((q, idx) => {
-          const selectedAns = currentAnswers[idx + 1] || '';
+        ${shuffledQuestions.map((q, visualIdx) => {
+          const qId = q.qId;
+          const selectedOriginalAns = currentAnswers[qId] || ''; // Ký tự đáp án gốc (A, B, C, D)
+
           return `
-            <div style="background:#f8fafc; border:1px solid #cbd5e1; border-radius:8px; padding:12px; margin-bottom:12px;">
-              <strong style="color:#0f172a;">Câu ${idx + 1}:</strong> ${escapeHtml(q.stem || q.text || '')}
-              <div style="margin-top:8px; display:flex; flex-direction:column; gap:6px;">
-                ${(q.options || []).map((opt, oIdx) => {
-                  const letter = String.fromCharCode(65 + oIdx);
-                  const isChecked = selectedAns === letter;
+            <div style="background:#f8fafc; border:1px solid #cbd5e1; border-radius:8px; padding:14px; margin-bottom:14px;">
+              <strong style="color:#0f172a; font-size:14px;">Câu ${visualIdx + 1}:</strong> ${escapeHtml(q.stem)}
+              
+              <div style="margin-top:10px; display:flex; flex-direction:column; gap:8px;">
+                ${q.shuffledOptions.map((optObj, visualOptIdx) => {
+                  const visualLetter = String.fromCharCode(65 + visualOptIdx); // Nhãn hiển thị A, B, C, D
+                  const isChecked = selectedOriginalAns === optObj.originalLetter; // So sánh khớp ký tự gốc
+
                   return `
-                    <label style="display:flex; align-items:center; gap:8px; background:#fff; padding:8px; border-radius:6px; border:1px solid ${isChecked ? '#2563eb' : '#cbd5e1'}; cursor:pointer;">
-                      <input type="radio" name="take_ans_${idx}" value="${letter}" ${isChecked ? 'checked' : ''} onchange="window.handleStudentSelectOption('${examId}', ${idx + 1}, '${letter}')">
-                      <strong>${letter}.</strong> ${escapeHtml(String(opt).replace(/^[A-D][.:)]\s*/i, ''))}
+                    <label style="display:flex; align-items:center; gap:10px; background:#fff; padding:10px 12px; border-radius:6px; border:1px solid ${isChecked ? '#2563eb' : '#cbd5e1'}; cursor:pointer; font-size:13px; transition: all 0.15s ease;">
+                      <input type="radio" name="take_ans_${qId}" value="${optObj.originalLetter}" ${isChecked ? 'checked' : ''} onchange="window.handleStudentSelectOption('${examId}', '${qId}', '${optObj.originalLetter}')">
+                      <strong style="color:${isChecked ? '#2563eb' : '#475569'};">${visualLetter}.</strong> ${escapeHtml(optObj.text)}
                     </label>
                   `;
                 }).join('')}
@@ -169,7 +214,7 @@ export function renderTakeExamScreen(examId, fileName, questions, savedAnswers =
         }).join('')}
       </div>
 
-      <button type="button" onclick="handleConfirmSubmitExam('${examId}', ${questions.length})" style="background:#16a34a; width:100%; margin-top:16px;">
+      <button type="button" onclick="handleConfirmSubmitExam('${examId}', ${shuffledQuestions.length})" style="background:#16a34a; color:#fff; font-size:15px; font-weight:600; padding:12px; border:none; border-radius:8px; width:100%; margin-top:16px; cursor:pointer;">
         🚀 Nộp Bài Thi
       </button>
     </div>
@@ -177,9 +222,10 @@ export function renderTakeExamScreen(examId, fileName, questions, savedAnswers =
 
   container.innerHTML = html;
 
-  window.handleStudentSelectOption = function(eId, qNum, letter) {
-    currentAnswers[qNum] = letter;
-    ExamDraftManager.saveDraft(username, eId, currentAnswers, remainingSeconds);
+  // Hàm xử lý chọn phương án: Lưu lại KÝ TỰ GỐC (originalLetter) tương ứng với q.id
+  window.handleStudentSelectOption = function(eId, questionId, originalLetter) {
+    currentAnswers[questionId] = originalLetter;
+    ExamDraftManager.saveDraft(username, eId, currentAnswers, remainingSeconds, shuffledQuestions);
   };
 
   startViolationTracking();
@@ -188,13 +234,13 @@ export function renderTakeExamScreen(examId, fileName, questions, savedAnswers =
   const timerInterval = setInterval(() => {
     remainingSeconds--;
     if (remainingSeconds % 5 === 0) {
-      ExamDraftManager.saveDraft(username, examId, currentAnswers, remainingSeconds);
+      ExamDraftManager.saveDraft(username, examId, currentAnswers, remainingSeconds, shuffledQuestions);
     }
 
     if (remainingSeconds <= 0) {
       clearInterval(timerInterval);
       alert('⏰ Đã hết giờ! Tự động nộp bài.');
-      executeSubmitExam(examId, questions, currentAnswers);
+      executeSubmitExam(examId, shuffledQuestions, currentAnswers);
       return;
     }
 
@@ -204,13 +250,13 @@ export function renderTakeExamScreen(examId, fileName, questions, savedAnswers =
   }, 1000);
 
   window.activeExamTimer = timerInterval;
-  window.currentActiveQuestionsForExam = questions;
+  window.currentActiveQuestionsForExam = shuffledQuestions;
   window.currentActiveAnswersForExam = currentAnswers;
   window.currentActiveExamId = examId;
 }
 
 // =========================================================================
-// 4. XỬ LÝ NỘP BÀI VÀ TÍNH ĐIỂM
+// 6. XỬ LÝ NỘP BÀI VÀ GỬI VỀ SERVER
 // =========================================================================
 export async function handleConfirmSubmitExam(examId, totalQuestions) {
   if (confirm(`Bạn có chắc chắn muốn NỘP BÀI THI ngay bây giờ?`)) {
@@ -234,7 +280,12 @@ export async function executeSubmitExam(
   try {
     const username = getLoggedInUsername();
     
-    // Lấy thông tin user hiện tại từ Session Storage
+    let activeAnswers = answers;
+    if (!activeAnswers || Object.keys(activeAnswers).length === 0) {
+      const draft = ExamDraftManager.getDraft(username, examId);
+      if (draft && draft.answers) activeAnswers = draft.answers;
+    }
+
     let loggedUser = {};
     try {
       loggedUser = JSON.parse(sessionStorage.getItem('currentUser') || sessionStorage.getItem('userSession') || '{}');
@@ -246,16 +297,19 @@ export async function executeSubmitExam(
       username: username
     };
 
-    // Gửi yêu cầu Nộp bài với đầy đủ thông tin Thí sinh
     const res = await appsScriptService.request('SUBMIT_EXAM', {
       examId: examId, 
       username: username,
       fullName: studentInfo.name,
       studentInfo: studentInfo,
-      answers: answers
+      answers: activeAnswers,
+      violationInfo: {
+        violationCount: window.violationCount || 0,
+        isAutoSubmitted: true,
+        reason: 'Nộp bài thi'
+      }
     });
 
-    // Dọn sạch bản nháp
     ExamDraftManager.clearDraft(username, examId);
     if (window.currentActiveExamCode) {
       ExamDraftManager.clearDraft(username, window.currentActiveExamCode);
@@ -266,7 +320,6 @@ export async function executeSubmitExam(
     const displayGrade = res.finalGrade !== undefined ? res.finalGrade : (res.score || 0);
     alert(`🎉 Đã nộp bài thành công!\nĐiểm số: ${displayGrade} / 10 (${res.score || 0}/${res.totalQuestions || questions.length} câu đúng)`);
     
-    // Tải lại Bảng điều khiển Sinh viên để cập nhật nút "Xem lại bài"
     handleLoadStudentDashboard();
   } catch (err) {
     hideAppLoading();
@@ -275,7 +328,7 @@ export async function executeSubmitExam(
 }
 
 // =========================================================================
-// 5. XEM LẠI BÀI THI ĐÃ NỘP (SUBMISSION REVIEW)
+// 7. XEM LẠI BÀI THI ĐÃ NỘP (SUBMISSION REVIEW)
 // =========================================================================
 export async function handleReviewSubmittedExam(examId, examCode = '') {
   const username = getLoggedInUsername();
@@ -315,21 +368,21 @@ export function renderExamReviewUI(fileName, questions, studentAnswers, score, s
         </div>
         <div style="display:flex; align-items:center; gap:10px;">
           <strong style="font-size:18px; color:#15803d;">${score} / 10</strong>
-          <button type="button" onclick="handleLoadStudentDashboard()" style="min-height:32px; padding:4px 10px; font-size:12px;">↩️ Quay lại</button>
+          <button type="button" onclick="handleLoadStudentDashboard()" style="min-height:32px; padding:4px 10px; font-size:12px; background:#64748b; color:#fff; border:none; border-radius:6px; cursor:pointer;">↩️ Quay lại</button>
         </div>
       </div>
 
       <div>
         ${questions.map((q, idx) => {
-          const qNum = idx + 1;
-          const userAns = String(studentAnswers[qNum] || '').trim().toUpperCase();
-          const keyAns = String(q.answerKey || q.answer || '').trim().toUpperCase();
+          const qId = q.id || (idx + 1);
+          const userAns = String(studentAnswers[qId] || studentAnswers[idx + 1] || '').trim().toUpperCase();
+          const keyAns = String(q.answerKey || q.answer || 'A').trim().toUpperCase();
           const isCorrect = userAns && userAns === keyAns;
 
           return `
             <div style="border:2px solid ${isCorrect ? '#86efac' : (userAns ? '#fca5a5' : '#cbd5e1')}; border-radius:8px; padding:12px; margin-bottom:12px;">
               <div style="display:flex; justify-content:space-between; margin-bottom:6px;">
-                <strong>Câu ${qNum}:</strong>
+                <strong>Câu ${idx + 1}:</strong>
                 <span style="font-size:12px; font-weight:700; color:${isCorrect ? '#15803d' : '#dc2626'};">${isCorrect ? '✅ Đúng' : '❌ Sai'}</span>
               </div>
               <div style="margin-bottom:8px; font-size:13px;">${escapeHtml(q.stem || q.text || '')}</div>
@@ -354,7 +407,7 @@ export function renderExamReviewUI(fileName, questions, studentAnswers, score, s
   container.innerHTML = html;
 }
 
-// Bán các hàm ra Window toàn cục để phục vụ gọi trực tiếp từ HTML onclick
+// Global scope binding
 window.handleLoadStudentDashboard = handleLoadStudentDashboard;
 window.handleStartTakeExam = handleStartTakeExam;
 window.handleConfirmSubmitExam = handleConfirmSubmitExam;
