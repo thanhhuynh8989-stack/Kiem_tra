@@ -53,12 +53,30 @@ export const ExamDraftManager = {
 export async function handleLoadStudentDashboard() {
   const container = document.getElementById('studentExamContainer');
   if (!container) return;
-  const username = getLoggedInUsername();
+
+  // Lấy dữ liệu tài khoản từ SessionStorage
+  let loggedUser = {};
+  try {
+    loggedUser = JSON.parse(sessionStorage.getItem('currentUser') || sessionStorage.getItem('userSession') || '{}');
+  } catch(e) {}
+
+  const studentCode = loggedUser.studentCode || loggedUser.username || loggedUser.user || getLoggedInUsername();
+  const studentName = loggedUser.fullName || loggedUser.name || '';
+
+  if (!studentCode || studentCode === '--') {
+    container.innerHTML = '<p style="color:#ef4444; font-size:13px;">⚠️ Chưa xác định được thông tin Sinh viên. Vui lòng đăng nhập lại!</p>';
+    return;
+  }
 
   container.innerHTML = '<p style="color:#2563eb; font-size:13px;">🔄 Đang nạp danh sách bài thi...</p>';
 
   try {
-    const res = await appsScriptService.request('GET_STUDENT_EXAMS', { username });
+    const res = await appsScriptService.request('GET_STUDENT_EXAMS', { 
+      username: studentCode,
+      studentCode: studentCode,
+      fullName: studentName 
+    });
+    
     const exams = res.exams || res.data || [];
     renderStudentDashboard(exams);
   } catch (err) {
