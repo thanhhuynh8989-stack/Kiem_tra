@@ -279,38 +279,62 @@ export async function executeSubmitExam(
 
   try {
     const username = getLoggedInUsername();
-    
-    // 1. LẤY ĐÁP ÁN DỞ NẾU BỊ ÉP NỘP DỘT NGỘT
-    let activeAnswers = answers;
-    if (!activeAnswers || Object.keys(activeAnswers).length === 0) {
-      const draft = ExamDraftManager.getDraft(username, examId);
-      if (draft && draft.answers) activeAnswers = draft.answers;
+
+    // 1. RÚT NGẮN MÃ ĐỀ VỀ DẠNG CHUẨN duy nhất (VD: exam_75ceb91a)
+    let shortExamId = String(examId || '').trim().toLowerCase()
+      .replace(/\.json$/i, '')
+      .replace(/^exams\//i, '');
+    const matchHex = shortExamId.match(/^(exam_[a-f0-9]{8})/i);
+    if (matchHex) {
+      shortExamId = matchHex[1];
     }
 
-    // 2. FRONTEND TỰ CHẤM ĐIỂM CHÍNH XÁC 100% DỰA TRÊN CÂU HỎI ĐÃ NẠP
+    // 2. NẾU THIẾU DỮ LIỆU CÂU HỎI / ĐÁP ÁN (DÙNG CHO TRƯỜNG HỢP ÉP NỘP BÀI)
+    let activeQuestions = questions;
+    if (!activeQuestions || activeQuestions.length === 0) {
+      activeQuestions = window.currentActiveQuestionsForExam || [];
+    }
+
+    let activeAnswers = answers;
+    if (!activeAnswers || Object.keys(activeAnswers).length === 0) {
+      activeAnswers = window.currentActiveAnswersForExam || {};
+      
+      // Nếu vẫn rỗng, tra cứu lại từ Bản nháp LocalStorage
+      const draft = ExamDraftManager.getDraft(username, examId) || ExamDraftManager.getDraft(username, shortExamId);
+      if (draft && draft.answers) {
+        activeAnswers = draft.answers;
+      }
+    }
+
+    // 3. FRONTEND TỰ CHẤM ĐIỂM CHÍNH XÁC 100% DỰA TRÊN CÂU HỎI ĐÃ NẠP
     let correctCount = 0;
-    const totalQ = questions.length > 0 ? questions.length : Object.keys(activeAnswers).length || 10;
+    const totalQ = activeQuestions.length > 0 ? activeQuestions.length : Object.keys(activeAnswers).length || 10;
 
-    questions.forEach((q, idx) => {
+    activeQuestions.forEach((q, idx) => {
       const qId = q.qId || q.id || (idx + 1);
-      const studentChoice = activeAnswers[qId] || activeAnswers[idx + 1] || activeAnswers[`q_${idx + 1}`];
+      
+      // Lấy lựa chọn của học sinh theo mọi khả năng lưu khóa
+      const studentChoice = activeAnswers[qId] ?? activeAnswers[idx + 1] ?? activeAnswers[`q_${idx + 1}`] ?? activeAnswers[`${idx + 1}`];
 
-      // Tìm đáp án đúng gốc của câu hỏi
-      let keyAns = q.answerKey || q.correctAnswer || q.answer;
+      // Lấy đáp án đúng gốc của câu hỏi
+      let keyAns = q.answerKey || q.correctAnswer || q.answer || q.rawQuestion?.answerKey || q.rawQuestion?.correctAnswer || q.rawQuestion?.answer;
+
       if (keyAns === undefined && Array.isArray(q.shuffledOptions)) {
         // Nếu đề bị xáo trộn, tra cứu qua mảng options gốc
         const origCorrect = q.shuffledOptions.find(o => o.isCorrect || o.originalLetter === q.correctAnswer);
         if (origCorrect) keyAns = origCorrect.originalLetter;
       }
 
-      if (studentChoice && keyAns && String(studentChoice).trim().toUpperCase() === String(keyAns).trim().toUpperCase()) {
-        correctCount++;
+      if (studentChoice !== undefined && studentChoice !== null && keyAns !== undefined && keyAns !== null) {
+        if (String(studentChoice).trim().toUpperCase() === String(keyAns).trim().toUpperCase()) {
+          correctCount++;
+        }
       }
     });
 
     const finalGrade = Number(((correctCount / totalQ) * 10).toFixed(2));
 
-    // 3. ĐÓNG GÓI THÔNG TIN THÍ SINH
+    // 4. ĐÓNG GÓI THÔNG TIN THÍ SINH
     let loggedUser = {};
     try {
       loggedUser = JSON.parse(sessionStorage.getItem('currentUser') || sessionStorage.getItem('userSession') || '{}');
@@ -322,9 +346,9 @@ export async function executeSubmitExam(
       username: username
     };
 
-    // 4. GỬI KẾT QUẢ ĐÃ TÍNH TOÁN VỀ SERVER GOOGLE SHEETS
+    // 5. GỬI KẾT QUẢ VỀ SERVER GOOGLE SHEETS
     const res = await appsScriptService.request('SUBMIT_EXAM', {
-      examId: examId, 
+      examId: shortExamId, 
       username: username,
       fullName: studentInfo.name,
       studentInfo: studentInfo,
@@ -339,8 +363,9 @@ export async function executeSubmitExam(
       }
     });
 
-    // Dọn dẹp bản nháp
+    // 6. DỌN SẠCH CÁC BẢN NHÁP LOCAL STORAGE
     ExamDraftManager.clearDraft(username, examId);
+    ExamDraftManager.clearDraft(username, shortExamId);
     if (window.currentActiveExamCode) {
       ExamDraftManager.clearDraft(username, window.currentActiveExamCode);
     }
