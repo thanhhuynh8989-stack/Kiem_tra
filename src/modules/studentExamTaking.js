@@ -313,42 +313,96 @@ export async function executeSubmitExam(
   try {
     const username = getLoggedInUsername();
 
-    // 1. Chuẩn hóa mã ngắn
+    // 1. Chuẩn hóa mã đề ngắn (Ví dụ: exam_75ceb91a)
     let shortExamId = String(examId || '').trim().toLowerCase()
       .replace(/\.json$/i, '').replace(/^exams\//i, '');
-    const matchHex = shortExamId.match(/^(exam_[a-f0-9]{8})/i);
-    if (matchHex) shortExamId = matchHex[1];
+    const matchHex = shortExamId.match(/(exam_[a-f0-9]{8})/i);
+    if (matchHex) shortExamId = matchHex[1].toLowerCase();
 
     // 2. Lấy danh sách câu hỏi và câu trả lời
-    let activeQuestions = questions.length > 0 ? questions : (window.currentActiveQuestionsForExam || []);
-    let activeAnswers = Object.keys(answers).length > 0 ? answers : (window.currentActiveAnswersForExam || {});
+    let activeQuestions = (Array.isArray(questions) && questions.length > 0) 
+      ? questions 
+      : (window.currentActiveQuestionsForExam || []);
+      
+    let activeAnswers = (answers && Object.keys(answers).length > 0) 
+      ? answers 
+      : (window.currentActiveAnswersForExam || {});
 
-    if (Object.keys(activeAnswers).length === 0) {
+    if (Object.keys(activeAnswers).length === 0 && typeof ExamDraftManager !== 'undefined') {
       const draft = ExamDraftManager.getDraft(username, examId) || ExamDraftManager.getDraft(username, shortExamId);
       if (draft && draft.answers) activeAnswers = draft.answers;
     }
 
-    // 3. Tính toán các chỉ số kết quả trên Frontend
+    // 3. Tính toán các chỉ số kết quả trên Frontend (Bao phủ xáo trộn đề & ép kiểu so sánh Chữ/Số)
     let correctCount = 0;
     let answeredCount = 0;
-    const totalQ = activeQuestions.length > 0 ? activeQuestions.length : Object.keys(activeAnswers).length || 10;
+    const totalQ = activeQuestions.length > 0 ? activeQuestions.length : (Object.keys(activeAnswers).length || 10);
 
     activeQuestions.forEach((q, idx) => {
       const qId = q.qId || q.id || (idx + 1);
-      const studentChoice = activeAnswers[qId] ?? activeAnswers[idx + 1] ?? activeAnswers[`q_${idx + 1}`];
+      
+      // Tra cứu câu trả lời của thí sinh qua nhiều định dạng key
+      const studentChoice = activeAnswers[qId] ?? 
+                            activeAnswers[String(qId)] ?? 
+                            activeAnswers[idx + 1] ?? 
+                            activeAnswers[String(idx + 1)] ?? 
+                            activeAnswers[`q_${idx + 1}`];
 
       if (studentChoice !== undefined && studentChoice !== null && String(studentChoice).trim() !== '') {
         answeredCount++;
-      }
 
-      let keyAns = q.answerKey || q.correctAnswer || q.answer;
-      if (keyAns === undefined && Array.isArray(q.shuffledOptions)) {
-        const origCorrect = q.shuffledOptions.find(o => o.isCorrect || o.originalLetter === q.correctAnswer);
-        if (origCorrect) keyAns = origCorrect.originalLetter;
-      }
+        let isCorrect = false;
 
-      if (studentChoice && keyAns && String(studentChoice).trim().toUpperCase() === String(keyAns).trim().toUpperCase()) {
-        correctCount++;
+        // CƠ CHẾ 1: Đối soát theo mảng phương án xáo trộn (shuffledOptions) nếu có
+        if (Array.isArray(q.shuffledOptions) && q.shuffledOptions.length > 0) {
+          let choiceIdx = -1;
+          if (typeof studentChoice === 'number') {
+            choiceIdx = studentChoice;
+          } else if (!isNaN(parseInt(studentChoice, 10)) && String(parseInt(studentChoice, 10)) === String(studentChoice).trim()) {
+            choiceIdx = parseInt(studentChoice, 10);
+          } else if (typeof studentChoice === 'string') {
+            const letterMap = { 'A': 0, 'B': 1, 'C': 2, 'D': 3 };
+            choiceIdx = letterMap[studentChoice.trim().toUpperCase()] ?? -1;
+          }
+
+          if (choiceIdx >= 0 && choiceIdx < q.shuffledOptions.length) {
+            const selectedOpt = q.shuffledOptions[choiceIdx];
+            if (selectedOpt) {
+              const keyAns = q.correctAnswer ?? q.answerKey ?? q.answer;
+              const keyStr = String(keyAns !== undefined ? keyAns : '').trim().toUpperCase();
+
+              if (selectedOpt.isCorrect === true) {
+                isCorrect = true;
+              } else if (keyStr !== '') {
+                if (String(selectedOpt.originalLetter || '').trim().toUpperCase() === keyStr) isCorrect = true;
+                if (String(selectedOpt.originalIndex) === keyStr) isCorrect = true;
+                if (String(selectedOpt.id || '') === keyStr) isCorrect = true;
+              }
+            }
+          }
+        }
+
+        // CƠ CHẾ 2: So sánh trực tiếp giữa Lựa chọn và Đáp án gốc (Hỗ trợ đối soát cả Chữ 'A'-'D' và Số 0-3)
+        if (!isCorrect) {
+          const keyAns = q.correctAnswer ?? q.answerKey ?? q.answer;
+          const sStr = String(studentChoice).trim().toUpperCase();
+          const kStr = String(keyAns !== undefined ? keyAns : '').trim().toUpperCase();
+
+          if (sStr !== '' && kStr !== '') {
+            if (sStr === kStr) {
+              isCorrect = true;
+            } else {
+              const letterToNum = { 'A': '0', 'B': '1', 'C': '2', 'D': '3' };
+              const numToLetter = { '0': 'A', '1': 'B', '2': 'C', '3': 'D' };
+
+              if (letterToNum[sStr] === kStr || numToLetter[sStr] === kStr) {
+                isCorrect = true;
+              }
+            }
+          }
+        }
+
+        if (isCorrect) correctCount++;
       }
     });
 
@@ -371,25 +425,32 @@ export async function executeSubmitExam(
       studentName: studentName,
       studentClass: studentClass,
       answers: activeAnswers,
-      correctCount: correctCount,     // Số câu đúng
-      answeredCount: answeredCount,   // Số câu đã trả lời
-      totalQuestions: totalQ,         // Tổng số câu trong đề
-      finalGrade: finalGrade,         // Điểm thang điểm 10
+      correctCount: correctCount,       // Số câu đúng thực tế
+      answeredCount: answeredCount,     // Số câu đã trả lời
+      totalQuestions: totalQ,           // Tổng số câu trong đề
+      finalGrade: finalGrade,           // Điểm thang 10
       violationInfo: {
         violationCount: window.violationCount || 0,
-        isAutoSubmitted: window.violationCount >= 3,
-        reason: window.violationCount >= 3 ? 'Tự động nộp do vi phạm quy chế' : 'Nộp bài thi'
+        isAutoSubmitted: (window.violationCount || 0) >= 3,
+        reason: (window.violationCount || 0) >= 3 ? 'Tự động nộp do vi phạm quy chế' : 'Nộp bài thi'
       }
     });
 
-    // 6. Xóa dọn bản nháp
-    ExamDraftManager.clearDraft(username, examId);
-    ExamDraftManager.clearDraft(username, shortExamId);
+    // 6. Xóa dọn bản nháp bài thi
+    if (typeof ExamDraftManager !== 'undefined') {
+      ExamDraftManager.clearDraft(username, examId);
+      ExamDraftManager.clearDraft(username, shortExamId);
+    }
 
     hideAppLoading();
 
     alert(`🎉 Đã nộp bài thành công!\nĐiểm số: ${finalGrade} / 10\nSố câu đúng: ${correctCount}/${totalQ}\nSố câu đã làm: ${answeredCount}/${totalQ}`);
-    handleLoadStudentDashboard();
+    
+    if (typeof handleLoadStudentDashboard === 'function') {
+      handleLoadStudentDashboard();
+    } else if (typeof window.handleLoadStudentDashboard === 'function') {
+      window.handleLoadStudentDashboard();
+    }
 
   } catch (err) {
     hideAppLoading();
