@@ -280,12 +280,37 @@ export async function executeSubmitExam(
   try {
     const username = getLoggedInUsername();
     
+    // 1. LẤY ĐÁP ÁN DỞ NẾU BỊ ÉP NỘP DỘT NGỘT
     let activeAnswers = answers;
     if (!activeAnswers || Object.keys(activeAnswers).length === 0) {
       const draft = ExamDraftManager.getDraft(username, examId);
       if (draft && draft.answers) activeAnswers = draft.answers;
     }
 
+    // 2. FRONTEND TỰ CHẤM ĐIỂM CHÍNH XÁC 100% DỰA TRÊN CÂU HỎI ĐÃ NẠP
+    let correctCount = 0;
+    const totalQ = questions.length > 0 ? questions.length : Object.keys(activeAnswers).length || 10;
+
+    questions.forEach((q, idx) => {
+      const qId = q.qId || q.id || (idx + 1);
+      const studentChoice = activeAnswers[qId] || activeAnswers[idx + 1] || activeAnswers[`q_${idx + 1}`];
+
+      // Tìm đáp án đúng gốc của câu hỏi
+      let keyAns = q.answerKey || q.correctAnswer || q.answer;
+      if (keyAns === undefined && Array.isArray(q.shuffledOptions)) {
+        // Nếu đề bị xáo trộn, tra cứu qua mảng options gốc
+        const origCorrect = q.shuffledOptions.find(o => o.isCorrect || o.originalLetter === q.correctAnswer);
+        if (origCorrect) keyAns = origCorrect.originalLetter;
+      }
+
+      if (studentChoice && keyAns && String(studentChoice).trim().toUpperCase() === String(keyAns).trim().toUpperCase()) {
+        correctCount++;
+      }
+    });
+
+    const finalGrade = Number(((correctCount / totalQ) * 10).toFixed(2));
+
+    // 3. ĐÓNG GÓI THÔNG TIN THÍ SINH
     let loggedUser = {};
     try {
       loggedUser = JSON.parse(sessionStorage.getItem('currentUser') || sessionStorage.getItem('userSession') || '{}');
@@ -297,12 +322,16 @@ export async function executeSubmitExam(
       username: username
     };
 
+    // 4. GỬI KẾT QUẢ ĐÃ TÍNH TOÁN VỀ SERVER GOOGLE SHEETS
     const res = await appsScriptService.request('SUBMIT_EXAM', {
       examId: examId, 
       username: username,
       fullName: studentInfo.name,
       studentInfo: studentInfo,
       answers: activeAnswers,
+      score: correctCount,        // Số câu đúng
+      totalQuestions: totalQ,     // Tổng số câu
+      finalGrade: finalGrade,     // Điểm thang 10
       violationInfo: {
         violationCount: window.violationCount || 0,
         isAutoSubmitted: true,
@@ -310,6 +339,7 @@ export async function executeSubmitExam(
       }
     });
 
+    // Dọn dẹp bản nháp
     ExamDraftManager.clearDraft(username, examId);
     if (window.currentActiveExamCode) {
       ExamDraftManager.clearDraft(username, window.currentActiveExamCode);
@@ -317,10 +347,9 @@ export async function executeSubmitExam(
 
     hideAppLoading();
 
-    const displayGrade = res.finalGrade !== undefined ? res.finalGrade : (res.score || 0);
-    alert(`🎉 Đã nộp bài thành công!\nĐiểm số: ${displayGrade} / 10 (${res.score || 0}/${res.totalQuestions || questions.length} câu đúng)`);
-    
+    alert(`🎉 Đã nộp bài thành công!\nĐiểm số: ${finalGrade} / 10 (${correctCount}/${totalQ} câu đúng)`);
     handleLoadStudentDashboard();
+
   } catch (err) {
     hideAppLoading();
     alert(`Lỗi nộp bài: ${err.message}`);
