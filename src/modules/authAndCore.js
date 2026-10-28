@@ -191,19 +191,23 @@ export function showView(viewId) {
 // =========================================================================
 export function getLoggedInUsername() {
   try {
-    if (currentUser && (currentUser.studentCode || currentUser.username)) {
-      return String(currentUser.studentCode || currentUser.username).trim();
-    }
-
     const raw = sessionStorage.getItem('currentUser') || 
                 sessionStorage.getItem('userSession') || 
                 localStorage.getItem('currentUser') || 
                 localStorage.getItem('userSession');
-    if (!raw) return '';
+                
+    if (!raw) {
+      console.warn("⚠️ [FE_LOG] getLoggedInUsername: Không tìm thấy Session storage nào!");
+      return '';
+    }
+
     const u = JSON.parse(raw);
-    const code = u.studentCode || u.username || u.code || u.user || u.id || '';
+    const code = u.studentCode || u.lecturerCode || u.username || u.code || u.user || u.id || '';
+    
+    console.log("🔍 [FE_LOG] getLoggedInUsername extracted ID:", String(code).trim(), "from object:", u);
     return String(code).trim();
   } catch (e) {
+    console.error("❌ [FE_LOG] Error in getLoggedInUsername:", e);
     return '';
   }
 }
