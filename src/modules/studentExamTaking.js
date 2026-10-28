@@ -280,99 +280,80 @@ export async function executeSubmitExam(
   try {
     const username = getLoggedInUsername();
 
-    // 1. RÚT NGẮN MÃ ĐỀ VỀ DẠNG CHUẨN duy nhất (VD: exam_75ceb91a)
+    // 1. CHUẨN HÓA MÃ ĐỀ NGẮN
     let shortExamId = String(examId || '').trim().toLowerCase()
-      .replace(/\.json$/i, '')
-      .replace(/^exams\//i, '');
+      .replace(/\.json$/i, '').replace(/^exams\//i, '');
     const matchHex = shortExamId.match(/^(exam_[a-f0-9]{8})/i);
-    if (matchHex) {
-      shortExamId = matchHex[1];
-    }
+    if (matchHex) shortExamId = matchHex[1];
 
-    // 2. NẾU THIẾU DỮ LIỆU CÂU HỎI / ĐÁP ÁN (DÙNG CHO TRƯỜNG HỢP ÉP NỘP BÀI)
-    let activeQuestions = questions;
-    if (!activeQuestions || activeQuestions.length === 0) {
-      activeQuestions = window.currentActiveQuestionsForExam || [];
-    }
+    // 2. LẤY CÂU HỎI VÀ CÂU TRẢ LỜI (HỖ TRỢ ÉP NỘP DỘT NGỘT)
+    let activeQuestions = questions.length > 0 ? questions : (window.currentActiveQuestionsForExam || []);
+    let activeAnswers = Object.keys(answers).length > 0 ? answers : (window.currentActiveAnswersForExam || {});
 
-    let activeAnswers = answers;
-    if (!activeAnswers || Object.keys(activeAnswers).length === 0) {
-      activeAnswers = window.currentActiveAnswersForExam || {};
-      
-      // Nếu vẫn rỗng, tra cứu lại từ Bản nháp LocalStorage
+    if (Object.keys(activeAnswers).length === 0) {
       const draft = ExamDraftManager.getDraft(username, examId) || ExamDraftManager.getDraft(username, shortExamId);
-      if (draft && draft.answers) {
-        activeAnswers = draft.answers;
-      }
+      if (draft && draft.answers) activeAnswers = draft.answers;
     }
 
-    // 3. FRONTEND TỰ CHẤM ĐIỂM CHÍNH XÁC 100% DỰA TRÊN CÂU HỎI ĐÃ NẠP
+    // 3. FRONTEND TỰ TÍNH TOÁN CÁC CHỈ SỐ KẾT QUẢ
     let correctCount = 0;
+    let answeredCount = 0;
     const totalQ = activeQuestions.length > 0 ? activeQuestions.length : Object.keys(activeAnswers).length || 10;
 
     activeQuestions.forEach((q, idx) => {
       const qId = q.qId || q.id || (idx + 1);
-      
-      // Lấy lựa chọn của học sinh theo mọi khả năng lưu khóa
-      const studentChoice = activeAnswers[qId] ?? activeAnswers[idx + 1] ?? activeAnswers[`q_${idx + 1}`] ?? activeAnswers[`${idx + 1}`];
+      const studentChoice = activeAnswers[qId] ?? activeAnswers[idx + 1] ?? activeAnswers[`q_${idx + 1}`];
 
-      // Lấy đáp án đúng gốc của câu hỏi
-      let keyAns = q.answerKey || q.correctAnswer || q.answer || q.rawQuestion?.answerKey || q.rawQuestion?.correctAnswer || q.rawQuestion?.answer;
+      if (studentChoice !== undefined && studentChoice !== null && String(studentChoice).trim() !== '') {
+        answeredCount++;
+      }
 
+      // Xác định đáp án đúng gốc
+      let keyAns = q.answerKey || q.correctAnswer || q.answer;
       if (keyAns === undefined && Array.isArray(q.shuffledOptions)) {
-        // Nếu đề bị xáo trộn, tra cứu qua mảng options gốc
         const origCorrect = q.shuffledOptions.find(o => o.isCorrect || o.originalLetter === q.correctAnswer);
         if (origCorrect) keyAns = origCorrect.originalLetter;
       }
 
-      if (studentChoice !== undefined && studentChoice !== null && keyAns !== undefined && keyAns !== null) {
-        if (String(studentChoice).trim().toUpperCase() === String(keyAns).trim().toUpperCase()) {
-          correctCount++;
-        }
+      if (studentChoice && keyAns && String(studentChoice).trim().toUpperCase() === String(keyAns).trim().toUpperCase()) {
+        correctCount++;
       }
     });
 
     const finalGrade = Number(((correctCount / totalQ) * 10).toFixed(2));
 
-    // 4. ĐÓNG GÓI THÔNG TIN THÍ SINH
+    // 4. LẤY THÔNG TIN THÍ SINH TỪ SESSION
     let loggedUser = {};
     try {
       loggedUser = JSON.parse(sessionStorage.getItem('currentUser') || sessionStorage.getItem('userSession') || '{}');
     } catch(e) {}
 
-    const studentInfo = {
-      name: loggedUser.fullName || loggedUser.name || username,
-      code: username,
-      username: username
-    };
-
-    // 5. GỬI KẾT QUẢ VỀ SERVER GOOGLE SHEETS
+    // 5. GỬI GÓI KẾT QUẢ HOÀN CHỈNH VỀ SERVER GOOGLE SHEETS
     const res = await appsScriptService.request('SUBMIT_EXAM', {
       examId: shortExamId, 
       username: username,
-      fullName: studentInfo.name,
-      studentInfo: studentInfo,
+      studentCode: username,
+      studentName: loggedUser.fullName || loggedUser.name || username,
+      studentClass: loggedUser.className || loggedUser.class || '',
       answers: activeAnswers,
-      score: correctCount,        // Số câu đúng
-      totalQuestions: totalQ,     // Tổng số câu
-      finalGrade: finalGrade,     // Điểm thang 10
+      correctCount: correctCount,     // Số câu đúng
+      answeredCount: answeredCount,   // Số câu đã trả lời
+      totalQuestions: totalQ,         // Tổng số câu trong đề
+      finalGrade: finalGrade,         // Điểm thang 10
       violationInfo: {
         violationCount: window.violationCount || 0,
-        isAutoSubmitted: true,
-        reason: 'Nộp bài thi'
+        isAutoSubmitted: window.violationCount >= 3,
+        reason: window.violationCount >= 3 ? 'Tự động nộp do vi phạm quy chế' : 'Nộp bài thi'
       }
     });
 
-    // 6. DỌN SẠCH CÁC BẢN NHÁP LOCAL STORAGE
+    // 6. DỌN SẠCH BẢN NHÁP
     ExamDraftManager.clearDraft(username, examId);
     ExamDraftManager.clearDraft(username, shortExamId);
-    if (window.currentActiveExamCode) {
-      ExamDraftManager.clearDraft(username, window.currentActiveExamCode);
-    }
 
     hideAppLoading();
 
-    alert(`🎉 Đã nộp bài thành công!\nĐiểm số: ${finalGrade} / 10 (${correctCount}/${totalQ} câu đúng)`);
+    alert(`🎉 Đã nộp bài thành công!\nĐiểm số: ${finalGrade} / 10\nSố câu đúng: ${correctCount}/${totalQ}\nSố câu đã làm: ${answeredCount}/${totalQ}`);
     handleLoadStudentDashboard();
 
   } catch (err) {
