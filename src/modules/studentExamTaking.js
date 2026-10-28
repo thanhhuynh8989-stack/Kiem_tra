@@ -280,13 +280,13 @@ export async function executeSubmitExam(
   try {
     const username = getLoggedInUsername();
 
-    // 1. CHUẨN HÓA MÃ ĐỀ NGẮN
+    // 1. Chuẩn hóa mã ngắn
     let shortExamId = String(examId || '').trim().toLowerCase()
       .replace(/\.json$/i, '').replace(/^exams\//i, '');
     const matchHex = shortExamId.match(/^(exam_[a-f0-9]{8})/i);
     if (matchHex) shortExamId = matchHex[1];
 
-    // 2. LẤY CÂU HỎI VÀ CÂU TRẢ LỜI (HỖ TRỢ ÉP NỘP DỘT NGỘT)
+    // 2. Lấy danh sách câu hỏi và câu trả lời
     let activeQuestions = questions.length > 0 ? questions : (window.currentActiveQuestionsForExam || []);
     let activeAnswers = Object.keys(answers).length > 0 ? answers : (window.currentActiveAnswersForExam || {});
 
@@ -295,7 +295,7 @@ export async function executeSubmitExam(
       if (draft && draft.answers) activeAnswers = draft.answers;
     }
 
-    // 3. FRONTEND TỰ TÍNH TOÁN CÁC CHỈ SỐ KẾT QUẢ
+    // 3. Tính toán các chỉ số kết quả trên Frontend
     let correctCount = 0;
     let answeredCount = 0;
     const totalQ = activeQuestions.length > 0 ? activeQuestions.length : Object.keys(activeAnswers).length || 10;
@@ -308,7 +308,6 @@ export async function executeSubmitExam(
         answeredCount++;
       }
 
-      // Xác định đáp án đúng gốc
       let keyAns = q.answerKey || q.correctAnswer || q.answer;
       if (keyAns === undefined && Array.isArray(q.shuffledOptions)) {
         const origCorrect = q.shuffledOptions.find(o => o.isCorrect || o.originalLetter === q.correctAnswer);
@@ -322,24 +321,27 @@ export async function executeSubmitExam(
 
     const finalGrade = Number(((correctCount / totalQ) * 10).toFixed(2));
 
-    // 4. LẤY THÔNG TIN THÍ SINH TỪ SESSION
+    // 4. Lấy thông tin tài khoản đăng nhập
     let loggedUser = {};
     try {
       loggedUser = JSON.parse(sessionStorage.getItem('currentUser') || sessionStorage.getItem('userSession') || '{}');
     } catch(e) {}
 
-    // 5. GỬI GÓI KẾT QUẢ HOÀN CHỈNH VỀ SERVER GOOGLE SHEETS
+    const studentName = loggedUser.fullName || loggedUser.name || username;
+    const studentClass = loggedUser.className || loggedUser.class || '';
+
+    // 5. Gửi gói kết quả chuẩn hóa về Apps Script
     const res = await appsScriptService.request('SUBMIT_EXAM', {
       examId: shortExamId, 
       username: username,
       studentCode: username,
-      studentName: loggedUser.fullName || loggedUser.name || username,
-      studentClass: loggedUser.className || loggedUser.class || '',
+      studentName: studentName,
+      studentClass: studentClass,
       answers: activeAnswers,
       correctCount: correctCount,     // Số câu đúng
       answeredCount: answeredCount,   // Số câu đã trả lời
       totalQuestions: totalQ,         // Tổng số câu trong đề
-      finalGrade: finalGrade,         // Điểm thang 10
+      finalGrade: finalGrade,         // Điểm thang điểm 10
       violationInfo: {
         violationCount: window.violationCount || 0,
         isAutoSubmitted: window.violationCount >= 3,
@@ -347,7 +349,7 @@ export async function executeSubmitExam(
       }
     });
 
-    // 6. DỌN SẠCH BẢN NHÁP
+    // 6. Xóa dọn bản nháp
     ExamDraftManager.clearDraft(username, examId);
     ExamDraftManager.clearDraft(username, shortExamId);
 
