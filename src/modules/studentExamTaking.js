@@ -54,17 +54,33 @@ export async function handleLoadStudentDashboard() {
   const container = document.getElementById('studentExamContainer');
   if (!container) return;
 
-  // Lấy dữ liệu tài khoản từ SessionStorage
-  let loggedUser = {};
-  try {
-    loggedUser = JSON.parse(sessionStorage.getItem('currentUser') || sessionStorage.getItem('userSession') || '{}');
-  } catch(e) {}
+  // 1. Cập nhật ngay Mã SV lên thẻ hiển thị giao diện
+  if (typeof renderStudentHeaderInfo === 'function') {
+    renderStudentHeaderInfo();
+  }
 
-  const studentCode = loggedUser.studentCode || loggedUser.username || loggedUser.user || getLoggedInUsername();
-  const studentName = loggedUser.fullName || loggedUser.name || '';
+  // 2. Đọc Mã SV với cơ chế dự phòng nhiều nguồn
+  let studentCode = getLoggedInUsername();
+  
+  if (!studentCode || studentCode === '--' || studentCode === 'N/A') {
+    try {
+      const raw = sessionStorage.getItem('currentUser') || sessionStorage.getItem('userSession') || localStorage.getItem('currentUser');
+      if (raw) {
+        const u = JSON.parse(raw);
+        studentCode = String(u.studentCode || u.username || u.code || u.user || '').trim();
+      }
+    } catch(e) {}
+  }
 
+  // 3. Nếu vẫn không lấy được Mã SV, báo người dùng đăng nhập lại
   if (!studentCode || studentCode === '--') {
-    container.innerHTML = '<p style="color:#ef4444; font-size:13px;">⚠️ Chưa xác định được thông tin Sinh viên. Vui lòng đăng nhập lại!</p>';
+    container.innerHTML = `
+      <div style="text-align:center; padding:24px; background:#fff; border-radius:10px; border:1px solid #fca5a5;">
+        <p style="color:#dc2626; font-weight:700; font-size:14px; margin:0 0 8px 0;">⚠️ Không tìm thấy phiên đăng nhập của Sinh viên!</p>
+        <p style="color:#64748b; font-size:12px; margin:0 0 12px 0;">Vui lòng nhấn Đăng xuất và đăng nhập lại tài khoản Sinh viên.</p>
+        <button type="button" onclick="location.reload()" style="background:#2563eb; color:#fff; border:none; padding:6px 16px; border-radius:6px; cursor:pointer; font-size:12px;">🔄 Tải lại trang</button>
+      </div>
+    `;
     return;
   }
 
@@ -73,8 +89,7 @@ export async function handleLoadStudentDashboard() {
   try {
     const res = await appsScriptService.request('GET_STUDENT_EXAMS', { 
       username: studentCode,
-      studentCode: studentCode,
-      fullName: studentName 
+      studentCode: studentCode
     });
     
     const exams = res.exams || res.data || [];
