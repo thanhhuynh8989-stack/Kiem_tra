@@ -233,26 +233,29 @@ export async function executeSubmitExam(
 
   try {
     const username = getLoggedInUsername();
-    let correctCount = 0;
+    
+    // Lấy thông tin user hiện tại từ Session Storage
+    let loggedUser = {};
+    try {
+      loggedUser = JSON.parse(sessionStorage.getItem('currentUser') || sessionStorage.getItem('userSession') || '{}');
+    } catch(e) {}
 
-    questions.forEach((q, idx) => {
-      const qNum = idx + 1;
-      const userAns = String(answers[qNum] || '').trim().toUpperCase();
-      const keyAns = String(q.answerKey || q.answer || '').trim().toUpperCase();
-      if (userAns && userAns === keyAns) correctCount++;
-    });
+    const studentInfo = {
+      name: loggedUser.fullName || loggedUser.name || username,
+      code: username,
+      username: username
+    };
 
-    const totalQ = questions.length || 1;
-    const finalScore = Math.round((correctCount / totalQ) * 10 * 10) / 10;
-
-    await appsScriptService.request('SUBMIT_EXAM', {
+    // Gửi yêu cầu Nộp bài với đầy đủ thông tin Thí sinh
+    const res = await appsScriptService.request('SUBMIT_EXAM', {
       examId: examId, 
-      username: username, 
-      score: finalScore, 
+      username: username,
+      fullName: studentInfo.name,
+      studentInfo: studentInfo,
       answers: answers
     });
 
-    // Dọn dẹp tất cả các dạng khóa Draft (cả mã đầy đủ lẫn mã ngắn)
+    // Dọn sạch bản nháp
     ExamDraftManager.clearDraft(username, examId);
     if (window.currentActiveExamCode) {
       ExamDraftManager.clearDraft(username, window.currentActiveExamCode);
@@ -260,7 +263,10 @@ export async function executeSubmitExam(
 
     hideAppLoading();
 
-    alert(`🎉 Đã nộp bài thành công!\nĐiểm số: ${finalScore} / 10`);
+    const displayGrade = res.finalGrade !== undefined ? res.finalGrade : (res.score || 0);
+    alert(`🎉 Đã nộp bài thành công!\nĐiểm số: ${displayGrade} / 10 (${res.score || 0}/${res.totalQuestions || questions.length} câu đúng)`);
+    
+    // Tải lại Bảng điều khiển Sinh viên để cập nhật nút "Xem lại bài"
     handleLoadStudentDashboard();
   } catch (err) {
     hideAppLoading();
