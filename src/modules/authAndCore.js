@@ -1,314 +1,162 @@
 import { appsScriptService } from '../services/appsScriptService.js';
 
 // =========================================================================
-// 1. TRẠNG THÁI TOÀN CỤC (GLOBAL STATE) & KHÔI PHỤC PHIÊN ĐĂNG NHẬP
+// 1. QUẢN LÝ PHIÊN ĐĂNG NHẬP & SESSION TẬP TRUNG
 // =========================================================================
-export let currentUser = null;
-export let violationCount = 0;
-export let isExamActive = false;
-
-// Tự động khôi phục currentUser khi F5 tải lại trang
-try {
-  const savedUser = sessionStorage.getItem('currentUser') || sessionStorage.getItem('userSession');
-  if (savedUser) {
-    currentUser = JSON.parse(savedUser);
-  }
-} catch (e) {}
-
-// =========================================================================
-// 2. CHUẨN HÓA DỮ LIỆU & QUẢN LÝ PHIÊN (AUTH & SESSION)
-// =========================================================================
-export function normalizeUserData(raw) {
-  if (!raw) return null;
-
-  let obj = raw;
-  if (obj.data && typeof obj.data === 'object') obj = obj.data;
-  if (obj.user && typeof obj.user === 'object') obj = obj.user;
-  if (obj.userData && typeof obj.userData === 'object') obj = obj.userData;
-  if (obj.userInfo && typeof obj.userInfo === 'object') obj = obj.userInfo;
-  if (Array.isArray(obj)) obj = obj[0] || {};
-
-  let rawRole = obj.role || obj.Role || obj.ROLE || obj.userRole || raw.role || raw.Role || '';
-  let normalizedRole = String(rawRole).toUpperCase().trim();
-
-  let username = String(obj.username || obj.User || obj.user || raw.username || raw.User || '').trim();
-  let codeId = String(obj.lecturerCode || obj.studentCode || obj.code || obj.studentId || username).trim();
-  let className = String(obj.className || obj.class || obj.Class || obj.studentClass || '').trim();
-  let fullName = String(obj.fullName || obj['Full name'] || obj.fullname || obj.Fullname || obj['full_name'] || obj.name || raw.fullName || '').trim();
-
-  const isStudent = (normalizedRole === 'STUDENT');
-
-  return {
-    authenticated: raw.authenticated !== undefined ? raw.authenticated : (raw.status === 'success' || !!normalizedRole),
-    username: username,
-    lecturerCode: isStudent ? '' : codeId,  // Chỉ gán nếu là Giảng viên / Admin
-    studentCode: isStudent ? codeId : '',   // Chỉ gán nếu là Sinh viên
-    className: className,
-    fullName: fullName || (isStudent ? 'Sinh viên' : 'Giảng viên'),
-    role: normalizedRole
-  };
-}
-
-export async function requestWithRetry(action, payload, retries = 2, delay = 1500) {
-  for (let attempt = 0; attempt <= retries; attempt++) {
-    try {
-      return await appsScriptService.request(action, payload);
-    } catch (err) {
-      if (attempt === retries) throw err;
-      await new Promise(res => setTimeout(res, delay));
-    }
-  }
-}
-
-export async function handleLogin() {
-  const usernameInput = document.getElementById('loginUsername');
-  const passwordInput = document.getElementById('loginPassword');
-  const loginBtn = document.getElementById('loginBtn');
-
-  const username = usernameInput?.value.trim();
-  const password = passwordInput?.value.trim();
-
-  if (!username || !password) {
-    return alert('Vui lòng nhập đầy đủ Tên đăng nhập và Mật khẩu!');
-  }
-
-  const originalBtnText = loginBtn ? loginBtn.innerText : 'Đăng Nhập';
-  if (loginBtn) {
-    loginBtn.disabled = true;
-    loginBtn.innerText = '⏳ Đang kết nối...';
-  }
-
+export function getLoggedInUser() {
   try {
-    const res = await requestWithRetry('AUTH_LECTURER', { username, password });
-
-    sessionStorage.removeItem('currentUser');
-    sessionStorage.removeItem('userSession');
-
-    currentUser = normalizeUserData(res);
-
-    if (currentUser && currentUser.role) {
-      sessionStorage.setItem('currentUser', JSON.stringify(currentUser));
-      sessionStorage.setItem('userSession', JSON.stringify(currentUser));
-
-      alert(`Đăng nhập thành công!\nXin chào ${currentUser.fullName}!`);
-
-      if (currentUser.role === 'ADMIN' || currentUser.role === 'LECTURER') {
-        showView(currentUser.role === 'ADMIN' ? 'adminView' : 'lecturerView');
-      } else {
-        showView('studentView');
-      }
-    } else {
-      alert(res.message || 'Tên đăng nhập hoặc mật khẩu không chính xác!');
-    }
-  } catch (err) {
-    console.error('Login Error:', err);
-    alert('Không thể kết nối đến Máy chủ! Vui lòng kiểm tra lại đường truyền mạng.');
-  } finally {
-    if (loginBtn) {
-      loginBtn.disabled = false;
-      loginBtn.innerText = originalBtnText;
-    }
+    const raw = sessionStorage.getItem('currentUser') || localStorage.getItem('currentUser');
+    if (!raw) return null;
+    return JSON.parse(raw);
+  } catch (e) {
+    return null;
   }
+}
+
+export function getLoggedInUsername() {
+  const u = getLoggedInUser();
+  if (!u) return '--';
+  return String(u.username || u.studentCode || u.user || u.code || '--').trim();
+}
+
+export function getLoggedInRole() {
+  const u = getLoggedInUser();
+  if (!u) return 'GUEST';
+  return String(u.role || 'GUEST').trim().toUpperCase();
+}
+
+export function saveUserSession(userData) {
+  if (!userData) return;
+  const cleanData = {
+    username: String(userData.username || userData.studentCode || '').trim(),
+    role: String(userData.role || 'STUDENT').trim().toUpperCase(),
+    fullName: String(userData.fullName || userData.name || '').trim(),
+    className: String(userData.className || userData.class || '').trim(),
+    geminiApiKey: String(userData.geminiApiKey || '').trim()
+  };
+  
+  sessionStorage.setItem('currentUser', JSON.stringify(cleanData));
+  localStorage.setItem('currentUser', JSON.stringify(cleanData));
 }
 
 export function handleLogout() {
-  currentUser = null;
-  sessionStorage.removeItem('currentUser');
-  sessionStorage.removeItem('userSession');
-
-  stopViolationTracking();
-
-  const usernameInput = document.getElementById('loginUsername');
-  const passwordInput = document.getElementById('loginPassword');
-  if (usernameInput) usernameInput.value = '';
-  if (passwordInput) passwordInput.value = '';
-
-  showView('authView');
-}
-
-export function showView(viewId) {
-  const targetView = document.getElementById(viewId);
-  
-  if (targetView) {
-    document.querySelectorAll('.view-section').forEach(el => el.classList.remove('active'));
-    targetView.classList.add('active');
-  }
-
-  const userInfo = document.getElementById('userInfo');
-  const userBadge = document.getElementById('userBadge');
-
-  if (currentUser) {
-    if (userInfo) userInfo.style.display = 'flex';
+  if (confirm('Bạn có chắc chắn muốn ĐĂNG XUẤT khỏi hệ thống?')) {
+    sessionStorage.removeItem('currentUser');
+    sessionStorage.removeItem('userSession');
+    localStorage.removeItem('currentUser');
+    localStorage.removeItem('userSession');
     
-    const roleTitle = currentUser.role === 'ADMIN' ? 'Quản trị' : 
-                      currentUser.role === 'LECTURER' ? 'Giảng viên' : 'Sinh viên';
-
-    if (userBadge) {
-      userBadge.textContent = `${currentUser.fullName} (${roleTitle})`;
-    }
-
-    if (viewId === 'lecturerView' && typeof window.handleLoadMyExams === 'function') {
-      window.handleLoadMyExams();
-    } else if (viewId === 'studentView') {
-      renderStudentHeaderInfo();
-      if (typeof window.handleLoadStudentDashboard === 'function') {
-        window.handleLoadStudentDashboard();
-      }
-    }
-  } else if (viewId === 'studentView') {
-    if (userInfo) userInfo.style.display = 'flex';
-    if (userBadge) userBadge.textContent = 'HỌC SINH / SINH VIÊN';
-    renderStudentHeaderInfo();
-  } else {
-    if (userInfo) userInfo.style.display = 'none';
+    window.location.reload();
   }
 }
 
 // =========================================================================
-// 3. TRA CỨU MÃ SV VÀ HỌ TÊN ĐĂNG NHẬP (TRUY CẤP AN TOÀN)
+// 2. XỬ LÝ ĐĂNG NHẬP THỐNG NHẤT
 // =========================================================================
-export function getLoggedInUsername() {
+export async function handleLogin(username, password) {
+  if (!username || !password) {
+    alert('Vui lòng nhập đầy đủ Tên đăng nhập và Mật khẩu!');
+    return false;
+  }
+
+  showAppLoading('⏳ Đang xác thực tài khoản...');
   try {
-    const raw = sessionStorage.getItem('currentUser') || 
-                sessionStorage.getItem('userSession') || 
-                localStorage.getItem('currentUser') || 
-                localStorage.getItem('userSession');
-                
-    if (!raw) {
-      console.warn("⚠️ [FE_LOG] getLoggedInUsername: Không tìm thấy Session storage nào!");
-      return '';
+    const res = await appsScriptService.request('LOGIN', { username, password });
+    hideAppLoading();
+
+    if (res.status === 'success' && res.user) {
+      saveUserSession(res.user);
+      alert(`🎉 Đăng nhập thành công! Chào mừng ${res.user.fullName || res.user.username}`);
+      return true;
+    } else {
+      alert(`❌ Đăng nhập thất bại: ${res.message || 'Mật khẩu không đúng'}`);
+      return false;
     }
-
-    const u = JSON.parse(raw);
-    const code = u.studentCode || u.lecturerCode || u.username || u.code || u.user || u.id || '';
-    
-    console.log("🔍 [FE_LOG] getLoggedInUsername extracted ID:", String(code).trim(), "from object:", u);
-    return String(code).trim();
-  } catch (e) {
-    console.error("❌ [FE_LOG] Error in getLoggedInUsername:", e);
-    return '';
+  } catch (err) {
+    hideAppLoading();
+    alert(`Lỗi kết nối Server: ${err.message}`);
+    return false;
   }
 }
 
-export function getLoggedInFullName() {
-  if (currentUser && currentUser.fullName) {
-    return String(currentUser.fullName).trim();
-  }
-  const possibleKeys = ['currentUser', 'userSession', 'user', 'loggedInUser'];
-  for (const key of possibleKeys) {
-    const rawVal = localStorage.getItem(key) || sessionStorage.getItem(key);
-    if (!rawVal) continue;
-    try {
-      const parsed = JSON.parse(rawVal);
-      if (typeof parsed === 'object' && parsed !== null) {
-        const name = parsed.fullName || parsed.name || parsed.displayName;
-        if (name && String(name).trim()) return String(name).trim();
+// =========================================================================
+// 3. THEO DÕI VI PHẠM QUY CHẾ THI (VIOLATION TRACKER)
+// =========================================================================
+window.violationCount = 0;
+let isTrackingViolations = false;
+
+function onVisibilityOrFocusChange() {
+  if (!isTrackingViolations) return;
+
+  if (document.hidden || !document.hasFocus()) {
+    window.violationCount = (window.violationCount || 0) + 1;
+    const count = window.violationCount;
+
+    alert(
+      `⚠️ CẢNH BÁO VI PHẠM QUY CHẾ THI! (Lần ${count}/3)\n` +
+      `Bạn vừa rời khỏi màn hình làm bài thi.\n` +
+      `Lưu ý: Rời màn hình quá 3 lần bài thi sẽ tự động nộp!`
+    );
+
+    if (count >= 3) {
+      alert('❌ BẠN ĐÃ VI PHẠM DƯỚI 3 LẦN! Hệ thống tự động thu bài làm.');
+      stopViolationTracking();
+      if (typeof window.executeSubmitExam === 'function') {
+        window.executeSubmitExam();
       }
-    } catch (e) {}
+    }
   }
-  return getLoggedInUsername() || 'Sinh Viên';
 }
 
-export function renderStudentHeaderInfo() {
-  let loggedUser = currentUser || {};
-  if (!loggedUser.username) {
-    try {
-      const raw = sessionStorage.getItem('currentUser') || sessionStorage.getItem('userSession');
-      if (raw) loggedUser = JSON.parse(raw);
-    } catch(e) {}
-  }
-
-  const code = loggedUser.studentCode || loggedUser.username || loggedUser.code || getLoggedInUsername();
-  const name = loggedUser.fullName || loggedUser.name || loggedUser.displayName || 'Sinh Viên';
-
-  const nameEl = document.getElementById('studentNameDisplay');
-  const codeEl = document.getElementById('studentCodeDisplay');
-  const tagEl = document.getElementById('studentTagDisplay');
-
-  if (nameEl) nameEl.innerText = name;
-  if (codeEl) codeEl.innerText = `Mã SV: ${code || 'N/A'}`;
-  if (tagEl) tagEl.innerText = `${name} (Sinh viên)`;
-}
-
-// =========================================================================
-// 4. GIÁM SÁT VI PHẠM (ANTI-CHEAT VIOLATION TRACKER)
-// =========================================================================
 export function startViolationTracking() {
-  violationCount = 0;
-  isExamActive = true;
-  document.addEventListener('visibilitychange', handleVisibilityChange);
-  window.addEventListener('blur', handleWindowBlur);
+  window.violationCount = 0;
+  isTrackingViolations = true;
+
+  window.removeEventListener('blur', onVisibilityOrFocusChange);
+  document.removeEventListener('visibilitychange', onVisibilityOrFocusChange);
+
+  window.addEventListener('blur', onVisibilityOrFocusChange);
+  document.addEventListener('visibilitychange', onVisibilityOrFocusChange);
 }
 
 export function stopViolationTracking() {
-  isExamActive = false;
-  document.removeEventListener('visibilitychange', handleVisibilityChange);
-  window.removeEventListener('blur', handleWindowBlur);
-}
-
-function handleVisibilityChange() {
-  if (document.hidden && isExamActive) processViolation();
-}
-
-function handleWindowBlur() {
-  if (isExamActive) processViolation();
-}
-
-function processViolation() {
-  if (!isExamActive) return;
-  violationCount++;
-  const max = 3;
-
-  if (violationCount >= max) {
-    alert(`⚠️ VI PHẠM QUY CHẾ (${violationCount}/${max}): Bạn đã rời khỏi màn hình thi!\nHệ thống TỰ ĐỘNG NỘP BÀI TỨC THỜI.`);
-    stopViolationTracking();
-    
-    if (typeof window.executeSubmitExam === 'function') {
-      window.executeSubmitExam();
-    }
-  } else if (violationCount === max - 1) {
-    alert(`⚠️ CẢNH BÁO VI PHẠM (${violationCount}/${max}): Bạn vừa rời khỏi màn hình thi!\nNếu vi phạm thêm 1 lần nữa, bài thi sẽ bị TỰ ĐỘNG NỘP NGAY.`);
-  } else {
-    alert(`⚠️ VI PHẠM (${violationCount}/${max}): Vui lòng không chuyển tab hoặc rời khỏi màn hình!`);
-  }
+  isTrackingViolations = false;
+  window.removeEventListener('blur', onVisibilityOrFocusChange);
+  document.removeEventListener('visibilitychange', onVisibilityOrFocusChange);
 }
 
 // =========================================================================
-// 5. TIỆN ÍCH GIAO DIỆN VÀ OVERLAY LOADING
+// 4. TIỆN ÍCH HIỂN THỊ LOADING & CHỐNG XSS
 // =========================================================================
-export function showAppLoading(message = 'Đang xử lý dữ liệu...') {
-  let overlay = document.getElementById('globalAppLoadingOverlay');
-  if (!overlay) {
-    overlay = document.createElement('div');
-    overlay.id = 'globalAppLoadingOverlay';
-    overlay.style.cssText = `
+export function showAppLoading(msg = '⏳ Đang xử lý...') {
+  let loader = document.getElementById('appGlobalLoader');
+  if (!loader) {
+    loader = document.createElement('div');
+    loader.id = 'appGlobalLoader';
+    loader.style.cssText = `
       position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
-      background: rgba(15, 23, 42, 0.75); backdrop-filter: blur(4px);
-      z-index: 99999; display: flex; flex-direction: column;
-      justify-content: center; align-items: center; color: #ffffff;
+      background: rgba(15, 23, 42, 0.7); color: #fff; display: flex;
+      flex-direction: column; justify-content: center; align-items: center;
+      z-index: 99999; font-family: sans-serif; font-size: 15px; font-weight: 600;
+      backdrop-filter: blur(2px);
     `;
-    overlay.innerHTML = `
-      <div style="background: #1e293b; padding: 24px 32px; border-radius: 12px; text-align: center; max-width: 360px; width: 90%;">
-        <div style="width: 36px; height: 36px; border: 3px solid #38bdf8; border-top-color: transparent; border-radius: 50%; margin: 0 auto 12px auto; animation: spin 0.8s linear infinite;"></div>
-        <div id="loadingOverlayMsg" style="font-weight: 600; font-size: 14px; color: #f8fafc;">${message}</div>
-      </div>
-      <style>@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }</style>
-    `;
-    document.body.appendChild(overlay);
-  } else {
-    const msgEl = document.getElementById('loadingOverlayMsg');
-    if (msgEl) msgEl.innerHTML = message;
-    overlay.style.display = 'flex';
+    document.body.appendChild(loader);
   }
+  loader.innerHTML = `
+    <div style="border: 4px solid #f3f3f3; border-top: 4px solid #38bdf8; border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite; margin-bottom: 12px;"></div>
+    <div>${escapeHtml(msg)}</div>
+    <style>@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }</style>
+  `;
+  loader.style.display = 'flex';
 }
 
 export function hideAppLoading() {
-  const overlay = document.getElementById('globalAppLoadingOverlay');
-  if (overlay) overlay.style.display = 'none';
+  const loader = document.getElementById('appGlobalLoader');
+  if (loader) loader.style.display = 'none';
 }
 
 export function escapeHtml(str) {
-  if (str === null || str === undefined) return '';
+  if (!str) return '';
   return String(str)
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')
@@ -317,22 +165,7 @@ export function escapeHtml(str) {
     .replace(/'/g, '&#039;');
 }
 
-export function togglePasswordVisibility() {
-  const passInput = document.getElementById('loginPassword');
-  const eyeBtn = document.getElementById('togglePasswordBtn');
-  if (passInput) {
-    passInput.type = passInput.type === 'password' ? 'text' : 'password';
-    if (eyeBtn) eyeBtn.innerText = passInput.type === 'password' ? '👁️' : '🙈';
-  }
-}
-
-// Bán biến/hàm ra Window để gọi trực tiếp từ HTML
-window.handleLogin = handleLogin;
-window.handleLogout = handleLogout;
-window.showView = showView;
-window.togglePasswordVisibility = togglePasswordVisibility;
-window.showAppLoading = showAppLoading;
-window.hideAppLoading = hideAppLoading;
-window.renderStudentHeaderInfo = renderStudentHeaderInfo;
+window.getLoggedInUser = getLoggedInUser;
 window.getLoggedInUsername = getLoggedInUsername;
-window.getLoggedInFullName = getLoggedInFullName;
+window.getLoggedInRole = getLoggedInRole;
+window.handleLogout = handleLogout;
