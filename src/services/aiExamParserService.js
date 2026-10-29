@@ -1,58 +1,88 @@
-import { APP_CONFIG } from '../constants/appConfig.js';
 import { appsScriptService } from './appsScriptService.js';
+import { getLoggedInUsername } from '../modules/authAndCore.js';
 import { logger } from '../utils/logger.js';
 
 /**
- * Service xử lý phân tích đề thi bằng AI thông qua Apps Script Backend Proxy.
+ * AI EXAM PARSER SERVICE - XỬ LÝ BÓC TÁCH ĐỀ THI BẰNG GEMINI AI
  */
 export class AIExamParserService {
   /**
-   * Gửi văn bản đề thi thô hoặc ảnh lên Server Apps Script để Gemini AI phân tích.
-   * @param {string} rawExamText - Nội dung đề thi dạng chuỗi (từ Docx, PDF, TXT)
-   * @param {string} [imageBase64=''] - Dữ liệu ảnh Base64 (nếu có)
-   * @param {string} [mimeType='image/png'] - Loại định dạng ảnh
-   * @returns {Promise<{questions: Array}>} Danh sách câu hỏi đã cấu trúc hóa
+   * Gửi dữ liệu đề thi về Backend Google Apps Script để AI xử lý
+   * @param {object} params - { rawText, imageBase64, mimeType, questions, customApiKey }
+   * @returns {Promise<object>} { questions, isFallback, message }
    */
-  async parseAndEnrichExam(rawExamText, imageBase64 = '', mimeType = 'image/png') {
-    if ((!rawExamText || !rawExamText.trim()) && !imageBase64) {
-      throw new Error('Nội dung đề thi đầu vào không được để trống.');
+  static async parseExamWithAI({ rawText = '', imageBase64 = null, mimeType = 'image/png', questions = [], customApiKey = '' }) {
+    const username = getLoggedInUsername();
+    
+    // Đọc API Key cá nhân lưu trong sessionStorage/localStorage nếu không truyền trực tiếp
+    let apiKey = customApiKey;
+    if (!apiKey) {
+      try {
+        const u = JSON.parse(sessionStorage.getItem('currentUser') || localStorage.getItem('currentUser') || '{}');
+        apiKey = u.geminiApiKey || '';
+      } catch (e) {}
     }
 
+    logger.info(`Bắt đầu gửi đề thi sang Gemini AI Proxy... (User: ${username})`);
+
     try {
-      // Lấy tên model người dùng đã cấu hình trong giao diện Admin
-      const config = getConfig();
-      const selectedModel = config.geminiModel || 'gemini-3.6-flash';
-
-      logger.info(`Đang gửi dữ liệu đề thi sang Apps Script Backend (Model: ${selectedModel})...`);
-
-      // Gửi action PARSE_EXAM_AI kèm tham số model, imageBase64, mimeType sang Backend
       const response = await appsScriptService.request('PARSE_EXAM_AI', {
-        rawText: rawExamText || '',
-        imageBase64: imageBase64 || '',
-        mimeType: mimeType || 'image/png',
-        model: selectedModel
+        rawText: rawText,
+        imageBase64: imageBase64,
+        mimeType: mimeType,
+        questions: questions,
+        customApiKey: apiKey,
+        username: username
       });
 
-      if (response.status === 'error') {
-        throw new Error(response.message || 'Lỗi xử lý phân tích đề thi từ Server Apps Script.');
+      if (response && response.questions) {
+        logger.info(`Bóc tách AI thành công! Nhận về ${response.questions.length} câu hỏi.`);
+        return {
+          questions: response.questions,
+          isFallback: Boolean(response.isFallback),
+          message: response.message || '✅ Đã chuẩn hóa câu hỏi bằng AI thành công!'
+        };
       }
 
-      const parsedData = response.data;
+      throw new Error('AI không phản hồi cấu trúc dữ liệu câu hỏi hợp lệ.');
 
-      if (!parsedData || !Array.isArray(parsedData.questions)) {
-        throw new Error('Dữ liệu AI trả về không đúng định dạng cấu trúc câu hỏi.');
-      }
+    } catch (err) {
+      logger.warn(`Lỗi bóc tách AI: ${err.message}. Chuyển sang chế độ Code thuần...`);
 
-      logger.info(`Đã phân tích thành công ${parsedData.questions.length} câu hỏi.`);
-      return parsedData;
+      // CHẾ ĐỘ DỰ PHÒNG: Tự chuẩn hóa mảng câu hỏi bằng Code thuần ở Client
+      const fallbackQuestions = (questions || []).map((q, idx) => {
+        let opts = [...(q.options || [])];
+        while (opts.length < 4) opts.push('');
 
-    } catch (error) {
-      logger.error('Lỗi trong quá trình AI phân tích đề thi:', error);
-      throw error;
+        const origCount = q.originalOptionCount !== undefined ? q.originalOptionCount : opts.filter(o => String(o).trim()).length;
+        const isMissingOptions = origCount < 4;
+        const isMissingAnswer = q.correctAnswer === null || q.correctAnswer === undefined;
+
+        return {
+          id: q.id || `q_${idx + 1}`,
+          stem: q.stem || `Câu ${idx + 1}`,
+          options: opts.slice(0, 4),
+          correctAnswer: isMissingAnswer ? 0 : q.correctAnswer,
+          hasImage: Boolean(q.hasImage),
+          imageUrl: q.imageUrl || null,
+          originalOptionCount: origCount,
+          flags: {
+            needsUserConfirmation: true,
+            isMissingOptions: isMissingOptions,
+            isMissingAnswer: isMissingAnswer,
+            note: `⚠️ Không kết nối được AI (${err.message}). Đã chuyển sang bóc tách bằng Code thuần.`
+          }
+        };
+      });
+
+      return {
+        questions: fallbackQuestions,
+        isFallback: true,
+        message: `⚠️ Không thể kết nối AI (${err.message}). Đã chuyển sang chế độ Code thuần.`
+      };
     }
   }
 }
 
-// Export Singleton instance và Class
-export const aiExamParserService = new AIExamParserService();
-export default aiExamParserService;
+export const aiExamParserService = AIExamParserService;
+window.aiExamParserService = AIExamParserService;
