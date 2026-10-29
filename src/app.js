@@ -61,10 +61,7 @@ document.addEventListener('click', (event) => {
 
 window.switchTab = switchTab;
 
-// 1. Import module Quản Lý Đề Thi vào Entry Point
-import { loadExamList, handleEditExam, deleteExam } from './modules/examManagement.js';
-
-// 2. Ủy quyền sự kiện (Event Delegation): Tự động lắng nghe click Tab "Quản Lý Đề Thi" kể cả khi render động
+// Ủy quyền sự kiện (Event Delegation): Tự động lắng nghe click Tab "Quản Lý Đề Thi" kể cả khi render động
 document.addEventListener('click', (event) => {
   const examTabBtn = event.target.closest('[data-tab="tab-exams"]');
   if (examTabBtn) {
