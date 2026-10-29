@@ -17,14 +17,40 @@ import { loadExamList, handleEditExam, deleteExam } from './modules/examManageme
 window.currentActiveTab = 'tab-exams';
 
 /**
- * XỬ LÝ CHUYỂN TAB AN TOÀN (CHẮC CHẮN KHÔNG BỊ NHẢY TAB)
+ * =========================================================================
+ * 1. HÀM CHUYỂN TAB DUY NHẤT VÀ AN TOÀN (UNIFIED TAB SWITCHER)
+ * =========================================================================
  */
 export function switchTab(tabId) {
-  window.currentActiveTab = tabId;
+  if (!tabId) return;
 
-  // 1. Cập nhật trạng thái Active trên Navbar
+  // Chuẩn hóa tên tab (Đồng bộ giữa data-tab và tên tab cũ)
+  let targetTab = tabId;
+  if (tabId === 'LECTURER_DASHBOARD') targetTab = 'tab-exams';
+  if (tabId === 'STUDENT_MANAGEMENT') targetTab = 'tab-students';
+  if (tabId === 'EXAM_EDITOR') targetTab = 'tab-parser';
+  if (tabId === 'STUDENT_EXAMS') targetTab = 'tab-student-exams';
+
+  window.currentActiveTab = targetTab;
+
+  // A. Lấy tất cả các Khung hiển thị (Containers)
+  const loginCard = document.getElementById('loginCard');
+  const studentExamContainer = document.getElementById('studentExamContainer');
+  const lecturerDashboardContainer = document.getElementById('lecturerDashboardContainer');
+  const studentManagementContainer = document.getElementById('studentManagementContainer');
+  const examEditorContainer = document.getElementById('examEditorContainer');
+
+  // B. Ẩn tất cả Container trước để tránh đè giao diện
+  if (loginCard) loginCard.style.display = 'none';
+  if (studentExamContainer) studentExamContainer.style.display = 'none';
+  if (lecturerDashboardContainer) lecturerDashboardContainer.style.display = 'none';
+  if (studentManagementContainer) studentManagementContainer.style.display = 'none';
+  if (examEditorContainer) examEditorContainer.style.display = 'none';
+
+  // C. Cập nhật trạng thái Active trên Thanh Menu Navigation
   document.querySelectorAll('nav button, [data-tab]').forEach(btn => {
-    if (btn.getAttribute('data-tab') === tabId) {
+    const btnTab = btn.getAttribute('data-tab');
+    if (btnTab === targetTab || btn.id === getBtnIdByTab(targetTab)) {
       btn.classList.add('active');
       btn.style.fontWeight = 'bold';
       btn.style.borderBottom = '2px solid #2563eb';
@@ -35,22 +61,44 @@ export function switchTab(tabId) {
     }
   });
 
-  // 2. Chuyển hướng đúng view theo Tab (Tránh đè lẫn nhau)
-  if (tabId === 'tab-exams') {
+  // D. Bật Khung tương ứng và Nạp dữ liệu
+  if (targetTab === 'tab-exams') {
+    if (lecturerDashboardContainer) lecturerDashboardContainer.style.display = 'block';
     handleLoadLecturerDashboard();
-  } else if (tabId === 'tab-students') {
+  } else if (targetTab === 'tab-students') {
+    if (studentManagementContainer) studentManagementContainer.style.display = 'block';
     handleLoadStudentManagement();
-  } else if (tabId === 'tab-parser') {
-    // Giữ nguyên nội dung biên tập nếu đang sửa đề
-    const parserContainer = document.getElementById('examEditorContainer');
-    if (!parserContainer || !parserContainer.innerHTML.trim()) {
-      // Nếu tab rỗng thì hiển thị khung tải file mặc định
+  } else if (targetTab === 'tab-parser') {
+    if (examEditorContainer) examEditorContainer.style.display = 'block';
+    const parserContent = document.getElementById('questionsEditorList') || document.getElementById('examEditorContainer');
+    if (parserContent && !parserContent.innerHTML.trim()) {
       renderDefaultUploadScreen();
     }
+  } else if (targetTab === 'tab-student-exams') {
+    if (studentExamContainer) studentExamContainer.style.display = 'block';
+    handleLoadStudentDashboard();
   }
 }
 
-// 3. LẮNG NGHE SỰ KIỆN CLICK TAB VỚI EVENT DELEGATION
+// Hàm hỗ trợ map ID nút Menu
+function getBtnIdByTab(tabId) {
+  if (tabId === 'tab-exams') return 'tabBtnLecturer';
+  if (tabId === 'tab-students') return 'tabBtnManagement';
+  if (tabId === 'tab-parser') return 'tabBtnEditor';
+  if (tabId === 'tab-student-exams') return 'tabBtnStudent';
+  return '';
+}
+
+// Tương thích ngược với các hàm gọi switchMainTab cũ
+export function switchMainTab(tabName) {
+  switchTab(tabName);
+}
+
+/**
+ * =========================================================================
+ * 2. LẮNG NGHE SỰ KIỆN CLICK TAB VỚI EVENT DELEGATION (DUY NHẤT 1 LISTENER)
+ * =========================================================================
+ */
 document.addEventListener('click', (event) => {
   const tabBtn = event.target.closest('[data-tab]');
   if (tabBtn) {
@@ -59,65 +107,11 @@ document.addEventListener('click', (event) => {
   }
 });
 
-window.switchTab = switchTab;
-
-// Ủy quyền sự kiện (Event Delegation): Tự động lắng nghe click Tab "Quản Lý Đề Thi" kể cả khi render động
-document.addEventListener('click', (event) => {
-  const examTabBtn = event.target.closest('[data-tab="tab-exams"]');
-  if (examTabBtn) {
-    loadExamList(); // Gọi tải danh sách đề thi từ Server khi bấm tab
-  }
-});
-
-// =========================================================================
-// 1. ĐIỀU HƯỚNG TAB CHÍNH (TAB SWITCHER)
-// =========================================================================
-export function switchMainTab(tabName) {
-  const loginCard = document.getElementById('loginCard');
-  const studentExamContainer = document.getElementById('studentExamContainer');
-  const lecturerDashboardContainer = document.getElementById('lecturerDashboardContainer');
-  const studentManagementContainer = document.getElementById('studentManagementContainer');
-  const examEditorContainer = document.getElementById('examEditorContainer');
-
-  const tabBtnStudent = document.getElementById('tabBtnStudent');
-  const tabBtnLecturer = document.getElementById('tabBtnLecturer');
-  const tabBtnManagement = document.getElementById('tabBtnManagement');
-  const tabBtnEditor = document.getElementById('tabBtnEditor');
-
-  // Ẩn tất cả các container
-  if (loginCard) loginCard.style.display = 'none';
-  if (studentExamContainer) studentExamContainer.style.display = 'none';
-  if (lecturerDashboardContainer) lecturerDashboardContainer.style.display = 'none';
-  if (studentManagementContainer) studentManagementContainer.style.display = 'none';
-  if (examEditorContainer) examEditorContainer.style.display = 'none';
-
-  // Reset lớp active trên các nút menu
-  [tabBtnStudent, tabBtnLecturer, tabBtnManagement, tabBtnEditor].forEach(btn => {
-    if (btn) btn.classList.remove('active');
-  });
-
-  // Hiển thị tab được chọn và nạp dữ liệu tương ứng
-  if (tabName === 'STUDENT_EXAMS') {
-    if (studentExamContainer) studentExamContainer.style.display = 'block';
-    if (tabBtnStudent) tabBtnStudent.classList.add('active');
-    handleLoadStudentDashboard();
-  } else if (tabName === 'LECTURER_DASHBOARD') {
-    if (lecturerDashboardContainer) lecturerDashboardContainer.style.display = 'block';
-    if (tabBtnLecturer) tabBtnLecturer.classList.add('active');
-    handleLoadLecturerDashboard();
-  } else if (tabName === 'STUDENT_MANAGEMENT') {
-    if (studentManagementContainer) studentManagementContainer.style.display = 'block';
-    if (tabBtnManagement) tabBtnManagement.classList.add('active');
-    handleLoadStudentManagement();
-  } else if (tabName === 'EXAM_EDITOR') {
-    if (examEditorContainer) examEditorContainer.style.display = 'block';
-    if (tabBtnEditor) tabBtnEditor.classList.add('active');
-  }
-}
-
-// =========================================================================
-// 2. XỬ LÝ SỰ KIỆN ĐĂNG NHẬP FORM
-// =========================================================================
+/**
+ * =========================================================================
+ * 3. XỬ LÝ SỰ KIỆN ĐĂNG NHẬP FORM
+ * =========================================================================
+ */
 export async function submitLoginForm() {
   const usernameInput = document.getElementById('inputUsername');
   const passwordInput = document.getElementById('inputPassword');
@@ -131,9 +125,11 @@ export async function submitLoginForm() {
   }
 }
 
-// =========================================================================
-// 3. CẬP NHẬT GIAO DIỆN THEO PHIÊN ĐĂNG NHẬP (USER SESSION UI)
-// =========================================================================
+/**
+ * =========================================================================
+ * 4. CẬP NHẬT GIAO DIỆN THEO PHIÊN ĐĂNG NHẬP (USER SESSION UI)
+ * =========================================================================
+ */
 export function initUserSessionUI() {
   const user = getLoggedInUser();
   const loginCard = document.getElementById('loginCard');
@@ -147,7 +143,7 @@ export function initUserSessionUI() {
   const tabBtnEditor = document.getElementById('tabBtnEditor');
 
   if (!user) {
-    // Trường hợp chưa đăng nhập
+    // Chưa đăng nhập
     if (loginCard) loginCard.style.display = 'block';
     if (appNavTabs) appNavTabs.style.display = 'none';
     if (userInfoDisplay) userInfoDisplay.innerText = 'Chưa đăng nhập';
@@ -155,7 +151,7 @@ export function initUserSessionUI() {
     return;
   }
 
-  // Trường hợp đã đăng nhập
+  // Đã đăng nhập
   if (loginCard) loginCard.style.display = 'none';
   if (appNavTabs) appNavTabs.style.display = 'flex';
   if (btnLogout) btnLogout.style.display = 'inline-block';
@@ -166,40 +162,41 @@ export function initUserSessionUI() {
     userInfoDisplay.innerHTML = `👤 <strong>${name}</strong> (${role})`;
   }
 
-  // Phân quyền hiển thị nút Menu Tab
+  // Phân quyền hiển thị Menu
   if (role === 'STUDENT') {
     if (tabBtnStudent) tabBtnStudent.style.display = 'inline-block';
     if (tabBtnLecturer) tabBtnLecturer.style.display = 'none';
     if (tabBtnManagement) tabBtnManagement.style.display = 'none';
     if (tabBtnEditor) tabBtnEditor.style.display = 'none';
-    switchMainTab('STUDENT_EXAMS');
+    switchTab('tab-student-exams');
   } else {
     // Quyền LECTURER hoặc ADMIN
     if (tabBtnStudent) tabBtnStudent.style.display = 'none';
     if (tabBtnLecturer) tabBtnLecturer.style.display = 'inline-block';
     if (tabBtnManagement) tabBtnManagement.style.display = 'inline-block';
     if (tabBtnEditor) tabBtnEditor.style.display = 'inline-block';
-    switchMainTab('LECTURER_DASHBOARD');
+    switchTab('tab-exams');
   }
 }
 
-// =========================================================================
-// 4. KÍCH HOẠT TẢI FILE ĐỀ THI BÓC TÁCH
-// =========================================================================
+/**
+ * =========================================================================
+ * 5. KÍCH HOẠT TẢI FILE ĐỀ THI BÓC TÁCH
+ * =========================================================================
+ */
 export function triggerExamUpload(inputElement) {
   if (inputElement && inputElement.files && inputElement.files[0]) {
     handleExamFileUpload(inputElement.files[0]);
   }
 }
 
-// =========================================================================
-// 5. GẮN CÁC HÀM VÀO SCOPE WINDOW ĐỂ HTML TRUY XUẤT ĐƯỢC
-// =========================================================================
+// Attach scope window
+window.switchTab = switchTab;
 window.switchMainTab = switchMainTab;
 window.submitLoginForm = submitLoginForm;
 window.triggerExamUpload = triggerExamUpload;
 
-// Tự động chạy khi DOM được tải xong
+// Khởi chạy khi tải xong trang
 document.addEventListener('DOMContentLoaded', () => {
   initUserSessionUI();
 });
