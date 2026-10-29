@@ -1,59 +1,69 @@
-import { utf8ToBase64 } from '../utils/encoding.js';
 import { APP_CONFIG } from '../constants/appConfig.js';
+import { appsScriptService } from './appsScriptService.js';
 import { logger } from '../utils/logger.js';
 
-export const githubService = {
+/**
+ * GITHUB SERVICE - QUẢN LÝ TẢI & CÔNG BỐ ĐỀ THI TRÊN GITHUB CDN
+ */
+export class GithubService {
+  constructor() {
+    this.owner = APP_CONFIG?.GITHUB?.OWNER || 'thanhhuynh8989-stack';
+    this.repo = APP_CONFIG?.GITHUB?.REPO || 'Kiem_tra';
+    this.branch = APP_CONFIG?.GITHUB?.BRANCH || 'main';
+    this.rawBaseUrl = `https://raw.githubusercontent.com/${this.owner}/${this.repo}/${this.branch}`;
+  }
+
   /**
-   * Tải file đề thi public từ GitHub CDN/Raw
+   * Tải nội dung file đề thi JSON từ GitHub CDN công khai
+   * @param {string} filePath - Ví dụ: 'exams/exam_75ceb91a.json' hoặc 'exam_75ceb91a'
+   * @returns {Promise<object>} Nội dung JSON đề thi
    */
-  async getExam(filename) {
-    const url = `https://raw.githubusercontent.com/${APP_CONFIG.GITHUB.OWNER}/${APP_CONFIG.GITHUB.REPO}/${APP_CONFIG.GITHUB.BRANCH}/exams/${filename}`;
+  async fetchExamData(filePath) {
+    if (!filePath) throw new Error('Thiếu đường dẫn tệp đề thi.');
+
+    let cleanPath = String(filePath).trim().replace(/^exams\//i, '');
+    if (cleanPath.includes('-')) cleanPath = cleanPath.split('-')[0];
+    if (!cleanPath.endsWith('.json')) cleanPath = `${cleanPath}.json`;
+    cleanPath = `exams/${cleanPath}`;
+
+    const url = `${this.rawBaseUrl}/${cleanPath}?v=${Date.now()}`;
+    logger.info(`Đang tải đề thi từ GitHub CDN: ${url}`);
+
     const response = await fetch(url);
     if (!response.ok) {
-      throw new Error(`Không thể tải đề thi từ GitHub (${response.status})`);
+      throw new Error(`Không tìm thấy file đề thi trên GitHub CDN (Mã lỗi: HTTP ${response.status}).`);
     }
+
     return await response.json();
-  },
+  }
 
   /**
-   * Đẩy trực tiếp file đề thi lên GitHub (Dành cho Admin nếu cấu hình Client Token)
+   * Công bố đề thi an toàn thông qua Google Apps Script Proxy
+   * (Giúp giấu GitHub Token không bị lộ ở Client)
+   * @param {string} examId 
+   * @param {object} publicExamData 
+   * @param {string} username 
    */
-  async uploadExamDirect(filename, examData, token) {
-    const url = `https://api.github.com/repos/${APP_CONFIG.GITHUB.OWNER}/${APP_CONFIG.GITHUB.REPO}/contents/exams/${filename}`;
-    const jsonString = JSON.stringify(examData, null, 2);
-    const contentBase64 = utf8ToBase64(jsonString);
+  async publishExamSecurely(examId, publicExamData, username = 'admin') {
+    let cleanCode = String(examId).trim().toLowerCase().replace(/\.json$/i, '').replace(/^exams\//i, '');
+    if (cleanCode.includes('-')) cleanCode = cleanCode.split('-')[0];
+    
+    const targetCode = `${cleanCode}.json`;
+    const filePath = `exams/${targetCode}`;
 
-    let sha = null;
-    try {
-      const res = await fetch(url, {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
-      if (res.ok) {
-        const data = await res.json();
-        sha = data.sha;
-      }
-    } catch (e) {
-      logger.warn('File chưa tồn tại trên Repo, sẽ tạo mới hoàn toàn');
-    }
+    logger.info(`Đang gửi yêu cầu Backend công bố đề thi [${targetCode}] lên GitHub...`);
 
-    const payload = {
-      message: `Publish exam: ${filename}`,
-      content: contentBase64
-    };
-    if (sha) payload.sha = sha;
-
-    const uploadRes = await fetch(url, {
-      method: 'PUT',
-      headers: {
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify(payload)
+    const response = await appsScriptService.request('SAVE_AND_PUBLISH_EXAM', {
+      examId: cleanCode,
+      examCode: targetCode,
+      publicExamData: publicExamData,
+      filePath: filePath,
+      username: username
     });
 
-    if (!uploadRes.ok) {
-      throw new Error(`GitHub Upload Error: ${uploadRes.statusText}`);
-    }
-    return await uploadRes.json();
+    return response;
   }
-};
+}
+
+export const githubService = new GithubService();
+window.githubService = githubService;
