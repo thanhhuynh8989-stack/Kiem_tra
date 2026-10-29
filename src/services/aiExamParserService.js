@@ -5,7 +5,7 @@ import { logger } from '../utils/logger.js';
 export class AiExamParserService {
   constructor() {
     this.apiKey = APP_CONFIG?.GEMINI_API_KEY || '';
-    // Danh sách các phiên bản Gemini AI thử nghiệm tuần tự để tránh hạn chế / Rate Limit
+    // Danh sách mô hình Gemini được thử nghiệm tuần tự
     this.candidateModels = [
       'gemini-2.0-flash',
       'gemini-1.5-flash',
@@ -17,15 +17,15 @@ export class AiExamParserService {
     ];
   }
 
-async parseExamWithAI({ questions = [] }) {
-    // 1. Lấy Gemini API Key từ bộ nhớ
+  async parseExamWithAI({ questions = [] }) {
+    // 1. Lấy Gemini API Key từ Session / LocalStorage
     let activeKey = this.apiKey;
     try {
       const u = JSON.parse(sessionStorage.getItem('currentUser') || localStorage.getItem('currentUser') || '{}');
       if (u.geminiApiKey) activeKey = u.geminiApiKey.trim();
     } catch (e) {}
 
-    // 2. Yêu cầu nhập API Key nếu chưa phát hiện
+    // 2. Yêu cầu nhập API Key nếu chưa có
     if (!activeKey) {
       activeKey = prompt('🔑 Vui lòng nhập Gemini API Key hợp lệ (bắt đầu bằng AIzaSy...):');
       if (!activeKey || !activeKey.trim()) {
@@ -125,7 +125,7 @@ JSON Output Structure:
           const isModified = checkIfQuestionModified(origQ, normalized);
 
           normalized.flags = {
-            needsUserConfirmation: isModified, // Chỉ bằng true nếu AI thực sự tác động
+            needsUserConfirmation: isModified,
             note: isModified
               ? `🤖 AI (${modelName}) đã sinh bổ sung phương án/đáp án. Giảng viên vui lòng rà soát lại.`
               : `✅ Giữ nguyên từ bản gốc, AI không tác động.`
@@ -156,20 +156,16 @@ JSON Output Structure:
 
 /**
  * HÀM KIỂM TRA ĐỐI SOÁT DỮ LIỆU (DIFFING)
- * Trả về true nếu AI có tác động chỉnh sửa/bổ sung câu hỏi
  */
 function checkIfQuestionModified(origQ, aiQ) {
   if (!origQ || !aiQ) return true;
 
-  // 1. Kiểm tra nội dung câu hỏi (Stem)
   const origStem = (origQ.stem || '').trim();
   const aiStem = (aiQ.stem || '').trim();
   if (origStem !== aiStem) return true;
 
-  // 2. Kiểm tra chỉ số đáp án đúng (Correct Answer)
   if (origQ.correctAnswer !== aiQ.correctAnswer) return true;
 
-  // 3. Kiểm tra các phương án lựa chọn (Options)
   const origOpts = origQ.options || [];
   const aiOpts = aiQ.options || [];
 
@@ -179,20 +175,18 @@ function checkIfQuestionModified(origQ, aiQ) {
     const oText = (origOpts[i] || '').trim();
     const aText = (aiOpts[i] || '').trim();
 
-    // Phát hiện phương án bị AI thay đổi nội dung
     if (oText !== aText) return true;
 
-    // Phát hiện trường hợp bản gốc từng chứa chữ giữ chỗ "Phương án C..." nay đã được điền
     if (!oText || oText.includes('Phương án C...') || oText.includes('Phương án D...') || oText === '...') {
       return true;
     }
   }
 
-  return false; // Trả về false nếu câu hỏi hoàn toàn giống hệt bản gốc
+  return false;
 }
 
+// KHAI BÁO & EXPORT DUY NHẤT 1 LẦN Ở CUỐI FILE
 export const aiExamParserService = new AiExamParserService();
-window.aiExamParserService = aiExamParserService;
-
-export const aiExamParserService = new AiExamParserService();
-window.aiExamParserService = aiExamParserService;
+if (typeof window !== 'undefined') {
+  window.aiExamParserService = aiExamParserService;
+}
