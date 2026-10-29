@@ -6,8 +6,8 @@ import { renderKaTeX, sanitizeHTML } from '../utils/domHelper.js';
 import { showAppLoading, hideAppLoading, getLoggedInUsername, escapeHtml } from './authAndCore.js';
 import { APP_CONFIG } from '../constants/appConfig.js';
 
-// Mảng lưu trữ trạng thái danh sách câu hỏi đang biên tập
 let currentEditingQuestions = [];
+let currentFileName = '';
 
 /**
  * 1. XỬ LÝ KHI GIẢNG VIÊN TẢI FILE ĐỀ THI LÊN (WORD, PDF, ẢNH)
@@ -18,6 +18,7 @@ export async function handleExamFileUpload(file) {
     return;
   }
 
+  currentFileName = file.name;
   const fileName = file.name.toLowerCase();
   showAppLoading(`⏳ Đang đọc nội dung file [${file.name}]...`);
 
@@ -26,7 +27,6 @@ export async function handleExamFileUpload(file) {
     let imageBase64 = null;
     let mimeType = file.type || 'image/png';
 
-    // A. BÓC TÁCH THEO ĐỊNH DẠNG FILE
     if (fileName.endsWith('.docx')) {
       rawQuestions = await parseDocxFile(file);
     } else if (fileName.endsWith('.pdf')) {
@@ -41,9 +41,8 @@ export async function handleExamFileUpload(file) {
       throw new Error('Định dạng file không được hỗ trợ. Vui lòng chọn file .docx, .pdf hoặc hình ảnh!');
     }
 
-    showAppLoading('🤖 Đang gửi sang Gemini AI để chuẩn hóa & hiển thị công thức...');
+    showAppLoading('🤖 Đang gửi sang Gemini AI để chuẩn hóa & bổ sung đáp án...');
 
-    // B. GỬI SANG AI SERVICE ĐỂ CHUẨN HÓA (CÓ FALLBACK VỀ CODE THUẦN)
     const result = await aiExamParserService.parseExamWithAI({
       rawText: '',
       imageBase64: imageBase64,
@@ -76,7 +75,12 @@ export function renderExamEditorScreen(fileName, questions = [], statusMessage =
           <h3 style="margin:0; font-size:18px; color:#0f172a;">🛠️ Biên Tập & Duyệt Đề Thi (${questions.length} câu)</h3>
           <small style="color:var(--text-muted);">Tệp gốc: ${escapeHtml(fileName)}</small>
         </div>
-        <div style="display:flex; gap:10px;">
+        <div style="display:flex; gap:10px; flex-wrap:wrap;">
+          <!-- NÚT BỔ SUNG AI MỚI -->
+          <button type="button" onclick="handleRefineQuestionsWithAI()" style="background:#8b5cf6; color:#fff; border:none; padding:8px 16px; border-radius:6px; font-weight:600; cursor:pointer; display:flex; align-items:center; gap:6px;">
+            🤖 AI Bổ Sung Đáp Án & Sửa Lỗi
+          </button>
+
           <button type="button" onclick="handleSaveAndPublishExamUI()" style="background:#16a34a; color:#fff; border:none; padding:8px 16px; border-radius:6px; font-weight:600; cursor:pointer;">
             💾 Lưu & Xuất Bản Đề Thi
           </button>
@@ -84,8 +88,9 @@ export function renderExamEditorScreen(fileName, questions = [], statusMessage =
       </div>
 
       ${statusMessage ? `
-        <div style="background:${isFallback ? '#fffbeb' : '#f0fdf4'}; border:1px solid ${isFallback ? '#fcd34d' : '#86efac'}; padding:10px 14px; border-radius:6px; font-size:13px; color:${isFallback ? '#b45309' : '#15803d'}; margin-bottom:16px;">
-          ${escapeHtml(statusMessage)}
+        <div style="background:${isFallback ? '#fffbeb' : '#f0fdf4'}; border:1px solid ${isFallback ? '#fcd34d' : '#86efac'}; padding:10px 14px; border-radius:6px; font-size:13px; color:${isFallback ? '#b45309' : '#15803d'}; margin-bottom:16px; display:flex; justify-content:space-between; align-items:center;">
+          <span>${escapeHtml(statusMessage)}</span>
+          ${isFallback ? `<button type="button" onclick="handleRefineQuestionsWithAI()" style="background:#d97706; color:#fff; border:none; padding:4px 10px; border-radius:4px; font-size:12px; cursor:pointer; font-weight:600;">Cho AI hoàn thiện ngay ⚡</button>` : ''}
         </div>
       ` : ''}
 
@@ -97,7 +102,6 @@ export function renderExamEditorScreen(fileName, questions = [], statusMessage =
 
   container.innerHTML = html;
   
-  // Render lại công thức toán KaTeX cho toàn bộ vùng biên tập
   setTimeout(() => {
     renderKaTeX(container);
   }, 100);
@@ -124,7 +128,7 @@ function renderQuestionItemEditor(q, idx) {
             <div style="display:flex; align-items:center; gap:8px; background:#fff; padding:6px 10px; border-radius:6px; border:1px solid ${isCorrect ? '#22c55e' : '#e2e8f0'};">
               <input type="radio" name="correct_ans_${idx}" value="${oIdx}" ${isCorrect ? 'checked' : ''} onchange="updateQuestionCorrectAnswer(${idx}, ${oIdx})">
               <strong style="color:${isCorrect ? '#16a34a' : '#475569'};">${letter}.</strong>
-              <input type="text" value="${escapeHtml(optText)}" onchange="updateQuestionOption(${idx}, ${oIdx}, this.value)" style="width:100%; border:none; outline:none; font-size:13px;">
+              <input type="text" value="${escapeHtml(optText)}" placeholder="Phương án ${letter}..." onchange="updateQuestionOption(${idx}, ${oIdx}, this.value)" style="width:100%; border:none; outline:none; font-size:13px;">
             </div>
           `;
         }).join('')}
@@ -134,7 +138,42 @@ function renderQuestionItemEditor(q, idx) {
 }
 
 // =========================================================================
-// 3. TIỆN ÍCH CẬP NHẬT DỮ LIỆU BIÊN TẬP TỰ ĐỘNG
+// 3. HÀM AI TỰ ĐỘNG BỔ SUNG ĐÁP ÁN & KHẮC PHỤC LỖI CÂU HỎI
+// =========================================================================
+export async function handleRefineQuestionsWithAI() {
+  if (!currentEditingQuestions || currentEditingQuestions.length === 0) {
+    alert('Không có dữ liệu câu hỏi để AI xử lý!');
+    return;
+  }
+
+  showAppLoading('🤖 Gemini AI đang đọc toàn bộ câu hỏi, bổ sung phương án thiếu và tìm đáp án đúng...');
+
+  try {
+    const result = await aiExamParserService.parseExamWithAI({
+      rawText: '',
+      imageBase64: null,
+      mimeType: null,
+      questions: currentEditingQuestions
+    });
+
+    hideAppLoading();
+
+    if (result.questions && result.questions.length > 0) {
+      currentEditingQuestions = result.questions;
+      renderExamEditorScreen(currentFileName || 'Đề thi', currentEditingQuestions, '🎉 Gemini AI đã tự động bổ sung đủ đáp án & khắc phục toàn bộ lỗi!', false);
+      alert('✅ AI đã hoàn tất bổ sung đáp án thiếu và chọn đáp án chính xác!');
+    } else {
+      alert('Không thể bổ sung bằng AI. Vui lòng kiểm tra lại API Key Gemini!');
+    }
+
+  } catch (err) {
+    hideAppLoading();
+    alert(`Lỗi khi gọi AI bổ sung: ${err.message}`);
+  }
+}
+
+// =========================================================================
+// 4. TIỆN ÍCH CẬP NHẬT DỮ LIỆU BIÊN TẬP TỰ ĐỘNG
 // =========================================================================
 window.updateQuestionStem = function(index, newText) {
   if (currentEditingQuestions[index]) {
@@ -155,7 +194,7 @@ window.updateQuestionCorrectAnswer = function(qIdx, optIdx) {
 };
 
 // =========================================================================
-// 4. LƯU & XUẤT BẢN ĐỀ THI LÊN APPS SCRIPT VÀ GITHUB CDN
+// 5. LƯU & XUẤT BẢN ĐỀ THI LÊN APPS SCRIPT VÀ GITHUB CDN
 // =========================================================================
 export async function handleSaveAndPublishExamUI() {
   if (!currentEditingQuestions || currentEditingQuestions.length === 0) {
@@ -202,4 +241,5 @@ export async function handleSaveAndPublishExamUI() {
 }
 
 window.handleExamFileUpload = handleExamFileUpload;
+window.handleRefineQuestionsWithAI = handleRefineQuestionsWithAI;
 window.handleSaveAndPublishExamUI = handleSaveAndPublishExamUI;
