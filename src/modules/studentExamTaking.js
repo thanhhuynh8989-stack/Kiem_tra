@@ -7,6 +7,15 @@ import {
   stopViolationTracking, 
   escapeHtml 
 } from './authAndCore.js';
+// =========================================================================
+// RESET SẠCH BỘ NHỚ ĐÁP ÁN TRƯỚC KHI VÀO THI
+// =========================================================================
+export function resetExamSessionState() {
+  window.currentActiveAnswersForExam = {};
+  if (typeof userAnswers !== 'undefined') {
+    for (let k in userAnswers) delete userAnswers[k];
+  }
+}
 
 // =========================================================================
 // 1. THUẬT TOÁN XÁO TRỘN NGUYÊN TẮC FISHER-YATES
