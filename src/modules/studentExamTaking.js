@@ -311,6 +311,28 @@ export async function handleConfirmSubmitExam(examId, totalQuestions) {
   }
 }
 
+// =========================================================================
+// HÀM QUY ĐỔI ĐỒNG BỘ 2 CHIỀU GIỮA CHỮ (A,B,C,D) VÀ CHỈ SỐ SỐ (0,1,2,3)
+// =========================================================================
+function normalizeChoice(val) {
+  if (val === undefined || val === null) return { letter: '', index: '' };
+  const str = String(val).trim().toUpperCase();
+  
+  const letterToIdx = { 'A': '0', 'B': '1', 'C': '2', 'D': '3' };
+  const idxToLetter = { '0': 'A', '1': 'B', '2': 'C', '3': 'D' };
+
+  if (letterToIdx[str] !== undefined) {
+    return { letter: str, index: letterToIdx[str] };
+  }
+  if (idxToLetter[str] !== undefined) {
+    return { letter: idxToLetter[str], index: str };
+  }
+  return { letter: str, index: str };
+}
+
+// =========================================================================
+// HÀM NỘP BÀI VÀ TÍNH ĐIỂM BẢO MẬT CHUẨN XÁC 100%
+// =========================================================================
 export async function executeSubmitExam(
   examId = window.currentActiveExamId, 
   questions = window.currentActiveQuestionsForExam || [], 
@@ -322,7 +344,7 @@ export async function executeSubmitExam(
   try {
     const username = getLoggedInUsername();
 
-    // 1. Chuẩn hóa Mã Đề Ngắn 8 ký tự hex
+    // 1. Chuẩn hóa Mã Đề Ngắn (VD: exam_75ceb91a)
     let shortExamId = String(examId || '').trim().toLowerCase()
       .replace(/\.json$/i, '').replace(/^exams\//i, '');
     const matchHex = shortExamId.match(/(exam_[a-f0-9]{8})/i);
@@ -337,78 +359,84 @@ export async function executeSubmitExam(
       ? answers 
       : (window.currentActiveAnswersForExam || {});
 
-    // 3. TÍNH TOÁN KẾT QUẢ CHÍNH XÁC (LOẠI BỎ ĐÁP ÁN RỖNG & TRÙNG KEY)
+    // 3. LÀM SẠCH BẢNG ĐÁP ÁN: LỌC BỎ HOÀN TOÀN CÁC PHẦN TỬ RỖNG
+    const cleanAnswersMap = {};
+    Object.keys(rawAnswers).forEach(key => {
+      const val = rawAnswers[key];
+      if (val !== undefined && val !== null) {
+        const strVal = String(val).trim();
+        if (strVal !== '' && strVal !== 'null' && strVal !== 'undefined') {
+          cleanAnswersMap[key] = strVal;
+        }
+      }
+    });
+
+    // 4. TÍNH TOÁN KẾT QUẢ ĐỐI SOÁT CHÍNH XÁC
     let correctCount = 0;
     let answeredCount = 0;
     const totalQ = activeQuestions.length;
 
+    console.log("🔍 [FE_LOG] --- BẮT ĐẦU TÍNH ĐIỂM ---");
+    console.log("🔍 [FE_LOG] Clean Answers Map:", cleanAnswersMap);
+
     activeQuestions.forEach((q, idx) => {
-      // Ưu tiên lấy ID chuẩn duy nhất cho từng câu
-      const primaryQId = q.id || q.qId || String(idx + 1);
+      const qNum = idx + 1;
       
-      // Tìm câu trả lời từ thí sinh
-      let studentChoice = rawAnswers[primaryQId];
-      if (studentChoice === undefined || studentChoice === null || String(studentChoice).trim() === '') {
-        studentChoice = rawAnswers[idx + 1];
+      // Danh sách các khóa định danh câu hỏi có thể có
+      const possibleKeys = [
+        String(qNum), 
+        qNum, 
+        q.id, 
+        q.qId, 
+        `q_${qNum}`, 
+        `question_${qNum}`
+      ];
+
+      let studentChoice = null;
+      for (const k of possibleKeys) {
+        if (k !== undefined && k !== null && cleanAnswersMap[k] !== undefined) {
+          studentChoice = cleanAnswersMap[k];
+          break;
+        }
       }
-      if (studentChoice === undefined || studentChoice === null || String(studentChoice).trim() === '') {
-        studentChoice = rawAnswers[`q_${idx + 1}`];
-      }
 
-      // CHỈ ĐẾM LÀ ĐÃ LÀM KHI GÍA TRỊ KHÁC RỖNG VÀ KHÔNG PHẢI NULL
-      const cleanChoiceStr = (studentChoice !== undefined && studentChoice !== null) ? String(studentChoice).trim() : '';
+      if (studentChoice !== null) {
+        answeredCount++; // Đếm chính xác số câu thực sự trả lời
 
-      if (cleanChoiceStr !== '' && cleanChoiceStr !== 'null' && cleanChoiceStr !== 'undefined') {
-        answeredCount++; // Đếm chuẩn câu đã chọn!
-
-        // 4. ĐỐI SOÁT ĐÁP ÁN ĐÚNG
-        let isCorrect = false;
-
-        // Cơ chế A: Chấm theo mảng shuffledOptions
-        if (Array.isArray(q.shuffledOptions) && q.shuffledOptions.length > 0) {
-          let choiceIdx = -1;
-          if (!isNaN(parseInt(cleanChoiceStr, 10))) {
-            choiceIdx = parseInt(cleanChoiceStr, 10);
-          } else {
-            const letterMap = { 'A': 0, 'B': 1, 'C': 2, 'D': 3 };
-            choiceIdx = letterMap[cleanChoiceStr.toUpperCase()] ?? -1;
-          }
-
-          if (choiceIdx >= 0 && choiceIdx < q.shuffledOptions.length) {
-            const selectedOpt = q.shuffledOptions[choiceIdx];
-            if (selectedOpt && selectedOpt.isCorrect === true) {
-              isCorrect = true;
+        // Trích xuất đáp án đúng gốc từ câu hỏi
+        let rawExpected = q.correctAnswer ?? q.answerKey ?? q.answer ?? q.correct ?? q.correct_answer;
+        
+        if ((rawExpected === undefined || rawExpected === null) && Array.isArray(q.options)) {
+          q.options.forEach((opt, oIdx) => {
+            if (typeof opt === 'object' && opt !== null && (opt.isCorrect || opt.correct)) {
+              rawExpected = oIdx;
             }
-          }
+          });
         }
 
-        // Cơ chế B: Chấm trực tiếp theo Đáp án gốc (Hỗ trợ 0-3 và A-D)
-        if (!isCorrect) {
-          const keyAns = q.correctAnswer ?? q.answerKey ?? q.answer;
-          const keyStr = String(keyAns !== undefined && keyAns !== null ? keyAns : '').trim().toUpperCase();
+        // Quy đổi cả Lựa chọn của SV và Đáp án gốc về cùng chuẩn Chữ & Số
+        const studentNorm = normalizeChoice(studentChoice);
+        const expectedNorm = normalizeChoice(rawExpected);
 
-          if (keyStr !== '') {
-            const sUpper = cleanChoiceStr.toUpperCase();
-            if (sUpper === keyStr) {
-              isCorrect = true;
-            } else {
-              const letterToNum = { 'A': '0', 'B': '1', 'C': '2', 'D': '3' };
-              const numToLetter = { '0': 'A', '1': 'B', '2': 'C', '3': 'D' };
-              if (letterToNum[sUpper] === keyStr || numToLetter[sUpper] === keyStr) {
-                isCorrect = true;
-              }
-            }
+        let isCorrect = false;
+        if (expectedNorm.letter !== '' || expectedNorm.index !== '') {
+          if (studentNorm.letter === expectedNorm.letter || studentNorm.index === expectedNorm.index) {
+            isCorrect = true;
           }
         }
 
         if (isCorrect) correctCount++;
+
+        console.log(`🔍 [FE_LOG] Câu ${qNum}: SV chọn='${studentChoice}' (${studentNorm.letter}/${studentNorm.index}) | Đáp án đúng='${rawExpected}' (${expectedNorm.letter}/${expectedNorm.index}) => ${isCorrect ? '✅ ĐÚNG' : '❌ SAI'}`);
       }
     });
 
-    // 5. Tính điểm thang 10 chuẩn
+    // 5. Tính điểm Thang 10 (làm tròn 2 chữ số thập phân)
     const finalGrade = totalQ > 0 ? Number(((correctCount / totalQ) * 10).toFixed(2)) : 0;
 
-    // 6. Lấy thông tin tài khoản đăng nhập
+    console.log(`📊 [FE_LOG] KẾT QUẢ: Đã làm ${answeredCount}/${totalQ} | Đúng ${correctCount}/${totalQ} | Điểm: ${finalGrade}`);
+
+    // 6. Lấy thông tin sinh viên
     let loggedUser = {};
     try {
       loggedUser = JSON.parse(sessionStorage.getItem('currentUser') || sessionStorage.getItem('userSession') || '{}');
@@ -417,18 +445,18 @@ export async function executeSubmitExam(
     const studentName = loggedUser.fullName || loggedUser.name || username;
     const studentClass = loggedUser.className || loggedUser.class || '';
 
-    // 7. Gửi dữ liệu đã được làm sạch về Server Apps Script
+    // 7. Gửi gói kết quả chuẩn hóa về Apps Script
     const payload = {
       examId: shortExamId, 
       username: username,
       studentCode: username,
       studentName: studentName,
       studentClass: studentClass,
-      answers: rawAnswers,
-      correctCount: correctCount,
-      answeredCount: answeredCount,   // Sẽ truyền chuẩn 6/15
-      totalQuestions: totalQ,         // 15
-      finalGrade: finalGrade,
+      answers: cleanAnswersMap,        // Gửi mảng đáp án đã làm sạch
+      correctCount: correctCount,      // Số câu đúng chuẩn
+      answeredCount: answeredCount,    // Số câu đã làm chuẩn
+      totalQuestions: totalQ,          // Tổng số câu
+      finalGrade: finalGrade,          // Điểm số thang 10
       violationInfo: {
         violationCount: window.violationCount || 0,
         isAutoSubmitted: (window.violationCount || 0) >= 3,
@@ -438,8 +466,7 @@ export async function executeSubmitExam(
 
     const res = await appsScriptService.request('SUBMIT_EXAM', payload);
 
-    // 8. Dọn dẹp bản nháp và state sau khi nộp bài thành công
-    resetExamSessionState();
+    // 8. Dọn dẹp bản nháp
     if (typeof ExamDraftManager !== 'undefined') {
       ExamDraftManager.clearDraft(username, examId);
       ExamDraftManager.clearDraft(username, shortExamId);
