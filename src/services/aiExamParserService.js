@@ -10,19 +10,18 @@ export class AiExamParserService {
   }
 
   async parseExamWithAI({ rawText = '', imageBase64 = null, mimeType = null, questions = [] }) {
-    // 1. Kiểm tra API Key
+    // 1. Nạp Key/Token từ Session hoặc LocalStorage
     let activeKey = this.apiKey;
     try {
       const u = JSON.parse(sessionStorage.getItem('currentUser') || localStorage.getItem('currentUser') || '{}');
-      if (u.geminiApiKey) activeKey = u.geminiApiKey;
+      if (u.geminiApiKey) activeKey = u.geminiApiKey.trim();
     } catch (e) {}
 
-    // Nếu chưa có API Key, chủ động yêu cầu Giảng viên nhập
+    // Nếu chưa có khóa, nhắc người dùng dán vào
     if (!activeKey) {
-      const userKey = prompt('🔑 Hệ thống chưa phát hiện Gemini API Key. Vui lòng dán khóa Gemini API Key (bắt đầu bằng AIzaSy...) để kích hoạt AI:');
+      const userKey = prompt('🔑 Vui lòng dán Mã Xác Thực / API Key Gemini của bạn:');
       if (userKey && userKey.trim()) {
         activeKey = userKey.trim();
-        // Lưu vào Session dùng cho các lần sau
         try {
           const u = JSON.parse(sessionStorage.getItem('currentUser') || '{}');
           u.geminiApiKey = activeKey;
@@ -59,7 +58,6 @@ JSON Output Structure required for each item:
     try {
       let parsedArray = null;
 
-      // 2. Ưu tiên gọi trực tiếp Gemini API nếu có API Key
       if (activeKey) {
         let payloadContents = [];
         if (questions && questions.length > 0) {
@@ -88,10 +86,21 @@ JSON Output Structure required for each item:
           }];
         }
 
-        const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${activeKey}`;
-        const response = await fetch(apiUrl, {
+        // 2. TỰ ĐỘNG CẤU HÌNH HEADER VÀ ENDPOINT TƯƠNG ỨNG MỖI LOẠI KEY
+        let fetchUrl = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent';
+        let fetchHeaders = { 'Content-Type': 'application/json' };
+
+        if (activeKey.startsWith('AQ.') || activeKey.startsWith('ya29.')) {
+          // Token dạng OAuth / GCP Access Token -> Truyền qua Header Authorization
+          fetchHeaders['Authorization'] = `Bearer ${activeKey}`;
+        } else {
+          // Khóa API Key AI Studio chuẩn -> Truyền qua URL Param ?key=
+          fetchUrl += `?key=${activeKey}`;
+        }
+
+        const response = await fetch(fetchUrl, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: fetchHeaders,
           body: JSON.stringify({ contents: payloadContents })
         });
 
@@ -100,10 +109,13 @@ JSON Output Structure required for each item:
           const rawResponseText = resData.candidates?.[0]?.content?.parts?.[0]?.text || '';
           const cleanJsonStr = rawResponseText.replace(/```json/gi, '').replace(/```/g, '').trim();
           parsedArray = JSON.parse(cleanJsonStr);
+        } else {
+          const errBody = await response.text();
+          logger.warn(`Lỗi trực tiếp từ Gemini API (${response.status}):`, errBody);
         }
       }
 
-      // 3. Nếu không có Key trực tiếp, thử qua AppsScript Service Proxy
+      // 3. Dự phòng gửi qua AppsScript Service Proxy nếu gọi trực tiếp chưa thành công
       if (!parsedArray) {
         logger.info('Đang gửi yêu cầu bóc tách AI qua AppsScript Service Proxy...');
         const proxyRes = await appsScriptService.request('PARSE_EXAM_AI', {
@@ -123,7 +135,7 @@ JSON Output Structure required for each item:
         throw new Error('Dữ liệu AI trả về không đúng cấu trúc mảng JSON.');
       }
 
-      // 4. Chuẩn hóa và giữ cờ cảnh báo màu vàng cho Giảng viên duyệt
+      // 4. Chuẩn hóa dữ liệu & giữ nguyên cờ cảnh báo để Giảng viên rà soát
       const refinedQuestions = parsedArray.map((q, idx) => {
         const normalized = ExamModel.normalizeQuestion(q, idx);
         normalized.flags = {
@@ -143,7 +155,7 @@ JSON Output Structure required for each item:
       };
 
     } catch (err) {
-      logger.error('Lỗi Gemini AI:', err);
+      logger.error('Lỗi xử lý Gemini AI:', err);
       return {
         success: false,
         message: `⚠️ Lỗi xử lý AI: ${err.message}`,
