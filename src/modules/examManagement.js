@@ -3,7 +3,7 @@ import { loadExamForEditing } from './aiExamParser.js';
 import { showAppLoading, hideAppLoading, escapeHtml } from './authAndCore.js';
 
 /**
- * Render danh sách đề thi (Bổ sung nút Chỉnh sửa)
+ * Render thẻ đề thi trong danh sách (Bổ sung nút ✏️ Sửa)
  */
 export function renderExamCard(exam) {
   return `
@@ -13,13 +13,13 @@ export function renderExamCard(exam) {
         Mã đề: <code style="background:#f1f5f9; padding:2px 6px; border-radius:4px;">${escapeHtml(exam.examId)}</code><br>
         ⏱️ ${exam.durationMinutes || 45} phút | 👤 ${escapeHtml(exam.createdBy || '')}
       </p>
-      
+
       <div style="display:flex; gap:6px; flex-wrap:wrap;">
         <button type="button" onclick="viewExamScores('${escapeHtml(exam.examId)}')" style="flex:1; background:#2563eb; color:#fff; border:none; padding:6px 10px; border-radius:6px; font-size:12px; font-weight:600; cursor:pointer;">
           📊 Xem điểm
         </button>
 
-        <!-- NÚT CHỈNH SỬA ĐỀ THI MỚI BỔ SUNG -->
+        <!-- NÚT ✏️ SỬA ĐỀ THI -->
         <button type="button" onclick="handleEditExam('${escapeHtml(exam.examId)}')" style="background:#f59e0b; color:#fff; border:none; padding:6px 10px; border-radius:6px; font-size:12px; font-weight:600; cursor:pointer;">
           ✏️ Sửa
         </button>
@@ -33,13 +33,12 @@ export function renderExamCard(exam) {
 }
 
 /**
- * Xử lý sự kiện khi bấm nút "Sửa đề"
+ * Xử lý khi nhấn nút "Sửa" đề thi
  */
 export async function handleEditExam(examId) {
   showAppLoading(`⏳ Đang tải nội dung đề thi [${examId}]...`);
 
   try {
-    // Tải thông tin chi tiết đề thi từ Backend
     const res = await appsScriptService.request('GET_EXAM_DETAIL', { examId });
     hideAppLoading();
 
@@ -52,7 +51,7 @@ export async function handleEditExam(examId) {
     const tabBtn = document.querySelector('[data-tab="tab-parser"]') || document.querySelectorAll('nav button')[2];
     if (tabBtn) tabBtn.click();
 
-    // Nạp dữ liệu đề thi vào bộ biên tập
+    // Nạp dữ liệu vào bộ biên tập
     loadExamForEditing(res.examData);
 
   } catch (err) {
