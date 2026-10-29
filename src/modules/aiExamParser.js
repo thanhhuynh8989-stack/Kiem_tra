@@ -259,6 +259,33 @@ export async function handleSaveAndPublishExamUI(isSaveAsNew = false) {
   }
 }
 
+/**
+ * RENDER MÀN HÌNH TẢI FILE MẶC ĐỊNH
+ */
+export function renderDefaultUploadScreen() {
+  const container = document.getElementById('mainContentArea');
+  if (!container) return;
+
+  container.innerHTML = `
+    <div style="background:#fff; border-radius:10px; padding:24px; border:1px solid #e2e8f0; margin-top:16px; text-align:center;">
+      <h3 style="margin:0 0 8px 0; color:#0f172a; font-size:18px;">📄 Bóc Tách / Tạo Đề Thi Mới</h3>
+      <p style="margin:0 0 20px 0; font-size:13px; color:#64748b;">Tải lên tệp đề thi dạng <strong>DOCX</strong> hoặc <strong>PDF</strong> để hệ thống bóc tách tự động.</p>
+      
+      <div style="background:#f8fafc; border:2px dashed #cbd5e1; border-radius:8px; padding:30px; max-width:500px; margin:0 auto;">
+        <input type="file" id="examFileInput" accept=".docx, .pdf" style="display:none;" onchange="handleExamFileUpload(this.files[0])">
+        <button type="button" onclick="document.getElementById('examFileInput').click()" style="background:#2563eb; color:#fff; border:none; padding:10px 20px; border-radius:6px; font-weight:600; font-size:14px; cursor:pointer;">
+          📁 Chọn File Đề Thi (.docx, .pdf)
+        </button>
+      </div>
+
+      <div id="examEditorContainer" style="margin-top:20px;"></div>
+    </div>
+  `;
+}
+
+// Bổ sung gán window
+window.renderDefaultUploadScreen = renderDefaultUploadScreen;
+
 // Bắt sự kiện thay đổi dữ liệu câu hỏi từ ô Input DOM
 window.updateQuestionStem = function(index, newText) {
   if (currentEditingQuestions[index]) currentEditingQuestions[index].stem = newText;
