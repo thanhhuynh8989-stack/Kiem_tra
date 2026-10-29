@@ -5,17 +5,27 @@ import { logger } from '../utils/logger.js';
 export class AiExamParserService {
   constructor() {
     this.apiKey = APP_CONFIG?.GEMINI_API_KEY || '';
+    // Danh sách các phiên bản Gemini AI thử nghiệm tuần tự để tránh hạn chế / Rate Limit
+    this.candidateModels = [
+      'gemini-2.0-flash',
+      'gemini-1.5-flash',
+      'gemini-1.5-pro',
+      'gemini-2.0-flash-lite'
+      'gemini-3.5-flash',
+      'gemini-3.6-flash',
+      'gemini-3.7-flash',
+    ];
   }
 
   async parseExamWithAI({ questions = [] }) {
-    // 1. Lấy API Key từ bộ nhớ
+    // 1. Lấy Gemini API Key từ Session / LocalStorage
     let activeKey = this.apiKey;
     try {
       const u = JSON.parse(sessionStorage.getItem('currentUser') || localStorage.getItem('currentUser') || '{}');
       if (u.geminiApiKey) activeKey = u.geminiApiKey.trim();
     } catch (e) {}
 
-    // 2. Nếu chưa có API Key, yêu cầu người dùng nhập
+    // 2. Yêu cầu nhập API Key nếu chưa có
     if (!activeKey) {
       activeKey = prompt('🔑 Vui lòng nhập Gemini API Key hợp lệ (bắt đầu bằng AIzaSy...):');
       if (!activeKey || !activeKey.trim()) {
@@ -48,11 +58,12 @@ JSON Output Structure:
 ]
 `;
 
-    // 3. Tiến hành gọi API
-    let attempts = 0;
-    while (attempts < 2) {
-      attempts++;
-      
+    let lastErrorMessage = '';
+
+    // 3. VÒNG LẶP THỬ TUẦN TỰ TỪNG PHIÊN BẢN GEMINI
+    for (const modelName of this.candidateModels) {
+      logger.info(`🤖 Đang kết nối phân tích qua mô hình Gemini: [${modelName}]...`);
+
       const payloadContents = [{
         role: 'user',
         parts: [
@@ -61,7 +72,7 @@ JSON Output Structure:
         ]
       }];
 
-      const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${activeKey}`;
+      const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${activeKey}`;
 
       try {
         const response = await fetch(apiUrl, {
@@ -70,18 +81,18 @@ JSON Output Structure:
           body: JSON.stringify({ contents: payloadContents })
         });
 
-        // Nếu lỗi 401 (Unauthorized / Invalid Credentials / Blocked Key)
+        // Nếu gặp Lỗi Quyền (401/403 Key không đúng hoặc bị khóa) -> Nhắc đổi Key ngay lập tức
         if (response.status === 401 || response.status === 403) {
-          const newKey = prompt('⚠️ API Key hiện tại không hợp lệ hoặc bị khóa (Lỗi 401: Unauthorized).\nVui lòng dán Gemini API Key hợp lệ mới từ Google AI Studio (bắt đầu bằng AIzaSy...):');
+          const newKey = prompt('⚠️ Gemini API Key hiện tại không hợp lệ hoặc bị khóa (Lỗi 401/403).\nVui lòng dán Gemini API Key chuẩn từ Google AI Studio (bắt đầu bằng AIzaSy...):');
           if (newKey && newKey.trim()) {
             activeKey = newKey.trim();
-            // Lưu lại Key mới
             try {
               const u = JSON.parse(sessionStorage.getItem('currentUser') || '{}');
               u.geminiApiKey = activeKey;
               sessionStorage.setItem('currentUser', JSON.stringify(u));
             } catch (e) {}
-            continue; // Chạy lại vòng lặp với Key mới
+            // Chạy lại quy trình với Key mới
+            return this.parseExamWithAI({ questions });
           } else {
             return {
               success: false,
@@ -90,9 +101,12 @@ JSON Output Structure:
           }
         }
 
+        // Nếu mô hình hiện tại bị lỗi (Rate Limit 429, Model Unavailable 404/500) -> Chuyển sang mô hình tiếp theo
         if (!response.ok) {
           const errText = await response.text();
-          throw new Error(`HTTP ${response.status}: ${errText}`);
+          lastErrorMessage = `HTTP ${response.status} (${modelName})`;
+          logger.warn(`⚠️ Mô hình [${modelName}] gặp sự cố (${response.status}). Đang tự động chuyển sang mô hình Gemini tiếp theo...`, errText);
+          continue; 
         }
 
         const resData = await response.json();
@@ -101,36 +115,36 @@ JSON Output Structure:
         const parsedArray = JSON.parse(cleanJsonStr);
 
         if (!Array.isArray(parsedArray) || parsedArray.length === 0) {
-          throw new Error('Cấu trúc dữ liệu AI trả về không phải là mảng JSON hợp lệ.');
+          throw new Error('Dữ liệu AI trả về không phải là mảng JSON hợp lệ.');
         }
 
-        // Chuẩn hóa và gắn nhãn thành công
+        // Đã bóc tách & bổ sung thành công!
         const refinedQuestions = parsedArray.map((q, idx) => {
           const normalized = ExamModel.normalizeQuestion(q, idx);
           normalized.flags = {
             needsUserConfirmation: true,
-            note: '🤖 AI đã sinh phương án & đề xuất đáp án. Giảng viên vui lòng rà soát và duyệt lại.'
+            note: `🤖 AI (${modelName}) đã sinh phương án & đề xuất đáp án. Giảng viên vui lòng rà soát và duyệt lại.`
           };
           return normalized;
         });
 
+        logger.info(`🎉 Phân tích hoàn tất thành công qua mô hình Gemini: [${modelName}]`);
         return {
           success: true,
+          message: `🎉 AI (${modelName}) đã bổ sung thành công phương án C, D và chọn đáp án chính xác!`,
           questions: refinedQuestions
         };
 
       } catch (err) {
-        logger.error('Lỗi kết nối Gemini AI:', err);
-        return {
-          success: false,
-          message: `⚠️ Không thể gọi AI: ${err.message}`
-        };
+        lastErrorMessage = err.message;
+        logger.warn(`⚠️ Mô hình [${modelName}] báo lỗi: ${err.message}. Đang thử mô hình tiếp theo...`);
       }
     }
 
+    // 4. Trường hợp tất cả các mô hình Gemini trong danh sách đều gặp sự cố
     return {
       success: false,
-      message: '⚠️ Không thể kết nối với Gemini AI.'
+      message: `⚠️ Tất cả các phiên bản Gemini (${this.candidateModels.join(', ')}) đều quá tải hoặc gặp sự cố kết nối. Chi tiết: ${lastErrorMessage}`
     };
   }
 }
