@@ -90,23 +90,65 @@ export function renderExamCard(exam) {
  * 4. XỬ LÝ KHI BẤM NÚT "✏️ SỬA" ĐỀ THI
  */
 export async function handleEditExam(examId) {
+  if (!examId) return;
+
   showAppLoading(`⏳ Đang tải nội dung đề thi [${examId}]...`);
 
   try {
-    const res = await appsScriptService.request('GET_EXAM_DETAIL', { examId });
+    let examData = null;
+
+    // 1. Chuẩn hóa tên file
+    let cleanCode = String(examId).trim();
+    if (!cleanCode.endsWith('.json')) {
+      cleanCode = `${cleanCode}.json`;
+    }
+
+    // 2. Link CDN jsDelivr và GitHub Raw
+    const cdnUrl = `https://cdn.jsdelivr.net/gh/thanhhuynh8989-stack/Kiem_tra@main/exams/${cleanCode}?t=${Date.now()}`;
+    const rawUrl = `https://raw.githubusercontent.com/thanhhuynh8989-stack/Kiem_tra/main/exams/${cleanCode}?t=${Date.now()}`;
+
+    // 3. Thử tải file trực tiếp qua CDN
+    try {
+      let res = await fetch(cdnUrl);
+      if (!res.ok) {
+        res = await fetch(rawUrl);
+      }
+      if (res.ok) {
+        examData = await res.json();
+      }
+    } catch (cdnErr) {
+      console.warn('Không thể nạp trực tiếp qua CDN, đang thử dự phòng qua Apps Script...', cdnErr);
+    }
+
+    // 4. Dự phòng: Nếu CDN thất bại mới gọi Apps Script
+    if (!examData) {
+      const res = await appsScriptService.request('GET_EXAM_DETAIL', { examId });
+      if (res && res.examData) {
+        examData = res.examData;
+      }
+    }
+
     hideAppLoading();
 
-    if (!res || !res.examData) {
-      alert('Không thể tải chi tiết câu hỏi của đề thi này!');
+    if (!examData) {
+      alert('Không thể nạp chi tiết câu hỏi của đề thi này. Vui lòng kiểm tra file JSON trên GitHub!');
       return;
     }
 
-    // Chuyển sang Tab "Bóc Tách / Tạo Đề Thi"
+    // 5. Chuẩn hóa cấu trúc dữ liệu đề thi
+    const formattedExam = {
+      examId: examData.examId || examId,
+      title: examData.title || `Đề thi ${examId}`,
+      durationMinutes: examData.durationMinutes || 45,
+      questions: examData.questions || (Array.isArray(examData) ? examData : [])
+    };
+
+    // 6. Chuyển sang Tab "Bóc Tách / Tạo Đề Thi"
     const tabBtn = document.querySelector('[data-tab="tab-parser"]') || document.querySelectorAll('nav button')[2];
     if (tabBtn) tabBtn.click();
 
-    // Nạp dữ liệu vào bộ biên tập
-    loadExamForEditing(res.examData);
+    // 7. Nạp dữ liệu vào trình biên tập
+    loadExamForEditing(formattedExam);
 
   } catch (err) {
     hideAppLoading();
