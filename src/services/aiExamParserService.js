@@ -17,15 +17,15 @@ export class AiExamParserService {
     ];
   }
 
-  async parseExamWithAI({ questions = [] }) {
-    // 1. Lấy Gemini API Key từ Session / LocalStorage
+async parseExamWithAI({ questions = [] }) {
+    // 1. Lấy Gemini API Key từ bộ nhớ
     let activeKey = this.apiKey;
     try {
       const u = JSON.parse(sessionStorage.getItem('currentUser') || localStorage.getItem('currentUser') || '{}');
       if (u.geminiApiKey) activeKey = u.geminiApiKey.trim();
     } catch (e) {}
 
-    // 2. Yêu cầu nhập API Key nếu chưa có
+    // 2. Yêu cầu nhập API Key nếu chưa phát hiện
     if (!activeKey) {
       activeKey = prompt('🔑 Vui lòng nhập Gemini API Key hợp lệ (bắt đầu bằng AIzaSy...):');
       if (!activeKey || !activeKey.trim()) {
@@ -81,7 +81,7 @@ JSON Output Structure:
           body: JSON.stringify({ contents: payloadContents })
         });
 
-        // Nếu gặp Lỗi Quyền (401/403 Key không đúng hoặc bị khóa) -> Nhắc đổi Key ngay lập tức
+        // Xử lý khi API Key lỗi / hết hạn (401/403)
         if (response.status === 401 || response.status === 403) {
           const newKey = prompt('⚠️ Gemini API Key hiện tại không hợp lệ hoặc bị khóa (Lỗi 401/403).\nVui lòng dán Gemini API Key chuẩn từ Google AI Studio (bắt đầu bằng AIzaSy...):');
           if (newKey && newKey.trim()) {
@@ -91,7 +91,6 @@ JSON Output Structure:
               u.geminiApiKey = activeKey;
               sessionStorage.setItem('currentUser', JSON.stringify(u));
             } catch (e) {}
-            // Chạy lại quy trình với Key mới
             return this.parseExamWithAI({ questions });
           } else {
             return {
@@ -101,11 +100,11 @@ JSON Output Structure:
           }
         }
 
-        // Nếu mô hình hiện tại bị lỗi (Rate Limit 429, Model Unavailable 404/500) -> Chuyển sang mô hình tiếp theo
+        // Bỏ qua nếu phiên bản mô hình không khả dụng hoặc bị Rate Limit
         if (!response.ok) {
           const errText = await response.text();
           lastErrorMessage = `HTTP ${response.status} (${modelName})`;
-          logger.warn(`⚠️ Mô hình [${modelName}] gặp sự cố (${response.status}). Đang tự động chuyển sang mô hình Gemini tiếp theo...`, errText);
+          logger.warn(`⚠️ Mô hình [${modelName}] gặp sự cố (${response.status}). Đang tự động chuyển mô hình tiếp theo...`, errText);
           continue; 
         }
 
@@ -118,20 +117,27 @@ JSON Output Structure:
           throw new Error('Dữ liệu AI trả về không phải là mảng JSON hợp lệ.');
         }
 
-        // Đã bóc tách & bổ sung thành công!
-        const refinedQuestions = parsedArray.map((q, idx) => {
-          const normalized = ExamModel.normalizeQuestion(q, idx);
+        // 4. CƠ CHẾ ĐỐI SOÁT DỮ LIỆU: CHỈ GẮN CỜ CHO CÂU HỎI THỰC SỰ BỊ CHỈNH SỬA
+        const refinedQuestions = parsedArray.map((aiQ, idx) => {
+          const normalized = ExamModel.normalizeQuestion(aiQ, idx);
+          const origQ = questions[idx] || {};
+
+          const isModified = checkIfQuestionModified(origQ, normalized);
+
           normalized.flags = {
-            needsUserConfirmation: true,
-            note: `🤖 AI (${modelName}) đã sinh phương án & đề xuất đáp án. Giảng viên vui lòng rà soát và duyệt lại.`
+            needsUserConfirmation: isModified, // Chỉ bằng true nếu AI thực sự tác động
+            note: isModified
+              ? `🤖 AI (${modelName}) đã sinh bổ sung phương án/đáp án. Giảng viên vui lòng rà soát lại.`
+              : `✅ Giữ nguyên từ bản gốc, AI không tác động.`
           };
+
           return normalized;
         });
 
         logger.info(`🎉 Phân tích hoàn tất thành công qua mô hình Gemini: [${modelName}]`);
         return {
           success: true,
-          message: `🎉 AI (${modelName}) đã bổ sung thành công phương án C, D và chọn đáp án chính xác!`,
+          message: `🎉 Phân tích hoàn tất! Đã phân loại và chỉ gắn cờ cảnh báo đối với các câu hỏi có tác động bởi AI.`,
           questions: refinedQuestions
         };
 
@@ -141,13 +147,52 @@ JSON Output Structure:
       }
     }
 
-    // 4. Trường hợp tất cả các mô hình Gemini trong danh sách đều gặp sự cố
     return {
       success: false,
-      message: `⚠️ Tất cả các phiên bản Gemini (${this.candidateModels.join(', ')}) đều quá tải hoặc gặp sự cố kết nối. Chi tiết: ${lastErrorMessage}`
+      message: `⚠️ Tất cả mô hình Gemini đều quá tải hoặc gặp sự cố: ${lastErrorMessage}`
     };
   }
 }
+
+/**
+ * HÀM KIỂM TRA ĐỐI SOÁT DỮ LIỆU (DIFFING)
+ * Trả về true nếu AI có tác động chỉnh sửa/bổ sung câu hỏi
+ */
+function checkIfQuestionModified(origQ, aiQ) {
+  if (!origQ || !aiQ) return true;
+
+  // 1. Kiểm tra nội dung câu hỏi (Stem)
+  const origStem = (origQ.stem || '').trim();
+  const aiStem = (aiQ.stem || '').trim();
+  if (origStem !== aiStem) return true;
+
+  // 2. Kiểm tra chỉ số đáp án đúng (Correct Answer)
+  if (origQ.correctAnswer !== aiQ.correctAnswer) return true;
+
+  // 3. Kiểm tra các phương án lựa chọn (Options)
+  const origOpts = origQ.options || [];
+  const aiOpts = aiQ.options || [];
+
+  if (origOpts.length !== aiOpts.length) return true;
+
+  for (let i = 0; i < origOpts.length; i++) {
+    const oText = (origOpts[i] || '').trim();
+    const aText = (aiOpts[i] || '').trim();
+
+    // Phát hiện phương án bị AI thay đổi nội dung
+    if (oText !== aText) return true;
+
+    // Phát hiện trường hợp bản gốc từng chứa chữ giữ chỗ "Phương án C..." nay đã được điền
+    if (!oText || oText.includes('Phương án C...') || oText.includes('Phương án D...') || oText === '...') {
+      return true;
+    }
+  }
+
+  return false; // Trả về false nếu câu hỏi hoàn toàn giống hệt bản gốc
+}
+
+export const aiExamParserService = new AiExamParserService();
+window.aiExamParserService = aiExamParserService;
 
 export const aiExamParserService = new AiExamParserService();
 window.aiExamParserService = aiExamParserService;
