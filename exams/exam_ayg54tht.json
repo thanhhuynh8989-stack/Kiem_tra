@@ -1,0 +1,229 @@
+{
+  "examId": "exam_ayg54tht",
+  "title": "Kiểm tra trắc nghiệm",
+  "durationMinutes": 10,
+  "createdBy": "admin",
+  "createdAt": "2026-10-29T08:02:31.224Z",
+  "questions": [
+    {
+      "id": "q_1",
+      "stem": "Bào quan của tế bào được định vị trong ?",
+      "explanation": "",
+      "images": [],
+      "imageUrl": null,
+      "hasImage": false,
+      "options": [
+        "Nhân con",
+        "Tế bào chất",
+        "Lục lạp",
+        "Ty thể"
+      ],
+      "originalOptionCount": 4,
+      "correctAnswer": 1,
+      "flags": {
+        "needsUserConfirmation": false,
+        "isMissingOptions": false,
+        "isMissingAnswer": false,
+        "note": "Đã kiểm tra hoàn thiện."
+      }
+    },
+    {
+      "id": "q_2",
+      "stem": "Đặc điểm khác biệt của tế bào nhân sơ (prokaryote) và tế bào nhân chuẩn (eukaryote) là:",
+      "explanation": "",
+      "images": [],
+      "imageUrl": null,
+      "hasImage": false,
+      "options": [
+        "Protein",
+        "Nhân",
+        "dsfds",
+        "cscds"
+      ],
+      "originalOptionCount": 2,
+      "correctAnswer": 1,
+      "flags": {
+        "needsUserConfirmation": true,
+        "isMissingOptions": true,
+        "isMissingAnswer": true,
+        "note": "Đề gốc thiếu phương án hoặc có ô lựa chọn rỗng. Chưa nhận diện được đáp án đúng từ đề gốc (Đang tạm chọn A)."
+      }
+    },
+    {
+      "id": "q_3",
+      "stem": "Ty thể KHÔNG có mặt ở ?",
+      "explanation": "",
+      "images": [],
+      "imageUrl": null,
+      "hasImage": false,
+      "options": [
+        "Vi khuẩn",
+        "Thực vật",
+        "Nấm",
+        "Động vật có xương sống"
+      ],
+      "originalOptionCount": 4,
+      "correctAnswer": 0,
+      "flags": {
+        "needsUserConfirmation": true,
+        "isMissingOptions": false,
+        "isMissingAnswer": true,
+        "note": "Chưa nhận diện được đáp án đúng từ đề gốc (Đang tạm chọn A)."
+      }
+    },
+    {
+      "id": "q_4",
+      "stem": "Hợp chất nào sau đây KHÔNG có trong thành phần màng tế bào ?\nĐáp án: D",
+      "explanation": "",
+      "images": [],
+      "imageUrl": null,
+      "hasImage": false,
+      "options": [
+        "Phospholipids",
+        "Cholesterol",
+        "Glycolipid",
+        "Proline"
+      ],
+      "originalOptionCount": 4,
+      "correctAnswer": 3,
+      "flags": {
+        "needsUserConfirmation": false,
+        "isMissingOptions": false,
+        "isMissingAnswer": false,
+        "note": "Đã kiểm tra hoàn thiện."
+      }
+    },
+    {
+      "id": "q_5",
+      "stem": "Thực bào và ẩm bào là các thuật ngữ của hiện tượng được mô tả sau:",
+      "explanation": "",
+      "images": [],
+      "imageUrl": null,
+      "hasImage": false,
+      "options": [
+        "Ăn các chất lơ lửng",
+        "Nhập bào",
+        "Động vật ăn cỏ",
+        "Bẫy mô"
+      ],
+      "originalOptionCount": 4,
+      "correctAnswer": 1,
+      "flags": {
+        "needsUserConfirmation": false,
+        "isMissingOptions": false,
+        "isMissingAnswer": false,
+        "note": "Đã kiểm tra hoàn thiện."
+      }
+    },
+    {
+      "id": "q_6",
+      "stem": "Phát biểu nào sau đây về lục lạp là KHÔNG đúng ?",
+      "explanation": "",
+      "images": [],
+      "imageUrl": null,
+      "hasImage": false,
+      "options": [
+        "Lục lạp có một chồng các lớp màng trong và được bao bọc bởi lớp màng kép",
+        "Lục lạp có chứa ADN của riêng nó",
+        "Lục lạp được xem là bắt nguồn từ vi khuẩn",
+        "Lục lạp có mặt ở tất cả các tế bào nhân chuẩn"
+      ],
+      "originalOptionCount": 4,
+      "correctAnswer": 3,
+      "flags": {
+        "needsUserConfirmation": true,
+        "isMissingOptions": false,
+        "isMissingAnswer": true,
+        "note": "Chưa nhận diện được đáp án đúng từ đề gốc (Đang tạm chọn A)."
+      }
+    },
+    {
+      "id": "q_7",
+      "stem": "Vai trò chính của màng sinh chất:",
+      "explanation": "",
+      "images": [],
+      "imageUrl": null,
+      "hasImage": false,
+      "options": [
+        "Chống lại áp suất thẩm thấu của môi trường bên ngoài.",
+        "Trao đổi chất, thông tin giữa tế bào và môi trường",
+        "Tạo khung vững, cứng cho tế bào",
+        "Bảo vệ, duy trì hình dạng tế bào"
+      ],
+      "originalOptionCount": 4,
+      "correctAnswer": 1,
+      "flags": {
+        "needsUserConfirmation": true,
+        "isMissingOptions": false,
+        "isMissingAnswer": true,
+        "note": "Chưa nhận diện được đáp án đúng từ đề gốc (Đang tạm chọn A)."
+      }
+    },
+    {
+      "id": "q_8",
+      "stem": "Thành phần chính cấu tạo nên thành tế bào vi khuẩn Gram dương ?",
+      "explanation": "",
+      "images": [],
+      "imageUrl": null,
+      "hasImage": false,
+      "options": [
+        "Phospholipid kép",
+        "Peptidoglycan",
+        "Polysaccharide",
+        "Lipopolysaccharide"
+      ],
+      "originalOptionCount": 4,
+      "correctAnswer": 1,
+      "flags": {
+        "needsUserConfirmation": true,
+        "isMissingOptions": false,
+        "isMissingAnswer": true,
+        "note": "Chưa nhận diện được đáp án đúng từ đề gốc (Đang tạm chọn A)."
+      }
+    },
+    {
+      "id": "q_9",
+      "stem": "Thể nhân của tế bào Prokaryote KHÔNG có đặc điểm ?",
+      "explanation": "",
+      "images": [],
+      "imageUrl": null,
+      "hasImage": false,
+      "options": [
+        "Chưa có màng nhân bao bọc thể nhân",
+        "ADN xoắn kép, dạng trần liên kết với protein.",
+        "Chỉ có một nhiễm sắc thể duy nhất",
+        "Là nơi chứa đựng thông tin di truyền"
+      ],
+      "originalOptionCount": 4,
+      "correctAnswer": 1,
+      "flags": {
+        "needsUserConfirmation": true,
+        "isMissingOptions": false,
+        "isMissingAnswer": true,
+        "note": "Chưa nhận diện được đáp án đúng từ đề gốc (Đang tạm chọn A)."
+      }
+    },
+    {
+      "id": "q_10",
+      "stem": "Ở tế bào Eukaryote, ribosome có mặt nhiều nhất tại:",
+      "explanation": "",
+      "images": [],
+      "imageUrl": null,
+      "hasImage": false,
+      "options": [
+        "Màng nhân",
+        "Ty thể",
+        "Nhân con",
+        "Lưới nội chất có hạt"
+      ],
+      "originalOptionCount": 4,
+      "correctAnswer": 3,
+      "flags": {
+        "needsUserConfirmation": true,
+        "isMissingOptions": false,
+        "isMissingAnswer": true,
+        "note": "Chưa nhận diện được đáp án đúng từ đề gốc (Đang tạm chọn A)."
+      }
+    }
+  ]
+}
