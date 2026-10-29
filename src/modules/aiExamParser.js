@@ -8,6 +8,7 @@ import { ExamModel } from '../models/examModel.js';
 
 let currentEditingQuestions = [];
 let currentFileName = '';
+let currentEditingExamId = null; // null = tạo mới, string = đang sửa đề cũ
 
 /**
  * 1. NẠP FILE MẶC ĐỊNH - ƯU TIÊN CODE THUẦN (THỦ CÔNG 100%, KHÔNG TỰ GỌI AI)
@@ -182,23 +183,100 @@ window.updateQuestionCorrectAnswer = function(qIdx, optIdx) {
   if (currentEditingQuestions[qIdx]) currentEditingQuestions[qIdx].correctAnswer = Number(optIdx);
 };
 
-export async function handleSaveAndPublishExamUI() {
+/**
+ * Nạp đề thi đã có vào trình biên tập
+ */
+export function loadExamForEditing(examData) {
+  currentEditingExamId = examData.examId || null;
+  currentFileName = examData.title || `Đề thi ${examData.examId}`;
+  currentEditingQuestions = examData.questions || [];
+
+  renderExamEditorScreen(
+    currentFileName,
+    currentEditingQuestions,
+    `✏️ Đang chỉnh sửa đề thi [Mã: ${currentEditingExamId}]. Bạn có thể chọn "Lưu Đề" để ghi đè hoặc "Lưu Thành Đề Mới".`,
+    false
+  );
+}
+
+/**
+ * Render Giao diện Biên Tập Đề Thi
+ */
+export function renderExamEditorScreen(fileName, questions = [], statusMessage = '', isFallback = false) {
+  const container = document.getElementById('examEditorContainer') || document.getElementById('mainContentArea');
+  if (!container) return;
+
+  let html = `
+    <div style="background:#fff; border-radius:10px; padding:20px; border:1px solid var(--border); margin-top:16px;">
+      <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px; border-bottom:1px solid #e2e8f0; padding-bottom:12px; margin-bottom:16px;">
+        <div>
+          <h3 style="margin:0; font-size:18px; color:#0f172a;">🛠️ Biên Tập & Duyệt Đề Thi (${questions.length} câu)</h3>
+          <small style="color:var(--text-muted);">Đang biên tập: ${escapeHtml(fileName)}</small>
+        </div>
+
+        <div style="display:flex; gap:10px; flex-wrap:wrap;">
+          <button type="button" onclick="handleRefineQuestionsWithAI()" style="background:#8b5cf6; color:#fff; border:none; padding:8px 16px; border-radius:6px; font-weight:600; cursor:pointer;">
+            🤖 AI Phân Tích & Bổ Sung
+          </button>
+
+          ${currentEditingExamId ? `
+            <!-- LỰA CHỌN KHI ĐANG SỬA ĐỀ CŨ -->
+            <button type="button" onclick="handleSaveAndPublishExamUI(false)" style="background:#0284c7; color:#fff; border:none; padding:8px 16px; border-radius:6px; font-weight:600; cursor:pointer;">
+              💾 Lưu Đề (Cập nhật)
+            </button>
+            <button type="button" onclick="handleSaveAndPublishExamUI(true)" style="background:#16a34a; color:#fff; border:none; padding:8px 16px; border-radius:6px; font-weight:600; cursor:pointer;">
+              ➕ Lưu Thành Đề Mới
+            </button>
+          ` : `
+            <!-- LỰA CHỌN KHI BÓC TÁCH TỆP MỚI -->
+            <button type="button" onclick="handleSaveAndPublishExamUI(true)" style="background:#16a34a; color:#fff; border:none; padding:8px 16px; border-radius:6px; font-weight:600; cursor:pointer;">
+              💾 Lưu & Xuất Bản Đề Thi
+            </button>
+          `}
+        </div>
+      </div>
+
+      ${statusMessage ? `
+        <div style="background:${isFallback ? '#eff6ff' : '#f0fdf4'}; border:1px solid ${isFallback ? '#bfdbfe' : '#86efac'}; padding:10px 14px; border-radius:6px; font-size:13px; color:${isFallback ? '#1e40af' : '#15803d'}; margin-bottom:16px;">
+          ${escapeHtml(statusMessage)}
+        </div>
+      ` : ''}
+
+      <div id="questionsEditorList">
+        ${questions.map((q, idx) => renderQuestionItemEditor(q, idx)).join('')}
+      </div>
+    </div>
+  `;
+
+  container.innerHTML = html;
+}
+
+/**
+ * Xử lý Lưu đề thi (isSaveAsNew = true: tạo mã mới | false: giữ mã cũ để ghi đè)
+ */
+export async function handleSaveAndPublishExamUI(isSaveAsNew = false) {
   if (!currentEditingQuestions || currentEditingQuestions.length === 0) {
     alert('Không có dữ liệu câu hỏi nào để lưu!');
     return;
   }
 
-  const title = prompt('Nhập Tên / Tiêu đề cho đề thi này:', 'Kiểm tra trắc nghiệm');
+  const defaultTitle = currentFileName.replace(/\.[^/.]+$/, '') || 'Kiểm tra trắc nghiệm';
+  const title = prompt('Nhập Tên / Tiêu đề đề thi:', defaultTitle);
   if (!title) return;
 
   const durationStr = prompt('Nhập thời gian làm bài (Phút):', '45');
   const duration = parseInt(durationStr) || 45;
 
   const username = getLoggedInUsername();
-  const shortId = `exam_${Math.random().toString(36).substring(2, 10)}`;
+
+  // Xác định ID: Nếu chọn tạo mới hoặc chưa có ID -> Sinh ID ngẫu nhiên mới
+  let targetExamId = currentEditingExamId;
+  if (isSaveAsNew || !targetExamId) {
+    targetExamId = `exam_${Math.random().toString(36).substring(2, 10)}`;
+  }
 
   const publicExamData = {
-    examId: shortId,
+    examId: targetExamId,
     title: title,
     durationMinutes: duration,
     createdBy: username,
@@ -206,26 +284,31 @@ export async function handleSaveAndPublishExamUI() {
     questions: currentEditingQuestions
   };
 
-  showAppLoading('⏳ Đang xuất bản đề thi lên Server...');
+  showAppLoading(`⏳ Đang ${isSaveAsNew || !currentEditingExamId ? 'tạo đề mới' : 'cập nhật đề'} lên Server...`);
 
   try {
     const res = await appsScriptService.request('SAVE_AND_PUBLISH_EXAM', {
-      examId: shortId,
-      examCode: `${shortId}.json`,
+      examId: targetExamId,
+      examCode: `${targetExamId}.json`,
       publicExamData: publicExamData,
-      filePath: `exams/${shortId}.json`,
-      username: username
+      filePath: `exams/${targetExamId}.json`,
+      username: username,
+      isUpdate: !isSaveAsNew && !!currentEditingExamId
     });
 
     hideAppLoading();
-    alert(`🎉 Xuất bản thành công!\n${res.message || 'Đề thi đã sẵn sàng giao cho sinh viên.'}`);
+    alert(`🎉 ${isSaveAsNew || !currentEditingExamId ? 'Tạo đề thi mới thành công!' : 'Cập nhật đề thi thành công!'}\nMã đề: ${targetExamId}`);
+
+    // Cập nhật lại ID đang chỉnh sửa
+    currentEditingExamId = targetExamId;
 
   } catch (err) {
     hideAppLoading();
-    alert(`Lỗi xuất bản đề thi: ${err.message}`);
+    alert(`Lỗi lưu đề thi: ${err.message}`);
   }
 }
 
 window.handleExamFileUpload = handleExamFileUpload;
 window.handleRefineQuestionsWithAI = handleRefineQuestionsWithAI;
 window.handleSaveAndPublishExamUI = handleSaveAndPublishExamUI;
+window.loadExamForEditing = loadExamForEditing;
