@@ -35,12 +35,16 @@ function shuffleArray(arr) {
 // =========================================================================
 export const ExamDraftManager = {
   getDraftKey(username, examId) {
-    return `exam_draft_${String(username).trim()}_${String(examId).trim()}`;
+    const cleanId = String(examId || '').trim().toLowerCase().replace(/\.json$/i, '').replace(/^exams\//i, '');
+    const matchHex = cleanId.match(/(exam_[a-f0-9]{8})/i);
+    const shortId = matchHex ? matchHex[1].toLowerCase() : cleanId;
+    return `exam_draft_${String(username).trim().toLowerCase()}_${shortId}`;
   },
   saveDraft(username, examId, userAnswers, remainingSeconds, layout = null) {
     if (!username || !examId) return;
+    const key = this.getDraftKey(username, examId);
     const existing = this.getDraft(username, examId) || {};
-    localStorage.setItem(this.getDraftKey(username, examId), JSON.stringify({
+    localStorage.setItem(key, JSON.stringify({
       answers: userAnswers,
       remainingSeconds: remainingSeconds,
       layout: layout || existing.layout || null,
@@ -49,11 +53,14 @@ export const ExamDraftManager = {
   },
   getDraft(username, examId) {
     if (!username || !examId) return null;
-    const item = localStorage.getItem(this.getDraftKey(username, examId));
+    const key = this.getDraftKey(username, examId);
+    const item = localStorage.getItem(key);
     return item ? JSON.parse(item) : null;
   },
   clearDraft(username, examId) {
-    if (username && examId) localStorage.removeItem(this.getDraftKey(username, examId));
+    if (!username || !examId) return;
+    const key = this.getDraftKey(username, examId);
+    localStorage.removeItem(key);
   }
 };
 
@@ -91,7 +98,7 @@ export async function handleLoadStudentDashboard() {
   
   if (!studentCode || studentCode === '--' || studentCode === 'N/A') {
     try {
-      const raw = sessionStorage.getItem('currentUser') || sessionStorage.getItem('userSession') || localStorage.getItem('currentUser');
+      const raw = sessionStorage.getItem('currentUser') || localStorage.getItem('currentUser');
       if (raw) {
         const u = JSON.parse(raw);
         studentCode = String(u.studentCode || u.username || u.code || u.user || '').trim();
@@ -136,7 +143,7 @@ export function renderStudentDashboard(exams = []) {
   `;
 
   if (exams.length === 0) {
-    html += `<div style="grid-column:1/-1; text-align:center; padding:20px; color:var(--text-muted);">Hiện chưa có bài thi nào.</div>`;
+    html += `<div style="grid-column:1/-1; text-align:center; padding:20px; color:var(--text-muted);">Hiện chưa có bài thi nào được giao.</div>`;
   } else {
     exams.forEach(ex => {
       const hasScore = ex.score !== null && ex.score !== undefined && ex.score !== '';
@@ -169,7 +176,7 @@ export function renderStudentDashboard(exams = []) {
 }
 
 // =========================================================================
-// 5. KHỞI TẠO BÀI THI & XÁO TRỘN BẢO TOÀN ĐÁP ÁN ĐÚNG
+// 5. KHỞI TẠO BÀI THI & XÁO TRỘN ĐỀ THI AN TOÀN
 // =========================================================================
 export async function handleStartTakeExam(examId, examCode = '') {
   const username = getLoggedInUsername();
@@ -178,13 +185,14 @@ export async function handleStartTakeExam(examId, examCode = '') {
 
   try {
     let rawName = String(examCode || examId).trim();
+    if (rawName.includes('-')) rawName = rawName.split('-')[0];
     if (!rawName.endsWith('.json')) rawName = `${rawName}.json`;
 
     const filePath = `exams/${rawName}`;
     const cdnUrl = `https://raw.githubusercontent.com/thanhhuynh8989-stack/Kiem_tra/main/${filePath}?v=${Date.now()}`;
     
     const res = await fetch(cdnUrl);
-    if (!res.ok) throw new Error('Không thể tải file bài thi.');
+    if (!res.ok) throw new Error('Không thể tải file bài thi từ CDN.');
     const examData = await res.json();
     const rawQuestions = examData.questions || examData;
 
@@ -201,34 +209,22 @@ export async function handleStartTakeExam(examId, examCode = '') {
       shuffledLayout = draft.layout || null;
     }
 
-    // NẾU CHƯA CÓ LAYOUT XÁO TRỘN, TIẾN HÀNH BẢO TOÀN ĐÁP ÁN VÀ XÁO TRỘN
     if (!shuffledLayout) {
       shuffledLayout = rawQuestions.map((q, idx) => {
         const qId = String(q.id || (idx + 1));
-        
-        // Trích xuất chỉ số đáp án đúng gốc (0, 1, 2, 3 hoặc 'A', 'B', 'C', 'D')
-        const rawExpected = q.correctAnswer ?? q.answerKey ?? q.answer;
-        const expectedNorm = normalizeChoice(rawExpected);
 
         const originalOptions = (q.options || []).map((optText, oIdx) => {
           const letter = String.fromCharCode(65 + oIdx);
-          const indexStr = String(oIdx);
-          const isCorrectOption = (letter === expectedNorm.letter || indexStr === expectedNorm.index);
-
           return {
             originalLetter: letter,
             originalIndex: oIdx,
-            text: String(optText).replace(/^[A-D][.:)]\s*/i, ''),
-            isCorrect: isCorrectOption
+            text: String(optText).replace(/^[A-D][.:)]\s*/i, '')
           };
         });
 
         return {
           qId: qId,
           stem: q.stem || q.text || '',
-          options: q.options || [],
-          correctAnswer: q.correctAnswer !== undefined ? q.correctAnswer : expectedNorm.index,
-          answerKey: q.answerKey || q.answer || expectedNorm.letter,
           shuffledOptions: shuffleArray(originalOptions)
         };
       });
@@ -344,7 +340,7 @@ export async function handleConfirmSubmitExam(examId, totalQuestions) {
 }
 
 // =========================================================================
-// 8. HÀM CHẤM ĐIỂM CHUẨN XÁC & CHỐNG TRÙNG LẶP ĐẾM LẮP
+// 8. HÀM CHUYỂN DỮ LIỆU NỘP VỀ BACKEND CHẤM ĐIỂM (SERVER-SIDE GRADING)
 // =========================================================================
 export async function executeSubmitExam(
   examId = window.currentActiveExamId, 
@@ -357,13 +353,11 @@ export async function executeSubmitExam(
   try {
     const username = getLoggedInUsername();
 
-    // 1. Chuẩn hóa Mã Đề Ngắn 8 ký tự hex
     let shortExamId = String(examId || '').trim().toLowerCase()
       .replace(/\.json$/i, '').replace(/^exams\//i, '');
     const matchHex = shortExamId.match(/(exam_[a-f0-9]{8})/i);
     if (matchHex) shortExamId = matchHex[1].toLowerCase();
 
-    // 2. Lấy danh sách câu hỏi
     const activeQuestions = (Array.isArray(questions) && questions.length > 0) 
       ? questions 
       : (window.currentActiveQuestionsForExam || []);
@@ -372,7 +366,6 @@ export async function executeSubmitExam(
       ? answers 
       : (window.currentActiveAnswersForExam || {});
 
-    // 3. CHUẨN HÓA MẢNG ĐÁP ÁN CỦA THÍ SINH
     const cleanAnswersMap = {};
     Object.keys(rawAnswers).forEach(key => {
       const val = rawAnswers[key];
@@ -384,67 +377,14 @@ export async function executeSubmitExam(
       }
     });
 
-    // 4. CHẤM ĐIỂM CHÍNH XÁC THEO ID GỐC DỰA TRÊN SHUFFLED OPTIONS
-    let correctCount = 0;
-    let answeredCount = 0;
-    const totalQ = activeQuestions.length;
-
-    activeQuestions.forEach((q, idx) => {
-      const qId = String(q.qId || q.id || (idx + 1));
-      
-      // TRA CỨU CHÍNH XÁC THEO MÃ CÂU HỎI GỐC (LOẠI BỎ CHỈ SỐ HIỂN THỊ TRÁNH TRÙNG LẶP)
-      let studentChoice = cleanAnswersMap[qId];
-      if (studentChoice === undefined) {
-        studentChoice = cleanAnswersMap[q.id] || cleanAnswersMap[q.qId];
-      }
-
-      if (studentChoice !== undefined && studentChoice !== null) {
-        answeredCount++; // Đếm chuẩn 1 câu thực sự làm
-
-        let isCorrect = false;
-
-        // Cơ chế A: Độc lập tra cứu theo cờ isCorrect đã gán trong shuffledOptions
-        if (Array.isArray(q.shuffledOptions) && q.shuffledOptions.length > 0) {
-          const selectedOpt = q.shuffledOptions.find(o => 
-            String(o.originalLetter).toUpperCase() === String(studentChoice).toUpperCase() ||
-            String(o.originalIndex) === String(studentChoice)
-          );
-
-          if (selectedOpt && selectedOpt.isCorrect === true) {
-            isCorrect = true;
-          }
-        }
-
-        // Cơ chế B: Quy đổi đối soát trực tiếp chuẩn Chữ & Số
-        if (!isCorrect) {
-          const rawExpected = q.correctAnswer ?? q.answerKey ?? q.answer;
-          const studentNorm = normalizeChoice(studentChoice);
-          const expectedNorm = normalizeChoice(rawExpected);
-
-          if (expectedNorm.letter !== '' || expectedNorm.index !== '') {
-            if (studentNorm.letter === expectedNorm.letter || studentNorm.index === expectedNorm.index) {
-              isCorrect = true;
-            }
-          }
-        }
-
-        if (isCorrect) correctCount++;
-      }
-    });
-
-    // 5. Tính điểm thang 10 chuẩn
-    const finalGrade = totalQ > 0 ? Number(((correctCount / totalQ) * 10).toFixed(2)) : 0;
-
-    // 6. Thông tin thí sinh
     let loggedUser = {};
     try {
-      loggedUser = JSON.parse(sessionStorage.getItem('currentUser') || sessionStorage.getItem('userSession') || '{}');
+      loggedUser = JSON.parse(sessionStorage.getItem('currentUser') || localStorage.getItem('currentUser') || '{}');
     } catch(e) {}
 
     const studentName = loggedUser.fullName || loggedUser.name || username;
     const studentClass = loggedUser.className || loggedUser.class || '';
 
-    // 7. Gửi dữ liệu về Server Apps Script
     const payload = {
       examId: shortExamId, 
       username: username,
@@ -452,10 +392,7 @@ export async function executeSubmitExam(
       studentName: studentName,
       studentClass: studentClass,
       answers: cleanAnswersMap,
-      correctCount: correctCount,
-      answeredCount: answeredCount,   // Số câu làm thực tế (VD: 5/15)
-      totalQuestions: totalQ,
-      finalGrade: finalGrade,
+      totalQuestions: activeQuestions.length,
       violationInfo: {
         violationCount: window.violationCount || 0,
         isAutoSubmitted: (window.violationCount || 0) >= 3,
@@ -465,7 +402,6 @@ export async function executeSubmitExam(
 
     const res = await appsScriptService.request('SUBMIT_EXAM', payload);
 
-    // 8. Xóa dọn bản nháp
     resetExamSessionState();
     if (typeof ExamDraftManager !== 'undefined') {
       ExamDraftManager.clearDraft(username, examId);
@@ -473,6 +409,11 @@ export async function executeSubmitExam(
     }
 
     hideAppLoading();
+
+    const finalGrade = res.finalGrade !== undefined ? res.finalGrade : (res.score !== undefined ? res.score : 0);
+    const correctCount = res.correctCount !== undefined ? res.correctCount : 0;
+    const answeredCount = res.answeredCount !== undefined ? res.answeredCount : Object.keys(cleanAnswersMap).length;
+    const totalQ = res.totalQuestions || activeQuestions.length;
 
     alert(
       `🎉 Đã nộp bài thành công!\n` +
@@ -502,6 +443,7 @@ export async function handleReviewSubmittedExam(examId, examCode = '') {
 
   try {
     let rawName = String(examCode || examId).trim();
+    if (rawName.includes('-')) rawName = rawName.split('-')[0];
     if (!rawName.endsWith('.json')) rawName = `${rawName}.json`;
 
     const filePath = `exams/${rawName}`;
@@ -577,7 +519,6 @@ export function renderExamReviewUI(fileName, questions, studentAnswers, score, s
   container.innerHTML = html;
 }
 
-// Bán biến/hàm ra Window toàn cục
 window.handleLoadStudentDashboard = handleLoadStudentDashboard;
 window.handleStartTakeExam = handleStartTakeExam;
 window.handleConfirmSubmitExam = handleConfirmSubmitExam;
