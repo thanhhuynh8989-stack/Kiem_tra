@@ -1,164 +1,206 @@
 import { appsScriptService } from '../services/appsScriptService.js';
-import { showAppLoading, hideAppLoading, getLoggedInUsername, getLoggedInRole, escapeHtml } from './authAndCore.js';
+import { showAppLoading, hideAppLoading, escapeHtml } from './authAndCore.js';
 
 /**
- * STUDENT & ASSIGNMENT MANAGEMENT MODULE
+ * 1. TẢI VÀ RENDER TRANG QUẢN LÝ SINH VIÊN
  */
-
-// =========================================================================
-// 1. NẠP DANH SÁCH SINH VIÊN TỪ BACKEND APPS SCRIPT
-// =========================================================================
 export async function handleLoadStudentManagement() {
-  const container = document.getElementById('studentManagementContainer') || document.getElementById('mainContentArea');
-  if (!container) return;
+  const mainContentArea = document.getElementById('mainContentArea');
+  if (!mainContentArea) return;
+
+  // Kiểm tra nếu đang ở Tab Sinh viên thì mới tiến hành render
+  if (window.currentActiveTab && window.currentActiveTab !== 'tab-students') return;
 
   showAppLoading('⏳ Đang tải danh sách sinh viên...');
-  try {
-    const username = getLoggedInUsername();
-    const role = getLoggedInRole();
 
-    const res = await appsScriptService.request('GET_STUDENTS', { username, role });
+  try {
+    const res = await appsScriptService.request('GET_STUDENTS', {});
     hideAppLoading();
 
-    const students = res.students || res.data || [];
-    renderStudentManagementUI(students);
+    if (window.currentActiveTab && window.currentActiveTab !== 'tab-students') return;
+
+    const students = (res && res.students) ? res.students : [];
+    renderStudentManagementUI(students, mainContentArea);
+
   } catch (err) {
     hideAppLoading();
-    alert(`Lỗi nạp danh sách sinh viên: ${err.message}`);
+    mainContentArea.innerHTML = `<div style="padding:20px; color:#ef4444;">⚠️ Lỗi tải danh sách sinh viên: ${escapeHtml(err.message)}</div>`;
   }
 }
 
-// =========================================================================
-// 2. HIỂN THỊ BẢNG QUẢN LÝ SINH VIÊN
-// =========================================================================
-export function renderStudentManagementUI(students = []) {
-  const container = document.getElementById('studentManagementContainer') || document.getElementById('mainContentArea');
-  if (!container) return;
-
+/**
+ * 2. RENDER KHUNG GIAO DIỆN (UPLOAD FILE + BẢNG SINH VIÊN)
+ */
+export function renderStudentManagementUI(students = [], container) {
   let html = `
-    <div style="background:#fff; border-radius:10px; padding:20px; border:1px solid var(--border); margin-top:16px;">
-      <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px; margin-bottom:16px;">
-        <h3 style="margin:0; font-size:18px; color:#0f172a;">👥 Quản Lý Sinh Viên (${students.length})</h3>
-        <div style="display:flex; gap:10px;">
-          <button type="button" onclick="handleOpenAssignExamModal()" style="background:#2563eb; color:#fff; border:none; padding:8px 16px; border-radius:6px; font-size:13px; font-weight:600; cursor:pointer;">
-            📌 Gán Đề Thi Cho Lớp / SV
+    <div style="background:#fff; border-radius:10px; padding:20px; border:1px solid #e2e8f0; margin-top:16px;">
+      
+      <!-- KHU VỰC 1: TẢI LÊN FILE DANH SÁCH SINH VIÊN -->
+      <div style="background:#f8fafc; border:2px dashed #cbd5e1; border-radius:8px; padding:20px; text-align:center; margin-bottom:20px;">
+        <h4 style="margin:0 0 8px 0; color:#0f172a; font-size:16px;">📥 Tải Lên Danh Sách Sinh Viên (Excel / CSV)</h4>
+        <p style="margin:0 0 14px 0; font-size:13px; color:#64748b;">
+          Chọn tệp <code>.xlsx</code>, <code>.xls</code> hoặc <code>.csv</code> chứa các cột: <strong>Mã SV, Họ và Tên, Lớp, Email</strong>
+        </p>
+
+        <div style="display:flex; justify-content:center; align-items:center; gap:10px; flex-wrap:wrap;">
+          <input type="file" id="studentListFileInput" accept=".xlsx, .xls, .csv" style="display:none;" onchange="handleStudentFileSelected(event)">
+          
+          <button type="button" onclick="document.getElementById('studentListFileInput').click()" style="background:#2563eb; color:#fff; border:none; padding:9px 18px; border-radius:6px; font-weight:600; font-size:13px; cursor:pointer;">
+            📁 Chọn Tệp Excel / CSV
           </button>
         </div>
+        <div id="selectedFileName" style="margin-top:10px; font-size:13px; color:#0284c7; font-weight:600;"></div>
       </div>
 
-      <div style="overflow-x:auto;">
-        <table style="width:100%; border-collapse:collapse; font-size:13px; text-align:left;">
-          <thead>
-            <tr style="background:#f1f5f9; color:#334155;">
-              <th style="padding:10px; border-bottom:2px solid #cbd5e1;">Mã SV</th>
-              <th style="padding:10px; border-bottom:2px solid #cbd5e1;">Họ và Tên</th>
-              <th style="padding:10px; border-bottom:2px solid #cbd5e1;">Lớp</th>
-              <th style="padding:10px; border-bottom:2px solid #cbd5e1;">Giảng Viên Phụ Trách</th>
-              <th style="padding:10px; border-bottom:2px solid #cbd5e1; text-align:center;">Thao Tác</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${students.length === 0 ? `
-              <tr><td colspan="5" style="padding:20px; text-align:center; color:#94a3b8;">Chưa có dữ liệu sinh viên nào.</td></tr>
-            ` : students.map(st => `
-              <tr style="border-bottom:1px solid #e2e8f0;">
-                <td style="padding:10px; font-weight:600; color:#0f172a;">${escapeHtml(st.studentCode)}</td>
-                <td style="padding:10px;">${escapeHtml(st.fullName)}</td>
-                <td style="padding:10px;"><span style="background:#e0f2fe; color:#0369a1; padding:2px 8px; border-radius:4px; font-weight:600; font-size:12px;">${escapeHtml(st.className || 'N/A')}</span></td>
-                <td style="padding:10px; color:#64748b;">${escapeHtml(st.uploadedBy || 'admin')}</td>
-                <td style="padding:10px; text-align:center;">
-                  <button type="button" onclick="handleResetStudentPasswordUI('${st.studentCode}')" style="background:#d97706; color:#fff; border:none; padding:4px 8px; border-radius:4px; font-size:12px; cursor:pointer; margin-right:4px;">🔑 Đổi mật khẩu</button>
-                  <button type="button" onclick="handleDeleteStudentUI('${st.studentCode}')" style="background:#dc2626; color:#fff; border:none; padding:4px 8px; border-radius:4px; font-size:12px; cursor:pointer;">🗑️ Xóa</button>
-                </td>
-              </tr>
-            `).join('')}
-          </tbody>
-        </table>
+      <!-- KHU VỰC 2: BẢNG DANH SÁCH SINH VIÊN -->
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px; border-bottom:1px solid #f1f5f9; padding-bottom:12px;">
+        <h3 style="margin:0; font-size:18px; color:#0f172a;">👥 Danh Sách Sinh Viên (${students.length})</h3>
+        <button type="button" onclick="handleLoadStudentManagement()" style="background:#f1f5f9; color:#334155; border:1px solid #cbd5e1; padding:6px 12px; border-radius:6px; cursor:pointer; font-size:13px;">
+          🔄 Tải lại
+        </button>
       </div>
+
+      ${students.length === 0 
+        ? '<div style="text-align:center; padding:30px; color:#64748b;">📭 Chưa có sinh viên nào trong hệ thống. Vui lòng tải lên file Excel.</div>'
+        : renderStudentTable(students)
+      }
     </div>
   `;
 
   container.innerHTML = html;
 }
 
-// =========================================================================
-// 3. ĐẶT LẠI MẬT KHẨU CHO SINH VIÊN
-// =========================================================================
-export async function handleResetStudentPasswordUI(studentCode) {
-  const newPassword = prompt(`Nhập Mật khẩu MỚI cho sinh viên [${studentCode}]:`);
-  if (!newPassword || !newPassword.trim()) return;
+/**
+ * 3. RENDER BẢNG DỮ LIỆU SINH VIÊN
+ */
+function renderStudentTable(students = []) {
+  return `
+    <div style="overflow-x:auto;">
+      <table style="width:100%; border-collapse:collapse; font-size:13px; text-align:left;">
+        <thead>
+          <tr style="background:#f1f5f9; color:#334155;">
+            <th style="padding:10px; border-bottom:2px solid #cbd5e1;">STT</th>
+            <th style="padding:10px; border-bottom:2px solid #cbd5e1;">Mã SV</th>
+            <th style="padding:10px; border-bottom:2px solid #cbd5e1;">Họ và Tên</th>
+            <th style="padding:10px; border-bottom:2px solid #cbd5e1;">Lớp</th>
+            <th style="padding:10px; border-bottom:2px solid #cbd5e1;">Email / SĐT</th>
+            <th style="padding:10px; border-bottom:2px solid #cbd5e1; text-align:center;">Thao tác</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${students.map((st, idx) => `
+            <tr style="border-bottom:1px solid #e2e8f0;">
+              <td style="padding:10px; color:#64748b;">${idx + 1}</td>
+              <td style="padding:10px; font-weight:600; color:#2563eb;">${escapeHtml(st.studentId || st.username || '')}</td>
+              <td style="padding:10px; color:#0f172a; font-weight:600;">${escapeHtml(st.fullName || st.name || '')}</td>
+              <td style="padding:10px; color:#475569;">${escapeHtml(st.className || st.class || '')}</td>
+              <td style="padding:10px; color:#64748b;">${escapeHtml(st.email || st.phone || '')}</td>
+              <td style="padding:10px; text-align:center;">
+                <button type="button" onclick="resetStudentPassword('${escapeHtml(st.studentId || st.username)}')" style="background:#f59e0b; color:#fff; border:none; padding:4px 8px; border-radius:4px; font-size:11px; font-weight:600; cursor:pointer; margin-right:4px;">
+                  🔑 Reset MK
+                </button>
+                <button type="button" onclick="deleteStudent('${escapeHtml(st.studentId || st.username)}')" style="background:#ef4444; color:#fff; border:none; padding:4px 8px; border-radius:4px; font-size:11px; font-weight:600; cursor:pointer;">
+                  🗑️ Xóa
+                </button>
+              </td>
+            </tr>
+          `).join('')}
+        </tbody>
+      </table>
+    </div>
+  `;
+}
 
-  showAppLoading(`⏳ Đang đặt lại mật khẩu cho SV [${studentCode}]...`);
+/**
+ * 4. XỬ LÝ KHI CHỌN FILE EXCEL / CSV TẢI LÊN
+ */
+export async function handleStudentFileSelected(event) {
+  const file = event.target.files?.[0];
+  if (!file) return;
+
+  document.getElementById('selectedFileName').innerText = `📄 Đang xử lý tệp: ${file.name}`;
+  showAppLoading(`⏳ Đang đọc và tải lên danh sách sinh viên từ [${file.name}]...`);
+
   try {
-    const res = await appsScriptService.request('RESET_STUDENT_PASSWORD', {
-      studentCode: studentCode,
-      newPassword: newPassword.trim()
-    });
+    // Chuyển đổi tệp sang dạng Base64
+    const reader = new FileReader();
+    reader.onload = async function (e) {
+      const base64Data = e.target.result.split(',')[1];
+
+      // Gửi yêu cầu lên Apps Script qua action UPLOAD_EXCEL_DRIVE
+      const res = await appsScriptService.request('UPLOAD_EXCEL_DRIVE', {
+        fileName: file.name,
+        fileData: base64Data,
+        mimeType: file.type
+      });
+
+      hideAppLoading();
+
+      if (res && (res.status === 'success' || res.success)) {
+        alert(`🎉 Tải lên danh sách sinh viên thành công! (${res.addedCount || 'Đã cập nhật'} sinh viên)`);
+        handleLoadStudentManagement(); // Tải lại bảng sinh viên
+      } else {
+        alert(`⚠️ Lỗi tải danh sách: ${res?.message || 'Không thể cập nhật danh sách sinh viên'}`);
+      }
+    };
+
+    reader.readAsDataURL(file);
+
+  } catch (err) {
     hideAppLoading();
-    alert(res.message || '✅ Đã đổi mật khẩu thành công!');
+    alert(`Lỗi đọc tệp: ${err.message}`);
+  }
+}
+
+/**
+ * 5. RESET MẬT KHẨU SINH VIÊN
+ */
+export async function resetStudentPassword(studentId) {
+  if (!confirm(`Bạn có chắc muốn cấp lại mật khẩu mặc định cho sinh viên [${studentId}] không?`)) return;
+
+  showAppLoading(`⏳ Đang đặt lại mật khẩu cho [${studentId}]...`);
+
+  try {
+    const res = await appsScriptService.request('RESET_STUDENT_PASSWORD', { studentId });
+    hideAppLoading();
+
+    if (res && res.status === 'success') {
+      alert(`🔑 Mật khẩu của sinh viên [${studentId}] đã được đặt lại thành công!`);
+    } else {
+      alert(`Không thể đặt lại mật khẩu: ${res?.message || 'Lỗi hệ thống'}`);
+    }
   } catch (err) {
     hideAppLoading();
     alert(`Lỗi: ${err.message}`);
   }
 }
 
-// =========================================================================
-// 4. XÓA SINH VIÊN KHỎI DANH SÁCH
-// =========================================================================
-export async function handleDeleteStudentUI(studentCode) {
-  if (!confirm(`Bạn có chắc chắn muốn XÓA sinh viên [${studentCode}] khỏi danh sách?`)) return;
+/**
+ * 6. XÓA SINH VIÊN
+ */
+export async function deleteStudent(studentId) {
+  if (!confirm(`Bạn có chắc chắn muốn xóa sinh viên [${studentId}] khỏi hệ thống?`)) return;
 
-  showAppLoading(`⏳ Đang xóa sinh viên [${studentCode}]...`);
+  showAppLoading(`⏳ Đang xóa sinh viên [${studentId}]...`);
+
   try {
-    const res = await appsScriptService.request('DELETE_STUDENT', { studentCode });
+    const res = await appsScriptService.request('DELETE_STUDENT', { studentId });
     hideAppLoading();
-    alert(res.message || '✅ Đã xóa sinh viên thành công!');
-    handleLoadStudentManagement();
+
+    if (res && res.status === 'success') {
+      alert('🗑️ Đã xóa sinh viên thành công!');
+      handleLoadStudentManagement();
+    } else {
+      alert(`Không thể xóa sinh viên: ${res?.message || 'Lỗi hệ thống'}`);
+    }
   } catch (err) {
     hideAppLoading();
     alert(`Lỗi: ${err.message}`);
   }
 }
 
-// =========================================================================
-// 5. GÁN ĐỀ THI CHO LỚP HOẶC SINH VIÊN
-// =========================================================================
-export async function handleOpenAssignExamModal() {
-  const examId = prompt('Nhập Mã đề thi cần giao (Ví dụ: exam_75ceb91a):');
-  if (!examId || !examId.trim()) return;
-
-  const assignType = prompt('Nhập kiểu gán (CLASS = Gán theo Lớp, STUDENT = Gán 1 SV, ALL = Tất cả SV):', 'CLASS');
-  if (!assignType) return;
-
-  const cleanType = assignType.trim().toUpperCase();
-  let targetValue = '';
-
-  if (cleanType === 'CLASS') {
-    targetValue = prompt('Nhập Tên Lớp cần giao (Ví dụ: BIO 101 A):');
-    if (!targetValue) return;
-  } else if (cleanType === 'STUDENT') {
-    targetValue = prompt('Nhập Mã Sinh Viên cần giao (Ví dụ: 32217691039):');
-    if (!targetValue) return;
-  }
-
-  showAppLoading(`⏳ Đang giao đề thi [${examId}]...`);
-  try {
-    const username = getLoggedInUsername();
-    const res = await appsScriptService.request('ASSIGN_EXAM', {
-      examId: examId.trim(),
-      assignType: cleanType,
-      targetValue: targetValue ? targetValue.trim() : '',
-      assignedBy: username
-    });
-    hideAppLoading();
-    alert(res.message || '✅ Đã giao đề thi thành công!');
-  } catch (err) {
-    hideAppLoading();
-    alert(`Lỗi giao đề: ${err.message}`);
-  }
-}
-
+// Khai báo global window cho sự kiện HTML
 window.handleLoadStudentManagement = handleLoadStudentManagement;
-window.handleResetStudentPasswordUI = handleResetStudentPasswordUI;
-window.handleDeleteStudentUI = handleDeleteStudentUI;
-window.handleOpenAssignExamModal = handleOpenAssignExamModal;
+window.handleStudentFileSelected = handleStudentFileSelected;
+window.resetStudentPassword = resetStudentPassword;
+window.deleteStudent = deleteStudent;
