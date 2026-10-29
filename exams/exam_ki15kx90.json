@@ -1,0 +1,189 @@
+{
+  "examId": "exam_ki15kx90",
+  "title": "Sinh ĐC_chương 1",
+  "durationMinutes": 10,
+  "createdBy": "nga",
+  "createdAt": "2026-10-29T09:38:33.746Z",
+  "questions": [
+    {
+      "id": "q_1",
+      "stem": "Bào quan của tế bào được định vị trong ?",
+      "options": [
+        "Nhân con",
+        "Tế bào chất",
+        "Lục lạp",
+        "Ty thể"
+      ],
+      "correctAnswer": 1,
+      "hasImage": false,
+      "imageUrl": null,
+      "originalOptionCount": 4,
+      "flags": {
+        "needsUserConfirmation": false,
+        "note": "✅ Giữ nguyên từ bản gốc, AI không tác động."
+      }
+    },
+    {
+      "id": "q_2",
+      "stem": "Đặc điểm khác biệt của tế bào nhân sơ (prokaryote) và tế bào nhân chuẩn (eukaryote) là:",
+      "options": [
+        "Protein",
+        "Màng nhân",
+        "Màng sinh chất",
+        "Ribosome"
+      ],
+      "correctAnswer": 1,
+      "hasImage": false,
+      "imageUrl": null,
+      "originalOptionCount": 4,
+      "flags": {
+        "needsUserConfirmation": true,
+        "note": "🤖 AI (gemini-3.6-flash) đã sinh bổ sung phương án/đáp án. Giảng viên vui lòng rà soát lại."
+      }
+    },
+    {
+      "id": "q_3",
+      "stem": "Ty thể KHÔNG có mặt ở ?",
+      "options": [
+        "Vi khuẩn",
+        "Thực vật",
+        "Nấm",
+        "Động vật có xương sống"
+      ],
+      "correctAnswer": 0,
+      "hasImage": false,
+      "imageUrl": null,
+      "originalOptionCount": 4,
+      "flags": {
+        "needsUserConfirmation": false,
+        "note": "✅ Giữ nguyên từ bản gốc, AI không tác động."
+      }
+    },
+    {
+      "id": "q_4",
+      "stem": "Hợp chất nào sau đây KHÔNG có trong thành phần màng tế bào ?",
+      "options": [
+        "Phospholipids",
+        "Cholesterol",
+        "Glycolipid",
+        "Proline"
+      ],
+      "correctAnswer": 3,
+      "hasImage": false,
+      "imageUrl": null,
+      "originalOptionCount": 4,
+      "flags": {
+        "needsUserConfirmation": true,
+        "note": "🤖 AI (gemini-3.6-flash) đã sinh bổ sung phương án/đáp án. Giảng viên vui lòng rà soát lại."
+      }
+    },
+    {
+      "id": "q_5",
+      "stem": "Thực bào và ẩm bào là các thuật ngữ của hiện tượng được mô tả sau:",
+      "options": [
+        "Ăn các chất lơ lửng",
+        "Nhập bào",
+        "Động vật ăn cỏ",
+        "Bẫy mô"
+      ],
+      "correctAnswer": 1,
+      "hasImage": false,
+      "imageUrl": null,
+      "originalOptionCount": 4,
+      "flags": {
+        "needsUserConfirmation": false,
+        "note": "✅ Giữ nguyên từ bản gốc, AI không tác động."
+      }
+    },
+    {
+      "id": "q_6",
+      "stem": "Phát biểu nào sau đây về lục lạp là KHÔNG đúng ?",
+      "options": [
+        "Lục lạp có một chồng các lớp màng trong và được bao bọc bởi lớp màng kép",
+        "Lục lạp có chứa ADN của riêng nó",
+        "Lục lạp được xem là bắt nguồn từ vi khuẩn",
+        "Lục lạp có mặt ở tất cả các tế bào nhân chuẩn"
+      ],
+      "correctAnswer": 3,
+      "hasImage": false,
+      "imageUrl": null,
+      "originalOptionCount": 4,
+      "flags": {
+        "needsUserConfirmation": true,
+        "note": "🤖 AI (gemini-3.6-flash) đã sinh bổ sung phương án/đáp án. Giảng viên vui lòng rà soát lại."
+      }
+    },
+    {
+      "id": "q_7",
+      "stem": "Vai trò chính của màng sinh chất:",
+      "options": [
+        "Chống lại áp suất thẩm thấu của môi trường bên ngoài.",
+        "Trao đổi chất, thông tin giữa tế bào và môi trường",
+        "Tạo khung vững, cứng cho tế bào",
+        "Bảo vệ, duy trì hình dạng tế bào"
+      ],
+      "correctAnswer": 1,
+      "hasImage": false,
+      "imageUrl": null,
+      "originalOptionCount": 4,
+      "flags": {
+        "needsUserConfirmation": true,
+        "note": "🤖 AI (gemini-3.6-flash) đã sinh bổ sung phương án/đáp án. Giảng viên vui lòng rà soát lại."
+      }
+    },
+    {
+      "id": "q_8",
+      "stem": "Thành phần chính cấu tạo nên thành tế bào vi khuẩn Gram dương ?",
+      "options": [
+        "Phospholipid kép",
+        "Peptidoglycan",
+        "Polysaccharide",
+        "Lipopolysaccharide"
+      ],
+      "correctAnswer": 1,
+      "hasImage": false,
+      "imageUrl": null,
+      "originalOptionCount": 4,
+      "flags": {
+        "needsUserConfirmation": true,
+        "note": "🤖 AI (gemini-3.6-flash) đã sinh bổ sung phương án/đáp án. Giảng viên vui lòng rà soát lại."
+      }
+    },
+    {
+      "id": "q_9",
+      "stem": "Thể nhân của tế bào Prokaryote KHÔNG có đặc điểm ?",
+      "options": [
+        "Chưa có màng nhân bao bọc",
+        "Được bao bọc bởi màng nhân kép",
+        "Chứa một phân tử ADN dạng vòng xoắn kép",
+        "Là nơi chứa đựng thông tin di truyền"
+      ],
+      "correctAnswer": 1,
+      "hasImage": false,
+      "imageUrl": null,
+      "originalOptionCount": 4,
+      "flags": {
+        "needsUserConfirmation": true,
+        "note": "🤖 AI (gemini-3.6-flash) đã sinh bổ sung phương án/đáp án. Giảng viên vui lòng rà soát lại."
+      }
+    },
+    {
+      "id": "q_10",
+      "stem": "Ở tế bào Eukaryote, ribosome có mặt nhiều nhất tại:",
+      "options": [
+        "Màng nhân",
+        "Ty thể",
+        "Nhân con",
+        "Lưới nội chất có hạt"
+      ],
+      "correctAnswer": 3,
+      "hasImage": false,
+      "imageUrl": null,
+      "originalOptionCount": 4,
+      "flags": {
+        "needsUserConfirmation": true,
+        "note": "🤖 AI (gemini-3.6-flash) đã sinh bổ sung phương án/đáp án. Giảng viên vui lòng rà soát lại."
+      }
+    }
+  ]
+}
