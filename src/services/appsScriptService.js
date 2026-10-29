@@ -1,133 +1,92 @@
 import { APP_CONFIG } from '../constants/appConfig.js';
-import { logger } from '../utils/logger.js';
+import { getLoggedInUsername, getLoggedInRole } from '../modules/authAndCore.js';
 
-export const appsScriptService = {
+/**
+ * APPS SCRIPT SERVICE - CẦU NỐI KẾT NỐI VỚI GOOGLE APPS SCRIPT BACKEND
+ */
+class AppsScriptService {
+  constructor() {
+    this.scriptUrl = APP_CONFIG?.APPS_SCRIPT_URL || 'https://script.google.com/macros/s/AKfycbyTDHy_MRROk1uN6Zz8BZu1Ulq-7L0zjDaZ85GukK4JKTwuR_GuTHkssqeeYyTlpnRR/exec';
+  }
+
   /**
-   * Wrapper gọi API sang Google Apps Script với Timeout 300s cho AI.
+   * Gửi HTTP POST request an toàn về Backend Google Apps Script
+   * @param {string} action - Tên thao tác (VD: 'LOGIN', 'SUBMIT_EXAM', 'GET_STUDENTS')
+   * @param {object} payloadData - Dữ liệu kèm theo
+   * @returns {Promise<object>} JSON phản hồi từ Server
    */
-  async request(action, payload = {}, customTimeout = null) {
-    let endpoint = APP_CONFIG.APPS_SCRIPT_URL;
-
-    if (!endpoint || endpoint.includes('YOUR_APPS_SCRIPT')) {
-      throw new Error('Chưa cấu hình APPS_SCRIPT_URL trong APP_CONFIG.');
+  async request(action, payloadData = {}) {
+    if (!action) {
+      throw new Error('Thiếu tham số action trong AppsScriptService.');
     }
 
-    const bodyData = JSON.stringify({ action, ...payload });
+    // Tự động đính kèm thông tin Người dùng & Role hiện tại vào mọi Request
+    const currentUsername = getLoggedInUsername();
+    const currentRole = getLoggedInRole();
 
-    const isAITask = ['PARSE_EXAM_AI', 'GEMINI_PROXY', 'SAVE_AND_PUBLISH_EXAM'].includes(action);
-    const timeoutMs = customTimeout || (isAITask ? 300000 : 20000); 
+    const fullPayload = {
+      action: action,
+      username: payloadData.username || payloadData.studentCode || currentUsername,
+      studentCode: payloadData.studentCode || payloadData.username || currentUsername,
+      role: payloadData.role || currentRole,
+      data: payloadData,
+      ...payloadData
+    };
 
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+    let attempts = 0;
+    const maxAttempts = APP_CONFIG?.MAX_RETRY_ATTEMPTS || 3;
+    let lastError = null;
 
-    try {
-      const response = await fetch(endpoint, {
-        method: 'POST',
-        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-        body: bodyData,
-        redirect: 'follow',
-        signal: controller.signal
-      });
-
-      clearTimeout(timeoutId);
-
-      if (!response.ok) {
-        throw new Error(`Apps Script HTTP Error: ${response.status}`);
-      }
-
-      const rawText = await response.text();
-      let result;
+    while (attempts < maxAttempts) {
+      attempts++;
       try {
-        result = JSON.parse(rawText);
-      } catch (parseError) {
-        throw new Error('Backend trả về phản hồi không hợp lệ.');
-      }
+        const response = await fetch(this.scriptUrl, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'text/plain;charset=utf-8' // Đảm bảo không bị dính lỗi CORS Preflight
+          },
+          body: JSON.stringify(fullPayload)
+        });
 
-      if (result.status === 'error') {
-        throw new Error(result.message || 'Lỗi xử lý tại Server Backend');
-      }
+        if (!response.ok) {
+          throw new Error(`Lỗi HTTP ${response.status}: ${response.statusText}`);
+        }
 
-      return result;
+        const result = await response.json();
 
-    } catch (error) {
-      clearTimeout(timeoutId);
-      if (error.name === 'AbortError') {
-        throw new Error(`Thời gian xử lý quá 5 phút. Vui lòng kiểm tra lại file.`);
+        if (result && result.status === 'error') {
+          throw new Error(result.message || 'Xảy ra lỗi xử lý từ phía Server Google Apps Script');
+        }
+
+        return result;
+      } catch (err) {
+        lastError = err;
+        console.warn(`[AppsScriptService] Lần thử ${attempts}/${maxAttempts} cho action "${action}" thất bại:`, err.message);
+
+        if (attempts < maxAttempts) {
+          const delay = Math.pow(2, attempts) * 500;
+          await new Promise((resolve) => setTimeout(resolve, delay));
+        }
       }
-      if (typeof logger !== 'undefined' && logger.error) {
-        logger.error(`AppsScript Request Error [${action}]:`, error);
-      }
-      throw error;
     }
-  },
 
-  async parseExamAI(rawText, imageBase64 = '', mimeType = 'image/png', model = 'gemini-3.8-flash', parsedQuestions = null, customApiKey = '', username = '') {
-    return await this.request('PARSE_EXAM_AI', { 
-      rawText, 
-      imageBase64, 
-      mimeType, 
-      model, 
-      questions: parsedQuestions,
-      customApiKey,
-      username
-    }, 300000);
-  },
-
-  async callGeminiVisionProxy(prompt, imageBase64, mimeType = 'image/jpeg', model = 'gemini-3.8-flash') {
-    return await this.request('GEMINI_PROXY', { prompt, imageBase64, mimeType, model }, 60000);
-  },
-
-  async submitExamAnswers(examId, studentInfo, answers, violationInfo = {}) {
-    return await this.request('SUBMIT_EXAM', { examId, studentInfo, answers, violationInfo });
-  },
-
-  async saveAndPublishExam(examId, masterKey, publicExamData, filePath, username) {
-    return await this.request('SAVE_AND_PUBLISH_EXAM', { examId, masterKey, publicExamData, filePath, username }, 60000);
-  },
-
-  async authenticateLecturer(username, password) {
-    return await this.request('AUTH_LECTURER', { username, password });
-  },
+    throw new Error(`Không thể kết nối đến Máy chủ sau ${maxAttempts} lần thử. Lỗi chi tiết: ${lastError?.message || 'Lỗi không xác định'}`);
+  }
 
   /**
-   * Lấy danh sách đề thi
+   * Shortcut gọi bóc tách đề thi bằng AI
    */
-  async getLecturerExams(username) {
-    return await this.request('GET_MY_EXAMS', { username: username });
-  },
+  async parseExamAI(data) {
+    return this.request('PARSE_EXAM_AI', data);
+  }
 
   /**
-   * Lưu API Key cá nhân
+   * Shortcut lưu API Key cá nhân của người dùng
    */
   async saveUserApiKey(username, apiKey) {
-    return await this.request('SAVE_USER_API_KEY', { username: username, apiKey: apiKey });
-  },
-
-  /**
-   * Xóa đề thi
-   */
-  async deleteExam(examId, username) {
-    return await this.request('DELETE_EXAM', { examId, username });
-  },
-
-  /**
-   * Giao đề thi cho Lớp / Sinh viên
-   */
-  async assignExam(examId, targetClass, studentCodes, dueDate, createdBy) {
-    return await this.request('ASSIGN_EXAM', { examId, targetClass, studentCodes, dueDate, createdBy });
-  },
-
-  /**
-   * Lấy danh sách sinh viên
-   */
-  async getStudents() {
-    return await this.request('GET_STUDENTS', {});
-  },
-
-  /**
-   * Lấy danh sách bài nộp / điểm thi
-   */
-  async getSubmissions() {
-    return await this.request('GET_SUBMISSIONS', {});
+    return this.request('SAVE_USER_API_KEY', { username, apiKey });
   }
-};
+}
+
+export const appsScriptService = new AppsScriptService();
+window.appsScriptService = appsScriptService;
