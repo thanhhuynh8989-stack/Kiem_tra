@@ -2,438 +2,116 @@
 <html lang="vi">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Hệ Thống Thi Trực Tuyến AI</title>
-
-  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>📝</text></svg>">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Hệ Thống Thi Trực Tuyến AI - Server-Side Grading</title>
   
-  <!-- Thư viện phụ trợ -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+  <!-- CSS Styling & KaTeX Math Rendering -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.css">
+  
+  <!-- Thư viện Bóc Tách File DOCX & PDF -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js"></script>
-
-  <!-- KaTeX -->
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
-  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
-  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/contrib/auto-render.min.js"></script>
 
   <style>
     :root {
       --primary: #2563eb;
-      --primary-hover: #1d4ed8;
+      --primary-dark: #1d4ed8;
       --bg: #f8fafc;
-      --surface: #ffffff;
+      --card-bg: #ffffff;
       --text: #0f172a;
       --text-muted: #64748b;
-      --border: #e2e8f0;
-      --radius: 10px;
-      --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -2px rgba(0, 0, 0, 0.05);
+      --border: #cbd5e1;
     }
 
-    * { box-sizing: border-box; }
-    body {
-      font-family: system-ui, -apple-system, blinkmacsystemfont, "Segoe UI", roboto, sans-serif;
-      background: var(--bg);
-      color: var(--text);
-      margin: 0;
-      padding: 12px;
-      line-height: 1.5;
-      overflow-x: hidden;
-    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; background: var(--bg); color: var(--text); line-height: 1.5; padding-bottom: 40px; }
 
-    @media (min-width: 640px) {
-      body { padding: 24px; }
-    }
+    header { background: #0f172a; color: #fff; padding: 14px 24px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+    header h1 { font-size: 18px; font-weight: 700; display: flex; align-items: center; gap: 8px; }
 
-    .container {
-      max-width: 960px;
-      margin: 0 auto;
-      background: var(--surface);
-      padding: 16px;
-      border-radius: var(--radius);
-      box-shadow: var(--shadow);
-      border: 1px solid var(--border);
-    }
+    .nav-tabs { background: #1e293b; display: flex; gap: 4px; padding: 6px 24px; border-bottom: 1px solid #334155; }
+    .nav-btn { background: transparent; color: #94a3b8; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; font-size: 13px; font-weight: 600; transition: all 0.2s; }
+    .nav-btn:hover { color: #fff; background: #334155; }
+    .nav-btn.active { background: var(--primary); color: #fff; }
 
-    @media (min-width: 640px) {
-      .container { padding: 28px; }
-    }
+    main { max-width: 1200px; margin: 20px auto; padding: 0 16px; }
 
-    /* Header Bar */
-    .header-bar {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      flex-wrap: wrap;
-      gap: 12px;
-      border-bottom: 2px solid var(--border);
-      padding-bottom: 14px;
-      margin-bottom: 20px;
-    }
-    .header-bar h2 { margin: 0; font-size: 1.25rem; font-weight: 700; color: #0f172a; }
+    .card { background: var(--card-bg); border-radius: 10px; padding: 20px; border: 1px solid var(--border); box-shadow: 0 1px 3px rgba(0,0,0,0.05); margin-bottom: 20px; }
 
-    .role-badge {
-      background: #eff6ff;
-      color: var(--primary);
-      padding: 6px 14px;
-      border-radius: 99px;
-      font-weight: 600;
-      font-size: 13px;
-      border: 1px solid #bfdbfe;
-      display: inline-flex;
-      align-items: center;
-    }
-
-    .view-section { display: none; }
-    .view-section.active { display: block; }
-
-    /* Form & Controls */
-    .form-group { margin-bottom: 16px; }
-    label { display: block; font-weight: 600; font-size: 13px; margin-bottom: 6px; color: #334155; }
-    input[type="text"], input[type="password"], input[type="number"], select, textarea {
-      width: 100%;
-      padding: 10px 12px;
-      border: 1px solid #cbd5e1;
-      border-radius: 8px;
-      font-size: 14px;
-      background-color: #fff;
-      color: var(--text);
-      transition: border-color 0.2s, box-shadow 0.2s;
-      min-height: 42px;
-    }
-    input:focus, select:focus, textarea:focus {
-      outline: none;
-      border-color: var(--primary);
-      box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
-    }
-    textarea { resize: vertical; min-height: 80px; }
-
-    button {
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      gap: 6px;
-      background: var(--primary);
-      color: white;
-      border: none;
-      padding: 10px 18px;
-      border-radius: 8px;
-      font-weight: 600;
-      font-size: 14px;
-      cursor: pointer;
-      transition: background 0.2s, transform 0.1s;
-      min-height: 42px;
-      touch-action: manipulation;
-    }
-    button:hover { background: var(--primary-hover); }
-    button:active { transform: scale(0.98); }
-    button:disabled { opacity: 0.6; cursor: not-allowed; }
-
-    /* Collapsible API Key Drawer */
-    .api-key-collapsible {
-      background: #f8fafc;
-      border: 1px solid #cbd5e1;
-      border-radius: var(--radius);
-      margin-bottom: 20px;
-      overflow: hidden;
-    }
-    .api-key-summary {
-      padding: 12px 16px;
-      font-weight: 600;
-      font-size: 14px;
-      color: #1e293b;
-      cursor: pointer;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      flex-wrap: wrap;
-      gap: 8px;
-      user-select: none;
-      background: #f1f5f9;
-    }
-    .api-key-summary:hover { background: #e2e8f0; }
-    .api-key-body {
-      padding: 16px;
-      border-top: 1px solid #cbd5e1;
-      background: #ffffff;
-    }
-    .api-key-input-group {
-      display: flex;
-      flex-direction: column;
-      gap: 10px;
-    }
-    @media (min-width: 520px) {
-      .api-key-input-group { flex-direction: row; }
-      .api-key-input-group input { flex: 1; }
-      .api-key-input-group button { width: auto; white-space: nowrap; }
-    }
-
-    /* Cards & Badges */
-    .question-card {
-      border: 1px solid var(--border);
-      border-radius: var(--radius);
-      padding: 16px;
-      margin-bottom: 16px;
-      background: #fff;
-    }
-    .badge-quota {
-      background: #e2e8f0;
-      color: #475569;
-      padding: 4px 10px;
-      border-radius: 20px;
-      font-size: 12px;
-      font-weight: 600;
-    }
-
-    /* Responsive Grids */
-    .responsive-grid-3 {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-      gap: 12px;
-    }
-
-    /* Responsive Table Container */
-    .table-responsive {
-      width: 100%;
-      overflow-x: auto;
-      -webkit-overflow-scrolling: touch;
-      margin-top: 12px;
-      border-radius: 8px;
-      border: 1px solid var(--border);
-    }
-
-    .logout-btn {
-      background: #ef4444;
-      padding: 6px 14px;
-      min-height: 36px;
-      font-size: 13px;
-    }
-    .logout-btn:hover { background: #dc2626; }
+    .auth-box { max-width: 400px; margin: 60px auto; }
+    .input-group { margin-bottom: 14px; }
+    .input-group label { display: block; font-size: 12px; font-weight: 600; margin-bottom: 4px; color: var(--text-muted); }
+    .input-group input, .input-group select { width: 100%; padding: 10px; border: 1px solid var(--border); border-radius: 6px; font-size: 14px; outline: none; }
+    .btn-primary { width: 100%; background: var(--primary); color: #fff; border: none; padding: 10px; border-radius: 6px; font-weight: 600; font-size: 14px; cursor: pointer; }
+    .btn-primary:hover { background: var(--primary-dark); }
   </style>
 </head>
 <body>
 
-<div class="container">
-  <!-- HEADER THÔNG TIN HỆ THỐNG -->
-  <div class="header-bar">
-    <h2>📝 Hệ Thống Kiểm Tra AI</h2>
-    <div id="userInfo" style="display: none; align-items: center; gap: 10px; flex-wrap: wrap;">
-      <span id="userBadge" class="role-badge">STUDENT</span>
-      <button id="logoutBtn" class="logout-btn">Đăng xuất</button>
+  <!-- Thanh Tiêu Đề Hệ Thống -->
+  <header>
+    <h1>🎓 Online Exam System <small style="font-size: 12px; color: #38bdf8; font-weight: 400;">v3.0 Server-Side Grading</small></h1>
+    <div id="userHeaderProfile" style="font-size: 13px; display: flex; align-items: center; gap: 12px;">
+      <span id="userInfoDisplay">Chưa đăng nhập</span>
+      <button id="btnLogout" type="button" onclick="handleLogout()" style="display:none; background: #dc2626; color: #fff; border: none; padding: 4px 10px; border-radius: 4px; cursor: pointer; font-size: 12px;">Đăng xuất</button>
     </div>
-  </div>
+  </header>
 
-  <!-- 1. GIAO DIỆN ĐĂNG NHẬP -->
-  <div id="authView" class="view-section active">
-    <h3 style="margin-top:0; color:#0f172a;">Đăng Nhập Quản Trị / Giảng Viên / Sinh Viên</h3>
-    <div class="form-group">
-      <label for="loginUsername">Tên đăng nhập</label>
-      <input type="text" id="loginUsername" placeholder="Nhập username...">
-    </div>
-    <div class="form-group">
-      <label for="loginPassword">Mật khẩu</label>
-      <div style="position: relative; display: flex; align-items: center;">
-        <input type="password" id="loginPassword" placeholder="Nhập mật khẩu..." style="padding-right: 42px;">
-        <button type="button" id="togglePasswordBtn" onclick="togglePasswordVisibility()" title="Ẩn/Hiện mật khẩu" 
-                style="position: absolute; right: 4px; background: none; border: none; font-size: 18px; padding: 6px; color: #64748b; min-height: auto; width: auto;">
-          👁️
-        </button>
-      </div>
-    </div>
-    <button id="loginBtn" style="width: 100%;">🚀 Đăng Nhập</button>
-  </div>
+  <!-- Thanh Điều Hướng Chức Năng (Menu Tabs) -->
+  <nav id="appNavTabs" class="nav-tabs" style="display: none;">
+    <button type="button" id="tabBtnStudent" class="nav-btn active" onclick="switchMainTab('STUDENT_EXAMS')">📝 Bài Thi Sinh Viên</button>
+    <button type="button" id="tabBtnLecturer" class="nav-btn" onclick="switchMainTab('LECTURER_DASHBOARD')">📚 Quản Lý Đề Thi</button>
+    <button type="button" id="tabBtnManagement" class="nav-btn" onclick="switchMainTab('STUDENT_MANAGEMENT')">👥 Quản Lý Sinh Viên</button>
+    <button type="button" id="tabBtnEditor" class="nav-btn" onclick="switchMainTab('EXAM_EDITOR')">🛠️ Bóc Tách / Tạo Đề Thi</button>
+  </nav>
 
-  <!-- 2. GIAO DIỆN SINH VIÊN -->
-  <div id="studentView" class="view-section">
-    <!-- THANH THÔNG TIN SINH VIÊN -->
-    <div style="background: #ffffff; border: 1px solid var(--border); border-radius: var(--radius); padding: 14px 18px; margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">
-      <div style="display: flex; align-items: center; gap: 12px;">
-        <div style="width: 40px; height: 40px; background: #eff6ff; color: var(--primary); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 20px; font-weight: 700;">
-          🎓
+  <!-- Vùng Nội Dung Chính -->
+  <main id="mainContentArea">
+
+    <!-- 1. Form Đăng Nhập -->
+    <div id="loginCard" class="card auth-box">
+      <h2 style="font-size: 18px; margin-bottom: 16px; text-align: center;">🔐 Đăng Nhập Hệ Thống</h2>
+      <form id="loginForm" onsubmit="event.preventDefault(); submitLoginForm();">
+        <div class="input-group">
+          <label for="inputUsername">Tên đăng nhập / Mã Sinh viên:</label>
+          <input type="text" id="inputUsername" placeholder="Ví dụ: 32217691039 hoặc admin" required>
         </div>
-        <div>
-          <div style="font-size: 15px; font-weight: 700; color: #0f172a;" id="studentProfileName">Sinh Viên</div>
-          <div style="font-size: 12px; color: var(--text-muted);">Mã SV: <strong id="studentProfileCode" style="color: var(--primary);">--</strong></div>
+        <div class="input-group">
+          <label for="inputPassword">Mật khẩu:</label>
+          <input type="password" id="inputPassword" placeholder="Nhập mật khẩu..." required>
         </div>
-      </div>
-
-      <button type="button" onclick="handleLogout()" style="background: #fef2f2; color: #dc2626; border: 1px solid #fecaca; min-height: 36px; padding: 6px 14px; font-size: 13px;">
-        🚪 Đăng xuất
-      </button>
+        <button type="submit" class="btn-primary">Đăng Nhập</button>
+      </form>
     </div>
 
-    <!-- KHUNG BẢNG ĐIỀU KHIỂN BÀI THI -->
-    <div id="studentExamContainer"></div>
+    <!-- 2. Container Bài Thi Sinh Viên -->
+    <div id="studentExamContainer" style="display: none;"></div>
 
-    <!-- KHUNG MÀN HÌNH LÀM BÀI THI -->
-    <div id="examContainer" style="display: none; background: #ffffff; border-radius: var(--radius); padding: 16px; border: 1px solid var(--border);">
-      <div style="position: sticky; top: 10px; z-index: 100; background: #0f172a; color: #ffffff; padding: 12px 16px; border-radius: 8px; display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; gap: 10px;">
-        <div>
-          <h2 id="examTitle" style="margin: 0; font-size: 16px; color: #f8fafc;">Đề Thi Trực Tuyến</h2>
-          <span style="font-size: 11px; color: #94a3b8;">Thí sinh: <strong id="examStudentInfo" style="color: #38bdf8;">--</strong></span>
-        </div>
-        <div id="examTimerDisplay" style="font-size: 18px; font-weight: 700; color: #38bdf8; background: #1e293b; padding: 4px 10px; border-radius: 6px; border: 1px solid #334155; white-space: nowrap;">
-          ⏱️ --:--
-        </div>
+    <!-- 3. Container Bảng Điều Khiển Giảng Viên -->
+    <div id="lecturerDashboardContainer" style="display: none;"></div>
+
+    <!-- 4. Container Quản Lý Sinh Viên -->
+    <div id="studentManagementContainer" style="display: none;"></div>
+
+    <!-- 5. Container Bóc Tách / Biên Tập Đề Thi AI -->
+    <div id="examEditorContainer" style="display: none;">
+      <div class="card">
+        <h3 style="margin-bottom: 12px; font-size: 16px;">📤 Tải Lên File Đề Thi (DOCX / PDF / Ảnh)</h3>
+        <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 12px;">Hệ thống hỗ trợ tự động bóc tách câu hỏi, phương án và hiển thị công thức toán KaTeX qua Gemini AI.</p>
+        <input type="file" id="examFileInput" accept=".docx, .pdf, image/*" onchange="triggerExamUpload(this)" style="font-size: 13px;">
       </div>
-
-      <div id="questionsList"></div>
-
-      <div style="text-align: right; margin-top: 20px; border-top: 1px solid var(--border); padding-top: 16px;">
-        <button type="button" id="submitExamBtn" style="background: #16a34a; width: 100%; max-width: 200px;">
-          🚀 Nộp Bài Thi
-        </button>
-      </div>
+      <div id="examEditorContent"></div>
     </div>
 
-    <!-- KHUNG MÀN HÌNH KẾT QUẢ -->
-    <div id="resultContainer" style="display: none; background: #ffffff; border-radius: var(--radius); padding: 24px 16px; border: 1px solid var(--border); text-align: center;">
-      <div style="width: 56px; height: 56px; background: #dcfce7; color: #15803d; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 28px; margin: 0 auto 12px auto;">
-        🎉
-      </div>
-      <h2 style="margin: 0 0 8px 0; color: #0f172a;">Kết Quả Làm Bài</h2>
-      <p id="scoreText" style="font-size: 28px; font-weight: 800; color: var(--primary); margin: 10px 0;"></p>
-      <p style="color: var(--text-muted); font-size: 13px; margin-bottom: 20px;">Bài làm của bạn đã được ghi nhận thành công trên hệ thống.</p>
-      <button type="button" onclick="handleLoadStudentDashboard()">
-        ↩️ Quay về Danh sách Bài thi
-      </button>
-    </div>
-  </div>
+  </main>
 
-  <!-- 3. GIAO DIỆN GIẢNG VIÊN -->
-  <div id="lecturerView" class="view-section">
-    <h3 style="margin-top:0;">Cổng Giảng Viên - Tạo & Quản Lý Đề Thi</h3>
+  <!-- Overlay Loading Toàn Cục -->
+  <div id="appGlobalLoader" style="display: none;"></div>
 
-    <!-- TÙY CHỌN ẨN/HIỆN API KEY CÁ NHÂN (COLLAPSIBLE DRAWER) -->
-    <details class="api-key-collapsible" id="apiKeyDetails">
-      <summary class="api-key-summary">
-        <span>🔑 Cấu hình Gemini API Key cá nhân <small style="font-weight: normal; color: var(--text-muted);">(Tùy chọn)</small></span>
-        <span id="aiQuotaBadge" class="badge-quota">🎁 AI Hệ thống: 1 lượt miễn phí</span>
-      </summary>
-      <div class="api-key-body">
-        <div class="api-key-input-group">
-          <input type="password" id="userGeminiApiKey" placeholder="Dán Gemini API Key của bạn (AIzaSy...)">
-          <button type="button" onclick="window.saveUserApiKey()">Lưu Key</button>
-        </div>
-        <small style="color: var(--text-muted); font-size: 12px; display: block; margin-top: 8px;">
-          💡 Lấy Key miễn phí tại <a href="https://aistudio.google.com/app/apikey" target="_blank" style="color: var(--primary); font-weight: 600;">aistudio.google.com</a> để sử dụng không giới hạn lượt bóc tách.
-        </small>
-      </div>
-    </details>
+  <!-- Nạp Mã Nguồn Điều Phối Chính -->
+  <script type="module" src="src/app.js"></script>
 
-    <div class="form-group">
-      <label>Chọn file đề thi (.docx hoặc .pdf) hoặc Dán văn bản thô</label>
-      <input type="file" id="examFileInput" accept=".docx,.pdf" style="margin-bottom: 10px;">
-      <textarea id="rawExamText" rows="4" placeholder="Hoặc dán trực tiếp nội dung đề thi vào đây..."></textarea>
-    </div>
-    
-    <button id="processExamBtn" style="width: 100%;">🤖 Phân Tích Đề Bằng AI</button>
-
-    <!-- PROGRESS LOADING AI -->
-    <div id="aiLoadingContainer" style="display: none; margin-top: 16px; background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 8px; padding: 14px;">
-      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; font-size: 13px;">
-        <span style="font-weight: 600; color: #1e40af;">🤖 Gemini AI đang phân tích & chuẩn hóa...</span>
-        <span id="aiTimerText" style="font-weight: bold; color: var(--primary);">⏱️ 0s</span>
-      </div>
-      <div style="width: 100%; background-color: #dbeafe; border-radius: 99px; height: 8px; overflow: hidden;">
-        <div id="aiProgressBar" style="width: 10%; background: linear-gradient(90deg, #3b82f6, #1d4ed8); height: 100%; border-radius: 99px; transition: width 0.4s ease;"></div>
-      </div>
-    </div>
-
-    <div id="uploadStatus" style="margin-top: 12px; font-weight: 600; font-size: 13px;"></div>
-  
-    <!-- PHÂN TÍCH VÀ DUYỆT ĐỀ THI -->
-    <div id="aiReviewSection" style="display: none; margin-top: 24px;">
-      <hr style="border: 0; border-top: 1px solid var(--border); margin-bottom: 16px;">
-      
-      <div style="background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 8px; padding: 16px; margin-bottom: 20px;">
-        <h4 style="margin-top: 0; color: #1e293b;">⚙️ Cấu Hình Đề Thi</h4>
-        <div class="responsive-grid-3">
-          <div>
-            <label>Tên bài kiểm tra:</label>
-            <input type="text" id="examTitleInput" placeholder="Ví dụ: Kiểm tra giữa kỳ Sinh học 10">
-          </div>
-          <div>
-            <label>Thời gian (Phút):</label>
-            <input type="number" id="examDurationInput" value="45" min="5" max="180">
-          </div>
-          <div>
-            <label>Vi phạm tối đa:</label>
-            <input type="number" id="examMaxViolationsInput" value="3" min="0" max="10">
-          </div>
-        </div>
-      </div>
-
-      <h4>Kết Quả Phân Tích & Duyệt Đề Thi</h4>
-      <p id="reviewSummaryText" style="font-size: 13px; color: var(--text-muted);"></p>
-      
-      <div id="questionsReviewList"></div>
-
-      <button id="publishExamBtn" style="background: #059669; margin-top: 16px; width: 100%;">
-        ✅ Xác Nhận & Xuất Bản Đề Thi
-      </button>
-    </div>
-
-    <!-- DANH SÁCH ĐỀ THI ĐÃ TẠO -->
-    <div style="margin-top: 30px; border-top: 2px dashed var(--border); padding-top: 20px;">
-      <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; margin-bottom: 12px;">
-        <h3 style="margin: 0; font-size: 16px; color: #1e293b;">📚 Danh Sách Đề Thi Đã Tạo</h3>
-        
-        <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
-          <div id="adminAuthorFilterWrapper" style="display: none; align-items: center; gap: 6px;">
-            <label for="filterAuthorSelect" style="font-size: 12px; margin: 0;">👤 Người tạo:</label>
-            <select id="filterAuthorSelect" style="min-height: 36px; padding: 4px 8px; font-size: 12px; width: auto;">
-              <option value="ALL">-- Tất cả --</option>
-            </select>
-          </div>
-    
-          <button type="button" id="loadMyExamsBtn" style="background: #3b82f6; min-height: 36px; padding: 6px 12px; font-size: 13px;">
-            🔄 Tải lại
-          </button>
-        </div>
-      </div>
-    
-      <div id="myExamsListTable"></div>
-    </div>
-    
-    <!-- QUẢN LÝ SINH VIÊN -->
-    <section id="studentSection" style="margin-top: 24px;">
-      <div style="background: #ffffff; border: 1px solid var(--border); border-radius: var(--radius); padding: 16px;">
-        <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; margin-bottom: 16px;">
-          <div>
-            <h3 style="margin: 0; font-size: 16px; color: #0f172a;">🎓 Quản Lý Sinh Viên & Điểm Thi</h3>
-            <p style="margin: 2px 0 0 0; font-size: 12px; color: var(--text-muted);">
-              Xem danh sách tài khoản, nhập Excel, xóa tài khoản hoặc gán đề thi.
-            </p>
-          </div>
-
-          <button type="button" onclick="handleLoadStudents()" style="background: #059669; min-height: 36px; font-size: 13px;">
-            📊 Tải Danh Sách Sinh Viên
-          </button>
-        </div>
-
-        <div id="studentManagementContainer">
-          <div style="text-align: center; padding: 24px; background: #f8fafc; border: 1px dashed #cbd5e1; border-radius: 8px; color: var(--text-muted); font-size: 13px;">
-            Nhấn nút <strong>"📊 Tải Danh Sách Sinh Viên"</strong> để xem thông tin chi tiết.
-          </div>
-        </div>
-      </div>
-    </section>
-
-  </div>
-
-  <!-- 4. GIAO DIỆN ADMIN -->
-  <div id="adminView" class="view-section">
-    <h3 style="margin-top:0;">Cổng Quản Trị Hệ Thống (ADMIN)</h3>
-    <div style="background: #f1f5f9; padding: 16px; border-radius: 8px; margin-bottom: 20px;">
-      <h4 style="margin-top:0;">Quản Lý Người Dùng</h4>
-      <button id="loadUsersBtn" style="width: auto;">Tải Danh Sách Tài Khoản</button>
-      <div id="usersListTable" class="table-responsive"></div>
-    </div>
-  </div>
-</div>
-
-<script type="module" src="./src/app.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 </body>
 </html>
