@@ -169,3 +169,139 @@ window.getLoggedInUser = getLoggedInUser;
 window.getLoggedInUsername = getLoggedInUsername;
 window.getLoggedInRole = getLoggedInRole;
 window.handleLogout = handleLogout;
+
+// =========================================================================
+// 5. CHỨC NĂNG ẨN / HIỆN MẬT KHẨU
+// =========================================================================
+export function togglePasswordVisibility(inputId, iconElement) {
+  const input = document.getElementById(inputId);
+  if (!input) return;
+  if (input.type === 'password') {
+    input.type = 'text';
+    if (iconElement) iconElement.innerText = '🙈';
+  } else {
+    input.type = 'password';
+    if (iconElement) iconElement.innerText = '👁️';
+  }
+}
+
+// =========================================================================
+// 6. XỬ LÝ ĐĂNG KÝ GIẢNG VIÊN VÀ MÃ OTP
+// =========================================================================
+export function openRegisterLecturerModal() {
+  document.getElementById('registerModal').style.display = 'flex';
+}
+
+export function closeRegisterModal() {
+  document.getElementById('registerModal').style.display = 'none';
+}
+
+export async function sendRegisterOTP() {
+  const username = document.getElementById('regUser').value.trim();
+  const email = document.getElementById('regEmail').value.trim();
+
+  if (!username || !email) {
+    alert('Vui lòng nhập Tên đăng nhập và Email trước khi nhận OTP!');
+    return;
+  }
+
+  showAppLoading('⏳ Đang gửi mã OTP đến email...');
+  try {
+    const res = await appsScriptService.request('SEND_OTP_REGISTER', { username, email });
+    hideAppLoading();
+    alert(res.message);
+  } catch (err) {
+    hideAppLoading();
+    alert(`Lỗi: ${err.message}`);
+  }
+}
+
+export async function submitLecturerRegistration() {
+  const username = document.getElementById('regUser').value.trim();
+  const password = document.getElementById('regPass').value.trim();
+  const fullName = document.getElementById('regFullName').value.trim();
+  const phone = document.getElementById('regPhone').value.trim();
+  const email = document.getElementById('regEmail').value.trim();
+  const otp = document.getElementById('regOTP').value.trim();
+
+  showAppLoading('⏳ Đang xác thực và tạo tài khoản...');
+  try {
+    const res = await appsScriptService.request('REGISTER_LECTURER', {
+      username, password, fullName, phone, email, otp
+    });
+    hideAppLoading();
+    alert(res.message);
+    closeRegisterModal();
+  } catch (err) {
+    hideAppLoading();
+    alert(`Lỗi đăng ký: ${err.message}`);
+  }
+}
+
+// =========================================================================
+// 7. XỬ LÝ QUÊN MẬT KHẨU VÀ OTP
+// =========================================================================
+export function openForgotPasswordModal() {
+  document.getElementById('forgotModal').style.display = 'flex';
+}
+
+export function closeForgotModal() {
+  document.getElementById('forgotModal').style.display = 'none';
+}
+
+let verifiedForgotUsername = '';
+
+export async function sendForgotOTP() {
+  const accountOrEmail = document.getElementById('forgotInput').value.trim();
+  if (!accountOrEmail) {
+    alert('Vui lòng nhập Tên đăng nhập hoặc Email!');
+    return;
+  }
+
+  showAppLoading('⏳ Đang tìm tài khoản và gửi mã OTP...');
+  try {
+    const res = await appsScriptService.request('SEND_OTP_FORGOT', { accountOrEmail });
+    hideAppLoading();
+    verifiedForgotUsername = res.username || accountOrEmail;
+    alert(res.message);
+  } catch (err) {
+    hideAppLoading();
+    alert(`Lỗi: ${err.message}`);
+  }
+}
+
+export async function submitResetPassword() {
+  const otp = document.getElementById('forgotOTP').value.trim();
+  const newPassword = document.getElementById('forgotNewPass').value.trim();
+
+  if (!verifiedForgotUsername) {
+    alert('Vui lòng gửi mã OTP trước!');
+    return;
+  }
+
+  showAppLoading('⏳ Đang tiến hành đổi mật khẩu...');
+  try {
+    const res = await appsScriptService.request('RESET_PASSWORD_OTP', {
+      username: verifiedForgotUsername,
+      otp: otp,
+      newPassword: newPassword
+    });
+    hideAppLoading();
+    alert(res.message);
+    closeForgotModal();
+  } catch (err) {
+    hideAppLoading();
+    alert(`Lỗi: ${err.message}`);
+  }
+}
+
+// Binding Window Scope
+window.togglePasswordVisibility = togglePasswordVisibility;
+window.openRegisterLecturerModal = openRegisterLecturerModal;
+window.closeRegisterModal = closeRegisterModal;
+window.sendRegisterOTP = sendRegisterOTP;
+window.submitLecturerRegistration = submitLecturerRegistration;
+window.openForgotPasswordModal = openForgotPasswordModal;
+window.closeForgotModal = closeForgotModal;
+window.sendForgotOTP = sendForgotOTP;
+window.submitResetPassword = submitResetPassword;
