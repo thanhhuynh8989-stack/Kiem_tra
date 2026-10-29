@@ -34,27 +34,61 @@
       padding-bottom: 40px; 
     }
 
+    /* HEADER */
     header { 
       background: #0f172a; 
       color: #fff; 
-      padding: 14px 24px; 
+      padding: 12px 20px; 
       display: flex; 
       justify-content: space-between; 
       align-items: center; 
       box-shadow: 0 2px 4px rgba(0,0,0,0.1); 
+      flex-wrap: wrap;
+      gap: 10px;
     }
     header h1 { font-size: 18px; font-weight: 700; display: flex; align-items: center; gap: 8px; }
 
-    .nav-tabs { background: #1e293b; display: flex; gap: 4px; padding: 6px 24px; border-bottom: 1px solid #334155; }
-    .nav-btn { background: transparent; color: #94a3b8; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; font-size: 13px; font-weight: 600; transition: all 0.2s; }
+    /* MENU TABS (Hỗ trợ cuộn ngang trên điện thoại) */
+    .nav-tabs { 
+      background: #1e293b; 
+      display: flex; 
+      gap: 6px; 
+      padding: 8px 16px; 
+      border-bottom: 1px solid #334155; 
+      overflow-x: auto; 
+      white-space: nowrap;
+      -webkit-overflow-scrolling: touch;
+    }
+    .nav-tabs::-webkit-scrollbar { height: 4px; }
+    .nav-tabs::-webkit-scrollbar-thumb { background: #475569; border-radius: 4px; }
+
+    .nav-btn { 
+      background: transparent; 
+      color: #94a3b8; 
+      border: none; 
+      padding: 8px 14px; 
+      border-radius: 6px; 
+      cursor: pointer; 
+      font-size: 13px; 
+      font-weight: 600; 
+      transition: all 0.2s;
+      flex-shrink: 0;
+    }
     .nav-btn:hover { color: #fff; background: #334155; }
     .nav-btn.active { background: var(--primary); color: #fff; }
 
-    main { max-width: 1200px; margin: 20px auto; padding: 0 16px; }
+    main { max-width: 1200px; margin: 16px auto; padding: 0 12px; }
 
-    .card { background: var(--card-bg); border-radius: 10px; padding: 20px; border: 1px solid var(--border); box-shadow: 0 1px 3px rgba(0,0,0,0.05); margin-bottom: 20px; }
+    .card { 
+      background: var(--card-bg); 
+      border-radius: 10px; 
+      padding: 16px; 
+      border: 1px solid var(--border); 
+      box-shadow: 0 1px 3px rgba(0,0,0,0.05); 
+      margin-bottom: 16px; 
+    }
 
-    .auth-box { max-width: 420px; margin: 40px auto; }
+    .auth-box { max-width: 420px; margin: 20px auto; }
     .input-group { margin-bottom: 14px; position: relative; }
     .input-group label { display: block; font-size: 12px; font-weight: 600; margin-bottom: 4px; color: var(--text-muted); }
     .input-group input, .input-group select { 
@@ -64,11 +98,8 @@
       border-radius: 6px; 
       font-size: 14px; 
       outline: none; 
-      transition: border-color 0.15s ease;
     }
-    .input-group input:focus { border-color: var(--primary); }
     
-    /* Biểu tượng Mắt Ẩn/Hiện Mật khẩu */
     .pwd-toggle { 
       position: absolute; 
       right: 10px; 
@@ -78,12 +109,20 @@
       font-size: 16px; 
       opacity: 0.7;
     }
-    .pwd-toggle:hover { opacity: 1; }
 
-    .btn-primary { width: 100%; background: var(--primary); color: #fff; border: none; padding: 10px; border-radius: 6px; font-weight: 600; font-size: 14px; cursor: pointer; transition: background 0.2s; }
-    .btn-primary:hover { background: var(--primary-dark); }
+    .btn-primary { 
+      width: 100%; 
+      background: var(--primary); 
+      color: #fff; 
+      border: none; 
+      padding: 12px; 
+      border-radius: 6px; 
+      font-weight: 600; 
+      font-size: 14px; 
+      cursor: pointer; 
+    }
     
-    /* Modal Dialogs */
+    /* MODAL DIALOGS RESPONSIVE */
     .modal-overlay { 
       position: fixed; 
       top: 0; 
@@ -96,14 +135,64 @@
       align-items: center; 
       z-index: 9999; 
       backdrop-filter: blur(2px); 
+      padding: 12px;
     }
     .modal-content { 
       background: #fff; 
       width: 100%; 
       max-width: 440px; 
+      max-height: 90vh;
+      overflow-y: auto;
       border-radius: 10px; 
-      padding: 24px; 
+      padding: 20px; 
       box-shadow: 0 10px 25px rgba(0,0,0,0.2); 
+    }
+
+    /* =========================================================================
+       THIẾT LẬP MEDIA QUERIES TỐI ƯU DÀNH RIÊNG CHO MÀN HÌNH ĐIỆN THOẠI
+       ========================================================================= */
+    @media (max-width: 768px) {
+      header {
+        flex-direction: column;
+        align-items: flex-start;
+        padding: 10px 14px;
+      }
+
+      header h1 {
+        font-size: 16px;
+      }
+
+      #userHeaderProfile {
+        width: 100%;
+        justify-content: space-between;
+        border-top: 1px solid #1e293b;
+        padding-top: 8px;
+      }
+
+      main {
+        padding: 0 8px;
+        margin: 10px auto;
+      }
+
+      .card {
+        padding: 12px;
+      }
+
+      /* Tối ưu các nút chọn đáp án thi trắc nghiệm trên điện thoại */
+      .input-group input, .input-group select {
+        font-size: 16px; /* Chống tự động zoom-in trên iOS Safari */
+      }
+
+      .modal-content {
+        padding: 16px;
+      }
+
+      /* Tự động chuyển bảng dữ liệu sang dạng cuộn ngang không vỡ khung */
+      table {
+        display: block;
+        overflow-x: auto;
+        white-space: nowrap;
+      }
     }
   </style>
 </head>
