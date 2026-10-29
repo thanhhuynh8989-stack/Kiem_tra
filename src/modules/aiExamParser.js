@@ -2,15 +2,15 @@ import { parseDocxFile } from '../parsers/docxParser.js';
 import { parsePdfFile } from '../parsers/pdfParser.js';
 import { aiExamParserService } from '../services/aiExamParserService.js';
 import { appsScriptService } from '../services/appsScriptService.js';
-import { renderKaTeX, sanitizeHTML } from '../utils/domHelper.js';
+import { renderKaTeX } from '../utils/domHelper.js';
 import { showAppLoading, hideAppLoading, getLoggedInUsername, escapeHtml } from './authAndCore.js';
-import { APP_CONFIG } from '../constants/appConfig.js';
+import { ExamModel } from '../models/examModel.js';
 
 let currentEditingQuestions = [];
 let currentFileName = '';
 
 /**
- * 1. XỬ LÝ KHI GIẢNG VIÊN TẢI FILE ĐỀ THI LÊN (WORD, PDF, ẢNH)
+ * 1. NẠP FILE MẶC ĐỊNH - ƯU TIÊN CODE THUẦN (THỦ CÔNG 100%, KHÔNG TỰ GỌI AI)
  */
 export async function handleExamFileUpload(file) {
   if (!file) {
@@ -20,49 +20,46 @@ export async function handleExamFileUpload(file) {
 
   currentFileName = file.name;
   const fileName = file.name.toLowerCase();
-  showAppLoading(`⏳ Đang đọc nội dung file [${file.name}]...`);
+  showAppLoading(`⏳ Đang bóc tách thủ công nội dung file [${file.name}]...`);
 
   try {
     let rawQuestions = [];
-    let imageBase64 = null;
-    let mimeType = file.type || 'image/png';
 
     if (fileName.endsWith('.docx')) {
       rawQuestions = await parseDocxFile(file);
     } else if (fileName.endsWith('.pdf')) {
       rawQuestions = await parsePdfFile(file, true);
-    } else if (file.type.startsWith('image/')) {
-      const reader = new FileReader();
-      imageBase64 = await new Promise((resolve) => {
-        reader.onload = (e) => resolve(e.target.result.split(',')[1]);
-        reader.readAsDataURL(file);
-      });
     } else {
-      throw new Error('Định dạng file không được hỗ trợ. Vui lòng chọn file .docx, .pdf hoặc hình ảnh!');
+      throw new Error('Định dạng file không được hỗ trợ. Vui lòng chọn file .docx hoặc .pdf!');
     }
-
-    showAppLoading('🤖 Đang gửi sang Gemini AI để chuẩn hóa & bổ sung đáp án...');
-
-    const result = await aiExamParserService.parseExamWithAI({
-      rawText: '',
-      imageBase64: imageBase64,
-      mimeType: mimeType,
-      questions: rawQuestions
-    });
 
     hideAppLoading();
 
-    currentEditingQuestions = result.questions || [];
-    renderExamEditorScreen(file.name, currentEditingQuestions, result.message, result.isFallback);
+    // Chuẩn hóa câu hỏi bằng Code thuần local
+    currentEditingQuestions = (rawQuestions || []).map((q, idx) => {
+      const norm = ExamModel.normalizeQuestion(q, idx);
+      norm.flags = {
+        needsUserConfirmation: true,
+        note: '📄 Đã bóc tách bằng Code thuần. Giảng viên có thể chỉnh sửa thủ công hoặc bấm nút AI để tự động hoàn thiện.'
+      };
+      return norm;
+    });
+
+    renderExamEditorScreen(
+      file.name, 
+      currentEditingQuestions, 
+      '📄 Đã bóc tách thành công bằng Code thuần. Bạn có thể chỉnh sửa thủ công hoặc bấm nút bên dưới để dùng AI phân tích.', 
+      true
+    );
 
   } catch (err) {
     hideAppLoading();
-    alert(`Lỗi xử lý file: ${err.message}`);
+    alert(`Lỗi bóc tách file: ${err.message}`);
   }
 }
 
 /**
- * 2. GIAO DIỆN BIÊN TẬP & DUYỆT ĐỀ THI TRƯỚC KHI XUẤT BẢN
+ * 2. GIAO DIỆN BIÊN TẬP ĐỀ THI
  */
 export function renderExamEditorScreen(fileName, questions = [], statusMessage = '', isFallback = false) {
   const container = document.getElementById('examEditorContainer') || document.getElementById('mainContentArea');
@@ -76,9 +73,8 @@ export function renderExamEditorScreen(fileName, questions = [], statusMessage =
           <small style="color:var(--text-muted);">Tệp gốc: ${escapeHtml(fileName)}</small>
         </div>
         <div style="display:flex; gap:10px; flex-wrap:wrap;">
-          <!-- NÚT BỔ SUNG AI MỚI -->
           <button type="button" onclick="handleRefineQuestionsWithAI()" style="background:#8b5cf6; color:#fff; border:none; padding:8px 16px; border-radius:6px; font-weight:600; cursor:pointer; display:flex; align-items:center; gap:6px;">
-            🤖 AI Bổ Sung Đáp Án & Sửa Lỗi
+            🤖 AI Phân Tích & Bổ Sung Đáp Án
           </button>
 
           <button type="button" onclick="handleSaveAndPublishExamUI()" style="background:#16a34a; color:#fff; border:none; padding:8px 16px; border-radius:6px; font-weight:600; cursor:pointer;">
@@ -88,9 +84,8 @@ export function renderExamEditorScreen(fileName, questions = [], statusMessage =
       </div>
 
       ${statusMessage ? `
-        <div style="background:${isFallback ? '#fffbeb' : '#f0fdf4'}; border:1px solid ${isFallback ? '#fcd34d' : '#86efac'}; padding:10px 14px; border-radius:6px; font-size:13px; color:${isFallback ? '#b45309' : '#15803d'}; margin-bottom:16px; display:flex; justify-content:space-between; align-items:center;">
-          <span>${escapeHtml(statusMessage)}</span>
-          ${isFallback ? `<button type="button" onclick="handleRefineQuestionsWithAI()" style="background:#d97706; color:#fff; border:none; padding:4px 10px; border-radius:4px; font-size:12px; cursor:pointer; font-weight:600;">Cho AI hoàn thiện ngay ⚡</button>` : ''}
+        <div style="background:${isFallback ? '#eff6ff' : '#f0fdf4'}; border:1px solid ${isFallback ? '#bfdbfe' : '#86efac'}; padding:10px 14px; border-radius:6px; font-size:13px; color:${isFallback ? '#1e40af' : '#15803d'}; margin-bottom:16px;">
+          ${escapeHtml(statusMessage)}
         </div>
       ` : ''}
 
@@ -137,48 +132,44 @@ function renderQuestionItemEditor(q, idx) {
   `;
 }
 
-// =========================================================================
-// 3. HÀM AI TỰ ĐỘNG BỔ SUNG ĐÁP ÁN & KHẮC PHỤC LỖI CÂU HỎI
-// =========================================================================
+/**
+ * 3. CHỈ KHI NGƯỜI DÙNG BẤM NÚT NÀY MỚI GỌI API GEMINI
+ */
 export async function handleRefineQuestionsWithAI() {
   if (!currentEditingQuestions || currentEditingQuestions.length === 0) {
     alert('Không có dữ liệu câu hỏi để AI xử lý!');
     return;
   }
 
-  showAppLoading('🤖 Gemini AI đang đọc toàn bộ câu hỏi, bổ sung phương án thiếu và tìm đáp án đúng...');
+  showAppLoading('🤖 Đang kết nối Gemini AI để phân tích và bổ sung câu hỏi...');
 
   try {
     const result = await aiExamParserService.parseExamWithAI({
-      rawText: '',
-      imageBase64: null,
-      mimeType: null,
       questions: currentEditingQuestions
     });
 
     hideAppLoading();
 
-    if (result.questions && result.questions.length > 0) {
+    if (result.success && result.questions) {
       currentEditingQuestions = result.questions;
-      renderExamEditorScreen(currentFileName || 'Đề thi', currentEditingQuestions, '🎉 Gemini AI đã tự động bổ sung đủ đáp án & khắc phục toàn bộ lỗi!', false);
-      alert('✅ AI đã hoàn tất bổ sung đáp án thiếu và chọn đáp án chính xác!');
+      renderExamEditorScreen(
+        currentFileName || 'Đề thi', 
+        currentEditingQuestions, 
+        '🎉 Gemini AI đã phân tích, sinh đầy đủ các phương án C, D còn thiếu và đề xuất đáp án đúng!', 
+        false
+      );
     } else {
-      alert('Không thể bổ sung bằng AI. Vui lòng kiểm tra lại API Key Gemini!');
+      alert(result.message || 'Không thể thực hiện phân tích AI.');
     }
 
   } catch (err) {
     hideAppLoading();
-    alert(`Lỗi khi gọi AI bổ sung: ${err.message}`);
+    alert(`Lỗi AI: ${err.message}`);
   }
 }
 
-// =========================================================================
-// 4. TIỆN ÍCH CẬP NHẬT DỮ LIỆU BIÊN TẬP TỰ ĐỘNG
-// =========================================================================
 window.updateQuestionStem = function(index, newText) {
-  if (currentEditingQuestions[index]) {
-    currentEditingQuestions[index].stem = newText;
-  }
+  if (currentEditingQuestions[index]) currentEditingQuestions[index].stem = newText;
 };
 
 window.updateQuestionOption = function(qIdx, optIdx, newText) {
@@ -188,14 +179,9 @@ window.updateQuestionOption = function(qIdx, optIdx, newText) {
 };
 
 window.updateQuestionCorrectAnswer = function(qIdx, optIdx) {
-  if (currentEditingQuestions[qIdx]) {
-    currentEditingQuestions[qIdx].correctAnswer = Number(optIdx);
-  }
+  if (currentEditingQuestions[qIdx]) currentEditingQuestions[qIdx].correctAnswer = Number(optIdx);
 };
 
-// =========================================================================
-// 5. LƯU & XUẤT BẢN ĐỀ THI LÊN APPS SCRIPT VÀ GITHUB CDN
-// =========================================================================
 export async function handleSaveAndPublishExamUI() {
   if (!currentEditingQuestions || currentEditingQuestions.length === 0) {
     alert('Không có dữ liệu câu hỏi nào để lưu!');
@@ -220,7 +206,7 @@ export async function handleSaveAndPublishExamUI() {
     questions: currentEditingQuestions
   };
 
-  showAppLoading('⏳ Đang xuất bản đề thi lên GitHub CDN & Google Sheets...');
+  showAppLoading('⏳ Đang xuất bản đề thi lên Server...');
 
   try {
     const res = await appsScriptService.request('SAVE_AND_PUBLISH_EXAM', {
