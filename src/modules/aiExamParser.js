@@ -6,19 +6,21 @@ import { renderKaTeX } from '../utils/domHelper.js';
 import { showAppLoading, hideAppLoading, getLoggedInUsername, escapeHtml } from './authAndCore.js';
 import { ExamModel } from '../models/examModel.js';
 
+// Các biến lưu trạng thái biên tập
 let currentEditingQuestions = [];
 let currentFileName = '';
-let currentEditingExamId = null; // null = tạo mới, string = đang sửa đề cũ
+let currentEditingExamId = null; // null = Tạo đề mới, string = Đang chỉnh sửa đề cũ
 
 /**
- * 1. NẠP FILE MẶC ĐỊNH - ƯU TIÊN CODE THUẦN (THỦ CÔNG 100%, KHÔNG TỰ GỌI AI)
+ * 1. NẠP FILE TẠO ĐỀ MỚI - THỦ CÔNG 100% (KHÔNG TỰ GỌI AI)
  */
 export async function handleExamFileUpload(file) {
   if (!file) {
-    alert('Vui lòng chọn một file đề thi (DOCX, PDF hoặc Ảnh)!');
+    alert('Vui lòng chọn một file đề thi (DOCX hoặc PDF)!');
     return;
   }
 
+  currentEditingExamId = null; // Đặt lại về null vì đây là tải file mới
   currentFileName = file.name;
   const fileName = file.name.toLowerCase();
   showAppLoading(`⏳ Đang bóc tách thủ công nội dung file [${file.name}]...`);
@@ -41,7 +43,7 @@ export async function handleExamFileUpload(file) {
       const norm = ExamModel.normalizeQuestion(q, idx);
       norm.flags = {
         needsUserConfirmation: true,
-        note: '📄 Đã bóc tách bằng Code thuần. Giảng viên có thể chỉnh sửa thủ công hoặc bấm nút AI để tự động hoàn thiện.'
+        note: '📄 Bóc tách thủ công bằng Code thuần. Hãy chỉnh sửa hoặc bấm nút bên dưới để nhờ AI phân tích.'
       };
       return norm;
     });
@@ -60,7 +62,23 @@ export async function handleExamFileUpload(file) {
 }
 
 /**
- * 2. GIAO DIỆN BIÊN TẬP ĐỀ THI
+ * 2. NẠP ĐỀ THI ĐÃ TỒN TẠI ĐỂ CHỈNH SỬA
+ */
+export function loadExamForEditing(examData) {
+  currentEditingExamId = examData.examId || null;
+  currentFileName = examData.title || `Đề thi ${examData.examId}`;
+  currentEditingQuestions = (examData.questions || []).map((q, idx) => ExamModel.normalizeQuestion(q, idx));
+
+  renderExamEditorScreen(
+    currentFileName,
+    currentEditingQuestions,
+    `✏️ Đang chỉnh sửa đề thi [Mã đề: ${currentEditingExamId}]. Bạn có thể chọn "Lưu Đề" để cập nhật hoặc "Lưu Thành Đề Mới".`,
+    false
+  );
+}
+
+/**
+ * 3. GIAO DIỆN BIÊN TẬP VÀ DUYỆT ĐỀ THI
  */
 export function renderExamEditorScreen(fileName, questions = [], statusMessage = '', isFallback = false) {
   const container = document.getElementById('examEditorContainer') || document.getElementById('mainContentArea');
@@ -71,16 +89,28 @@ export function renderExamEditorScreen(fileName, questions = [], statusMessage =
       <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px; border-bottom:1px solid #e2e8f0; padding-bottom:12px; margin-bottom:16px;">
         <div>
           <h3 style="margin:0; font-size:18px; color:#0f172a;">🛠️ Biên Tập & Duyệt Đề Thi (${questions.length} câu)</h3>
-          <small style="color:var(--text-muted);">Tệp gốc: ${escapeHtml(fileName)}</small>
+          <small style="color:var(--text-muted);">Đang biên tập: ${escapeHtml(fileName)} ${currentEditingExamId ? `(Mã: ${currentEditingExamId})` : ''}</small>
         </div>
+
         <div style="display:flex; gap:10px; flex-wrap:wrap;">
-          <button type="button" onclick="handleRefineQuestionsWithAI()" style="background:#8b5cf6; color:#fff; border:none; padding:8px 16px; border-radius:6px; font-weight:600; cursor:pointer; display:flex; align-items:center; gap:6px;">
-            🤖 AI Phân Tích & Bổ Sung Đáp Án
+          <button type="button" onclick="handleRefineQuestionsWithAI()" style="background:#8b5cf6; color:#fff; border:none; padding:8px 16px; border-radius:6px; font-weight:600; cursor:pointer;">
+            🤖 AI Phân Tích & Bổ Sung
           </button>
 
-          <button type="button" onclick="handleSaveAndPublishExamUI()" style="background:#16a34a; color:#fff; border:none; padding:8px 16px; border-radius:6px; font-weight:600; cursor:pointer;">
-            💾 Lưu & Xuất Bản Đề Thi
-          </button>
+          ${currentEditingExamId ? `
+            <!-- LỰA CHỌN KHI ĐANG SỬA ĐỀ CỦ -->
+            <button type="button" onclick="handleSaveAndPublishExamUI(false)" style="background:#0284c7; color:#fff; border:none; padding:8px 16px; border-radius:6px; font-weight:600; cursor:pointer;">
+              💾 Lưu Đề (Cập nhật)
+            </button>
+            <button type="button" onclick="handleSaveAndPublishExamUI(true)" style="background:#16a34a; color:#fff; border:none; padding:8px 16px; border-radius:6px; font-weight:600; cursor:pointer;">
+              ➕ Lưu Thành Đề Mới
+            </button>
+          ` : `
+            <!-- LỰA CHỌN KHI NẠP TỆP MỚI -->
+            <button type="button" onclick="handleSaveAndPublishExamUI(true)" style="background:#16a34a; color:#fff; border:none; padding:8px 16px; border-radius:6px; font-weight:600; cursor:pointer;">
+              💾 Lưu & Xuất Bản Đề Thi
+            </button>
+          `}
         </div>
       </div>
 
@@ -103,6 +133,9 @@ export function renderExamEditorScreen(fileName, questions = [], statusMessage =
   }, 100);
 }
 
+/**
+ * 4. RENDER CHI TIẾT TỪNG CÂU HỎI TRONG BỘ BIÊN TẬP
+ */
 function renderQuestionItemEditor(q, idx) {
   const needsWarning = q.flags && q.flags.needsUserConfirmation;
   
@@ -110,7 +143,7 @@ function renderQuestionItemEditor(q, idx) {
     <div id="q_box_${idx}" style="background:#f8fafc; border:1px solid ${needsWarning ? '#f59e0b' : '#cbd5e1'}; border-radius:8px; padding:14px; margin-bottom:16px;">
       <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
         <strong style="color:#0f172a; font-size:14px;">Câu hỏi ${idx + 1}:</strong>
-        ${needsWarning ? `<span style="font-size:11px; background:#fef3c7; color:#d97706; padding:2px 8px; border-radius:4px; font-weight:600;">⚠️ ${escapeHtml(q.flags.note || 'Cần kiểm tra')}</span>` : ''}
+        ${needsWarning ? `<span style="font-size:11px; background:#fef3c7; color:#d97706; padding:2px 8px; border-radius:4px; font-weight:600;">⚠️ ${escapeHtml(q.flags.note || 'Cần rà soát')}</span>` : ''}
       </div>
 
       <textarea onchange="updateQuestionStem(${idx}, this.value)" style="width:100%; min-height:60px; padding:8px; border:1px solid #cbd5e1; border-radius:6px; font-family:inherit; font-size:13px; margin-bottom:10px;">${escapeHtml(q.stem)}</textarea>
@@ -134,7 +167,7 @@ function renderQuestionItemEditor(q, idx) {
 }
 
 /**
- * 3. CHỈ KHI NGƯỜI DÙNG BẤM NÚT NÀY MỚI GỌI API GEMINI
+ * 5. KÍCH HOẠT GEMINI AI PHÂN TÍCH & BỔ SUNG
  */
 export async function handleRefineQuestionsWithAI() {
   if (!currentEditingQuestions || currentEditingQuestions.length === 0) {
@@ -156,7 +189,7 @@ export async function handleRefineQuestionsWithAI() {
       renderExamEditorScreen(
         currentFileName || 'Đề thi', 
         currentEditingQuestions, 
-        '🎉 Gemini AI đã phân tích, sinh đầy đủ các phương án C, D còn thiếu và đề xuất đáp án đúng!', 
+        result.message || '🎉 AI đã phân tích hoàn tất! Đã gắn cờ cảnh báo đối với các câu hỏi được AI chỉnh sửa.', 
         false
       );
     } else {
@@ -169,90 +202,8 @@ export async function handleRefineQuestionsWithAI() {
   }
 }
 
-window.updateQuestionStem = function(index, newText) {
-  if (currentEditingQuestions[index]) currentEditingQuestions[index].stem = newText;
-};
-
-window.updateQuestionOption = function(qIdx, optIdx, newText) {
-  if (currentEditingQuestions[qIdx] && currentEditingQuestions[qIdx].options) {
-    currentEditingQuestions[qIdx].options[optIdx] = newText;
-  }
-};
-
-window.updateQuestionCorrectAnswer = function(qIdx, optIdx) {
-  if (currentEditingQuestions[qIdx]) currentEditingQuestions[qIdx].correctAnswer = Number(optIdx);
-};
-
 /**
- * Nạp đề thi đã có vào trình biên tập
- */
-export function loadExamForEditing(examData) {
-  currentEditingExamId = examData.examId || null;
-  currentFileName = examData.title || `Đề thi ${examData.examId}`;
-  currentEditingQuestions = examData.questions || [];
-
-  renderExamEditorScreen(
-    currentFileName,
-    currentEditingQuestions,
-    `✏️ Đang chỉnh sửa đề thi [Mã: ${currentEditingExamId}]. Bạn có thể chọn "Lưu Đề" để ghi đè hoặc "Lưu Thành Đề Mới".`,
-    false
-  );
-}
-
-/**
- * Render Giao diện Biên Tập Đề Thi
- */
-export function renderExamEditorScreen(fileName, questions = [], statusMessage = '', isFallback = false) {
-  const container = document.getElementById('examEditorContainer') || document.getElementById('mainContentArea');
-  if (!container) return;
-
-  let html = `
-    <div style="background:#fff; border-radius:10px; padding:20px; border:1px solid var(--border); margin-top:16px;">
-      <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px; border-bottom:1px solid #e2e8f0; padding-bottom:12px; margin-bottom:16px;">
-        <div>
-          <h3 style="margin:0; font-size:18px; color:#0f172a;">🛠️ Biên Tập & Duyệt Đề Thi (${questions.length} câu)</h3>
-          <small style="color:var(--text-muted);">Đang biên tập: ${escapeHtml(fileName)}</small>
-        </div>
-
-        <div style="display:flex; gap:10px; flex-wrap:wrap;">
-          <button type="button" onclick="handleRefineQuestionsWithAI()" style="background:#8b5cf6; color:#fff; border:none; padding:8px 16px; border-radius:6px; font-weight:600; cursor:pointer;">
-            🤖 AI Phân Tích & Bổ Sung
-          </button>
-
-          ${currentEditingExamId ? `
-            <!-- LỰA CHỌN KHI ĐANG SỬA ĐỀ CŨ -->
-            <button type="button" onclick="handleSaveAndPublishExamUI(false)" style="background:#0284c7; color:#fff; border:none; padding:8px 16px; border-radius:6px; font-weight:600; cursor:pointer;">
-              💾 Lưu Đề (Cập nhật)
-            </button>
-            <button type="button" onclick="handleSaveAndPublishExamUI(true)" style="background:#16a34a; color:#fff; border:none; padding:8px 16px; border-radius:6px; font-weight:600; cursor:pointer;">
-              ➕ Lưu Thành Đề Mới
-            </button>
-          ` : `
-            <!-- LỰA CHỌN KHI BÓC TÁCH TỆP MỚI -->
-            <button type="button" onclick="handleSaveAndPublishExamUI(true)" style="background:#16a34a; color:#fff; border:none; padding:8px 16px; border-radius:6px; font-weight:600; cursor:pointer;">
-              💾 Lưu & Xuất Bản Đề Thi
-            </button>
-          `}
-        </div>
-      </div>
-
-      ${statusMessage ? `
-        <div style="background:${isFallback ? '#eff6ff' : '#f0fdf4'}; border:1px solid ${isFallback ? '#bfdbfe' : '#86efac'}; padding:10px 14px; border-radius:6px; font-size:13px; color:${isFallback ? '#1e40af' : '#15803d'}; margin-bottom:16px;">
-          ${escapeHtml(statusMessage)}
-        </div>
-      ` : ''}
-
-      <div id="questionsEditorList">
-        ${questions.map((q, idx) => renderQuestionItemEditor(q, idx)).join('')}
-      </div>
-    </div>
-  `;
-
-  container.innerHTML = html;
-}
-
-/**
- * Xử lý Lưu đề thi (isSaveAsNew = true: tạo mã mới | false: giữ mã cũ để ghi đè)
+ * 6. XỬ LÝ LƯU & XUẤT BẢN ĐỀ THI (Cập nhật hoặc Tạo đề mới)
  */
 export async function handleSaveAndPublishExamUI(isSaveAsNew = false) {
   if (!currentEditingQuestions || currentEditingQuestions.length === 0) {
@@ -269,7 +220,7 @@ export async function handleSaveAndPublishExamUI(isSaveAsNew = false) {
 
   const username = getLoggedInUsername();
 
-  // Xác định ID: Nếu chọn tạo mới hoặc chưa có ID -> Sinh ID ngẫu nhiên mới
+  // Xác định Mã Đề: Nếu chọn Tạo mới hoặc chưa có ID -> Tạo ID ngẫu nhiên mới
   let targetExamId = currentEditingExamId;
   if (isSaveAsNew || !targetExamId) {
     targetExamId = `exam_${Math.random().toString(36).substring(2, 10)}`;
@@ -284,7 +235,7 @@ export async function handleSaveAndPublishExamUI(isSaveAsNew = false) {
     questions: currentEditingQuestions
   };
 
-  showAppLoading(`⏳ Đang ${isSaveAsNew || !currentEditingExamId ? 'tạo đề mới' : 'cập nhật đề'} lên Server...`);
+  showAppLoading(`⏳ Đang ${isSaveAsNew || !currentEditingExamId ? 'xuất bản đề mới' : 'cập nhật đề'} lên Server...`);
 
   try {
     const res = await appsScriptService.request('SAVE_AND_PUBLISH_EXAM', {
@@ -292,15 +243,15 @@ export async function handleSaveAndPublishExamUI(isSaveAsNew = false) {
       examCode: `${targetExamId}.json`,
       publicExamData: publicExamData,
       filePath: `exams/${targetExamId}.json`,
-      username: username,
-      isUpdate: !isSaveAsNew && !!currentEditingExamId
+      username: username
     });
 
     hideAppLoading();
-    alert(`🎉 ${isSaveAsNew || !currentEditingExamId ? 'Tạo đề thi mới thành công!' : 'Cập nhật đề thi thành công!'}\nMã đề: ${targetExamId}`);
+    alert(`🎉 ${isSaveAsNew || !currentEditingExamId ? 'Xuất bản đề thi mới thành công!' : 'Cập nhật đề thi thành công!'}\nMã đề: ${targetExamId}`);
 
     // Cập nhật lại ID đang chỉnh sửa
     currentEditingExamId = targetExamId;
+    currentFileName = title;
 
   } catch (err) {
     hideAppLoading();
@@ -308,7 +259,23 @@ export async function handleSaveAndPublishExamUI(isSaveAsNew = false) {
   }
 }
 
+// Bắt sự kiện thay đổi dữ liệu câu hỏi từ ô Input DOM
+window.updateQuestionStem = function(index, newText) {
+  if (currentEditingQuestions[index]) currentEditingQuestions[index].stem = newText;
+};
+
+window.updateQuestionOption = function(qIdx, optIdx, newText) {
+  if (currentEditingQuestions[qIdx] && currentEditingQuestions[qIdx].options) {
+    currentEditingQuestions[qIdx].options[optIdx] = newText;
+  }
+};
+
+window.updateQuestionCorrectAnswer = function(qIdx, optIdx) {
+  if (currentEditingQuestions[qIdx]) currentEditingQuestions[qIdx].correctAnswer = Number(optIdx);
+};
+
+// Gắn hàm vào global window để gọi inline từ button HTML
 window.handleExamFileUpload = handleExamFileUpload;
+window.loadExamForEditing = loadExamForEditing;
 window.handleRefineQuestionsWithAI = handleRefineQuestionsWithAI;
 window.handleSaveAndPublishExamUI = handleSaveAndPublishExamUI;
-window.loadExamForEditing = loadExamForEditing;
