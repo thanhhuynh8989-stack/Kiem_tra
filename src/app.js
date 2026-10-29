@@ -11,6 +11,55 @@ import { handleLoadStudentDashboard } from './modules/studentExamTaking.js';
 import { handleLoadLecturerDashboard } from './modules/lecturerDashboard.js';
 import { handleLoadStudentManagement } from './modules/studentManagement.js';
 import { handleExamFileUpload } from './modules/aiExamParser.js';
+import { loadExamList, handleEditExam, deleteExam } from './modules/examManagement.js';
+
+// Biến toàn cục theo dõi Tab đang mở
+window.currentActiveTab = 'tab-exams';
+
+/**
+ * XỬ LÝ CHUYỂN TAB AN TOÀN (CHẮC CHẮN KHÔNG BỊ NHẢY TAB)
+ */
+export function switchTab(tabId) {
+  window.currentActiveTab = tabId;
+
+  // 1. Cập nhật trạng thái Active trên Navbar
+  document.querySelectorAll('nav button, [data-tab]').forEach(btn => {
+    if (btn.getAttribute('data-tab') === tabId) {
+      btn.classList.add('active');
+      btn.style.fontWeight = 'bold';
+      btn.style.borderBottom = '2px solid #2563eb';
+    } else {
+      btn.classList.remove('active');
+      btn.style.fontWeight = 'normal';
+      btn.style.borderBottom = 'none';
+    }
+  });
+
+  // 2. Chuyển hướng đúng view theo Tab (Tránh đè lẫn nhau)
+  if (tabId === 'tab-exams') {
+    handleLoadLecturerDashboard();
+  } else if (tabId === 'tab-students') {
+    handleLoadStudentManagement();
+  } else if (tabId === 'tab-parser') {
+    // Giữ nguyên nội dung biên tập nếu đang sửa đề
+    const parserContainer = document.getElementById('examEditorContainer');
+    if (!parserContainer || !parserContainer.innerHTML.trim()) {
+      // Nếu tab rỗng thì hiển thị khung tải file mặc định
+      renderDefaultUploadScreen();
+    }
+  }
+}
+
+// 3. LẮNG NGHE SỰ KIỆN CLICK TAB VỚI EVENT DELEGATION
+document.addEventListener('click', (event) => {
+  const tabBtn = event.target.closest('[data-tab]');
+  if (tabBtn) {
+    const tabId = tabBtn.getAttribute('data-tab');
+    switchTab(tabId);
+  }
+});
+
+window.switchTab = switchTab;
 
 // 1. Import module Quản Lý Đề Thi vào Entry Point
 import { loadExamList, handleEditExam, deleteExam } from './modules/examManagement.js';
