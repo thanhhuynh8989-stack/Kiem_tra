@@ -8,7 +8,7 @@
   <!-- CSS Styling & KaTeX Math Rendering -->
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.css">
   
-  <!-- Thư viện Bóc Tách File DOCX & PDF -->
+  <!-- Thư viện Bóc Tách File DOCX, PDF & KaTeX -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.js"></script>
@@ -26,9 +26,23 @@
     }
 
     * { box-sizing: border-box; margin: 0; padding: 0; }
-    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; background: var(--bg); color: var(--text); line-height: 1.5; padding-bottom: 40px; }
+    body { 
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; 
+      background: var(--bg); 
+      color: var(--text); 
+      line-height: 1.5; 
+      padding-bottom: 40px; 
+    }
 
-    header { background: #0f172a; color: #fff; padding: 14px 24px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+    header { 
+      background: #0f172a; 
+      color: #fff; 
+      padding: 14px 24px; 
+      display: flex; 
+      justify-content: space-between; 
+      align-items: center; 
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1); 
+    }
     header h1 { font-size: 18px; font-weight: 700; display: flex; align-items: center; gap: 8px; }
 
     .nav-tabs { background: #1e293b; display: flex; gap: 4px; padding: 6px 24px; border-bottom: 1px solid #334155; }
@@ -40,17 +54,62 @@
 
     .card { background: var(--card-bg); border-radius: 10px; padding: 20px; border: 1px solid var(--border); box-shadow: 0 1px 3px rgba(0,0,0,0.05); margin-bottom: 20px; }
 
-    .auth-box { max-width: 400px; margin: 60px auto; }
-    .input-group { margin-bottom: 14px; }
+    .auth-box { max-width: 420px; margin: 40px auto; }
+    .input-group { margin-bottom: 14px; position: relative; }
     .input-group label { display: block; font-size: 12px; font-weight: 600; margin-bottom: 4px; color: var(--text-muted); }
-    .input-group input, .input-group select { width: 100%; padding: 10px; border: 1px solid var(--border); border-radius: 6px; font-size: 14px; outline: none; }
-    .btn-primary { width: 100%; background: var(--primary); color: #fff; border: none; padding: 10px; border-radius: 6px; font-weight: 600; font-size: 14px; cursor: pointer; }
+    .input-group input, .input-group select { 
+      width: 100%; 
+      padding: 10px 36px 10px 10px; 
+      border: 1px solid var(--border); 
+      border-radius: 6px; 
+      font-size: 14px; 
+      outline: none; 
+      transition: border-color 0.15s ease;
+    }
+    .input-group input:focus { border-color: var(--primary); }
+    
+    /* Biểu tượng Mắt Ẩn/Hiện Mật khẩu */
+    .pwd-toggle { 
+      position: absolute; 
+      right: 10px; 
+      top: 31px; 
+      cursor: pointer; 
+      user-select: none; 
+      font-size: 16px; 
+      opacity: 0.7;
+    }
+    .pwd-toggle:hover { opacity: 1; }
+
+    .btn-primary { width: 100%; background: var(--primary); color: #fff; border: none; padding: 10px; border-radius: 6px; font-weight: 600; font-size: 14px; cursor: pointer; transition: background 0.2s; }
     .btn-primary:hover { background: var(--primary-dark); }
+    
+    /* Modal Dialogs */
+    .modal-overlay { 
+      position: fixed; 
+      top: 0; 
+      left: 0; 
+      width: 100vw; 
+      height: 100vh; 
+      background: rgba(15, 23, 42, 0.6); 
+      display: flex; 
+      justify-content: center; 
+      align-items: center; 
+      z-index: 9999; 
+      backdrop-filter: blur(2px); 
+    }
+    .modal-content { 
+      background: #fff; 
+      width: 100%; 
+      max-width: 440px; 
+      border-radius: 10px; 
+      padding: 24px; 
+      box-shadow: 0 10px 25px rgba(0,0,0,0.2); 
+    }
   </style>
 </head>
 <body>
 
-  <!-- Thanh Tiêu Đề Hệ Thống -->
+  <!-- Thanh Header Tiêu Đề Hệ Thống -->
   <header>
     <h1>🎓 Online Exam System <small style="font-size: 12px; color: #38bdf8; font-weight: 400;">v3.0 Server-Side Grading</small></h1>
     <div id="userHeaderProfile" style="font-size: 13px; display: flex; align-items: center; gap: 12px;">
@@ -59,7 +118,7 @@
     </div>
   </header>
 
-  <!-- Thanh Điều Hướng Chức Năng (Menu Tabs) -->
+  <!-- Thanh Menu Điều Hướng Tab -->
   <nav id="appNavTabs" class="nav-tabs" style="display: none;">
     <button type="button" id="tabBtnStudent" class="nav-btn active" onclick="switchMainTab('STUDENT_EXAMS')">📝 Bài Thi Sinh Viên</button>
     <button type="button" id="tabBtnLecturer" class="nav-btn" onclick="switchMainTab('LECTURER_DASHBOARD')">📚 Quản Lý Đề Thi</button>
@@ -67,7 +126,7 @@
     <button type="button" id="tabBtnEditor" class="nav-btn" onclick="switchMainTab('EXAM_EDITOR')">🛠️ Bóc Tách / Tạo Đề Thi</button>
   </nav>
 
-  <!-- Vùng Nội Dung Chính -->
+  <!-- Màn Hình Chính -->
   <main id="mainContentArea">
 
     <!-- 1. Form Đăng Nhập -->
@@ -76,26 +135,27 @@
       <form id="loginForm" onsubmit="event.preventDefault(); submitLoginForm();">
         <div class="input-group">
           <label for="inputUsername">Tên đăng nhập / Mã Sinh viên:</label>
-          <input type="text" id="inputUsername" placeholder="Ví dụ: 32217691039 hoặc admin" required>
+          <input type="text" id="inputUsername" placeholder="Nhập tên tài khoản..." required>
         </div>
         <div class="input-group">
           <label for="inputPassword">Mật khẩu:</label>
           <input type="password" id="inputPassword" placeholder="Nhập mật khẩu..." required>
+          <span class="pwd-toggle" onclick="togglePasswordVisibility('inputPassword', this)">👁️</span>
         </div>
+        
+        <div style="display: flex; justify-content: space-between; align-items: center; font-size: 12px; margin-bottom: 16px;">
+          <a href="#" onclick="openForgotPasswordModal()" style="color: #2563eb; text-decoration: none;">Quên mật khẩu?</a>
+          <a href="#" onclick="openRegisterLecturerModal()" style="color: #16a34a; font-weight: 600; text-decoration: none;">📝 Đăng ký Giảng viên</a>
+        </div>
+
         <button type="submit" class="btn-primary">Đăng Nhập</button>
       </form>
     </div>
 
-    <!-- 2. Container Bài Thi Sinh Viên -->
+    <!-- 2. Containers Dành Cho Các Chức Năng SPA -->
     <div id="studentExamContainer" style="display: none;"></div>
-
-    <!-- 3. Container Bảng Điều Khiển Giảng Viên -->
     <div id="lecturerDashboardContainer" style="display: none;"></div>
-
-    <!-- 4. Container Quản Lý Sinh Viên -->
     <div id="studentManagementContainer" style="display: none;"></div>
-
-    <!-- 5. Container Bóc Tách / Biên Tập Đề Thi AI -->
     <div id="examEditorContainer" style="display: none;">
       <div class="card">
         <h3 style="margin-bottom: 12px; font-size: 16px;">📤 Tải Lên File Đề Thi (DOCX / PDF / Ảnh)</h3>
@@ -107,10 +167,84 @@
 
   </main>
 
+  <!-- MODAL 1: ĐĂNG KÝ TÀI KHOẢN GIẢNG VIÊN -->
+  <div id="registerModal" class="modal-overlay" style="display: none;">
+    <div class="modal-content">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
+        <h3 style="font-size:16px; color:#0f172a;">👨‍🏫 Đăng Ký Tài Khoản Giảng Viên</h3>
+        <span onclick="closeRegisterModal()" style="cursor:pointer; font-size:18px; color:#64748b;">✖</span>
+      </div>
+
+      <form onsubmit="event.preventDefault(); submitLecturerRegistration();">
+        <div class="input-group">
+          <label>Tên đăng nhập (User):</label>
+          <input type="text" id="regUser" placeholder="Nhập tên đăng nhập (không trùng lặp)..." required>
+        </div>
+        <div class="input-group">
+          <label>Mật khẩu:</label>
+          <input type="password" id="regPass" placeholder="Nhập mật khẩu..." required>
+          <span class="pwd-toggle" onclick="togglePasswordVisibility('regPass', this)">👁️</span>
+        </div>
+        <div class="input-group">
+          <label>Họ và Tên (Full name):</label>
+          <input type="text" id="regFullName" placeholder="Ví dụ: Huỳnh Thành" required>
+        </div>
+        <div class="input-group">
+          <label>Số điện thoại:</label>
+          <input type="tel" id="regPhone" placeholder="Ví dụ: 0901234567">
+        </div>
+        <div class="input-group">
+          <label>Địa chỉ Email (Xác nhận OTP):</label>
+          <div style="display:flex; gap:6px;">
+            <input type="email" id="regEmail" placeholder="example@gmail.com" required style="flex:1;">
+            <button type="button" onclick="sendRegisterOTP()" style="background:#0284c7; color:#fff; border:none; padding:0 12px; border-radius:6px; font-size:12px; font-weight:600; cursor:pointer; white-space:nowrap;">Gửi OTP</button>
+          </div>
+        </div>
+        <div class="input-group">
+          <label>Mã OTP (6 chữ số):</label>
+          <input type="text" id="regOTP" placeholder="Nhập 6 số OTP từ Email..." required maxlength="6">
+        </div>
+
+        <button type="submit" class="btn-primary" style="background:#16a34a; margin-top:10px;">Hoàn Tất Đăng Ký</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL 2: QUÊN MẬT KHẨU -->
+  <div id="forgotModal" class="modal-overlay" style="display: none;">
+    <div class="modal-content">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
+        <h3 style="font-size:16px; color:#0f172a;">🔑 Khôi Phục Mật Khẩu</h3>
+        <span onclick="closeForgotModal()" style="cursor:pointer; font-size:18px; color:#64748b;">✖</span>
+      </div>
+
+      <form onsubmit="event.preventDefault(); submitResetPassword();">
+        <div class="input-group">
+          <label>Tên đăng nhập hoặc Email đăng ký:</label>
+          <div style="display:flex; gap:6px;">
+            <input type="text" id="forgotInput" placeholder="Nhập User hoặc Email..." required style="flex:1;">
+            <button type="button" onclick="sendForgotOTP()" style="background:#0284c7; color:#fff; border:none; padding:0 12px; border-radius:6px; font-size:12px; font-weight:600; cursor:pointer; white-space:nowrap;">Gửi OTP</button>
+          </div>
+        </div>
+        <div class="input-group">
+          <label>Mã OTP (6 chữ số):</label>
+          <input type="text" id="forgotOTP" placeholder="Nhập 6 số OTP..." required maxlength="6">
+        </div>
+        <div class="input-group">
+          <label>Mật khẩu MỚI:</label>
+          <input type="password" id="forgotNewPass" placeholder="Nhập mật khẩu mới..." required>
+          <span class="pwd-toggle" onclick="togglePasswordVisibility('forgotNewPass', this)">👁️</span>
+        </div>
+
+        <button type="submit" class="btn-primary" style="background:#dc2626; margin-top:10px;">Đổi Mật Khẩu</button>
+      </form>
+    </div>
+  </div>
+
   <!-- Overlay Loading Toàn Cục -->
   <div id="appGlobalLoader" style="display: none;"></div>
 
-  <!-- Nạp Mã Nguồn Điều Phối Chính -->
+  <!-- Script Khởi Chạy Ứng Dụng -->
   <script type="module" src="src/app.js"></script>
 
 </body>
