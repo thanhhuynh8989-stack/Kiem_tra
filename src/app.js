@@ -10,7 +10,7 @@ import {
 import { handleLoadStudentDashboard } from './modules/studentExamTaking.js';
 import { handleLoadLecturerDashboard } from './modules/lecturerDashboard.js';
 import { handleLoadStudentManagement } from './modules/studentManagement.js';
-import { handleExamFileUpload } from './modules/aiExamParser.js';
+import { handleExamFileUpload, renderDefaultUploadScreen } from './modules/aiExamParser.js';
 import { loadExamList, handleEditExam, deleteExam } from './modules/examManagement.js';
 
 // Biến toàn cục theo dõi Tab đang mở
