@@ -18,13 +18,13 @@ window.currentActiveTab = 'tab-exams';
 
 /**
  * =========================================================================
- * 1. HÀM CHUYỂN TAB DUY NHẤT VÀ AN TOÀN (UNIFIED TAB SWITCHER)
+ * 1. HÀM CHUYỂN TAB TỨC THÌ (0ms UI LAG - BẬT DOM NGAY, NẠP DỮ LIỆU NGẦM)
  * =========================================================================
  */
 export function switchTab(tabId) {
   if (!tabId) return;
 
-  // Chuẩn hóa tên tab (Đồng bộ giữa data-tab và tên tab cũ)
+  // Chuẩn hóa tên tab (Đồng bộ giữa data-tab và mã tab cũ)
   let targetTab = tabId;
   if (tabId === 'LECTURER_DASHBOARD') targetTab = 'tab-exams';
   if (tabId === 'STUDENT_MANAGEMENT') targetTab = 'tab-students';
@@ -33,21 +33,24 @@ export function switchTab(tabId) {
 
   window.currentActiveTab = targetTab;
 
-  // A. Lấy tất cả các Khung hiển thị (Containers)
+  const containers = {
+    'tab-exams': document.getElementById('lecturerDashboardContainer'),
+    'tab-students': document.getElementById('studentManagementContainer'),
+    'tab-parser': document.getElementById('examEditorContainer'),
+    'tab-student-exams': document.getElementById('studentExamContainer')
+  };
+
   const loginCard = document.getElementById('loginCard');
-  const studentExamContainer = document.getElementById('studentExamContainer');
-  const lecturerDashboardContainer = document.getElementById('lecturerDashboardContainer');
-  const studentManagementContainer = document.getElementById('studentManagementContainer');
-  const examEditorContainer = document.getElementById('examEditorContainer');
-
-  // B. Ẩn tất cả Container trước để tránh đè giao diện
   if (loginCard) loginCard.style.display = 'none';
-  if (studentExamContainer) studentExamContainer.style.display = 'none';
-  if (lecturerDashboardContainer) lecturerDashboardContainer.style.display = 'none';
-  if (studentManagementContainer) studentManagementContainer.style.display = 'none';
-  if (examEditorContainer) examEditorContainer.style.display = 'none';
 
-  // C. Cập nhật trạng thái Active trên Thanh Menu Navigation
+  // A. CHUYỂN HIỂN THỊ DOM NGAY LẬP TỨC (0ms Delay)
+  Object.keys(containers).forEach(key => {
+    if (containers[key]) {
+      containers[key].style.display = (key === targetTab) ? 'block' : 'none';
+    }
+  });
+
+  // B. CẬP NHẬT TRẠNG THÁI ACTIVE TRÊN NAVBAR NGAY LẬP TỨC
   document.querySelectorAll('nav button, [data-tab]').forEach(btn => {
     const btnTab = btn.getAttribute('data-tab');
     if (btnTab === targetTab || btn.id === getBtnIdByTab(targetTab)) {
@@ -61,21 +64,17 @@ export function switchTab(tabId) {
     }
   });
 
-  // D. Bật Khung tương ứng và Nạp dữ liệu
+  // C. TẢI DỮ LIỆU CHẠY NGẦM SAU KHI ĐÃ ĐỔI GIAO DIỆN
   if (targetTab === 'tab-exams') {
-    if (lecturerDashboardContainer) lecturerDashboardContainer.style.display = 'block';
     handleLoadLecturerDashboard();
   } else if (targetTab === 'tab-students') {
-    if (studentManagementContainer) studentManagementContainer.style.display = 'block';
     handleLoadStudentManagement();
   } else if (targetTab === 'tab-parser') {
-    if (examEditorContainer) examEditorContainer.style.display = 'block';
     const parserContent = document.getElementById('questionsEditorList') || document.getElementById('examEditorContainer');
     if (parserContent && !parserContent.innerHTML.trim()) {
       renderDefaultUploadScreen();
     }
   } else if (targetTab === 'tab-student-exams') {
-    if (studentExamContainer) studentExamContainer.style.display = 'block';
     handleLoadStudentDashboard();
   }
 }
@@ -190,7 +189,7 @@ export function triggerExamUpload(inputElement) {
   }
 }
 
-// Attach scope window
+// Scope window bindings
 window.switchTab = switchTab;
 window.switchMainTab = switchMainTab;
 window.submitLoginForm = submitLoginForm;
