@@ -180,6 +180,9 @@ export function renderStudentDashboard(exams = []) {
 // 5. KHỞI TẠO BÀI THI & XÁO TRỘN ĐỀ THI AN TOÀN
 // =========================================================================
 export async function handleStartTakeExam(examId, examCode = '') {
+  // Dừng mọi tracking cũ còn sót lại
+  stopViolationTracking();
+
   const username = getLoggedInUsername();
   resetExamSessionState();
   showAppLoading('⏳ Đang tải đề thi & khởi tạo xáo trộn...');
@@ -204,24 +207,27 @@ export async function handleStartTakeExam(examId, examCode = '') {
     let initialTimeSeconds = (examData.durationMinutes || 45) * 60;
     let shuffledLayout = null;
 
-    if (draft && confirm('Bạn có muốn làm tiếp bài thi dở không?')) {
-      initialAnswers = draft.answers || {};
-      if (draft.remainingSeconds > 0) initialTimeSeconds = draft.remainingSeconds;
-      shuffledLayout = draft.layout || null;
+    if (draft) {
+      // Đánh dấu hộp thoại nội bộ để tránh trigger vi phạm
+      window.isInternalDialogActive = true;
+      const wantContinue = confirm('Bạn có muốn làm tiếp bài thi dở không?');
+      window.isInternalDialogActive = false;
+
+      if (wantContinue) {
+        initialAnswers = draft.answers || {};
+        if (draft.remainingSeconds > 0) initialTimeSeconds = draft.remainingSeconds;
+        shuffledLayout = draft.layout || null;
+      }
     }
 
     if (!shuffledLayout) {
       shuffledLayout = rawQuestions.map((q, idx) => {
         const qId = String(q.id || (idx + 1));
-
-        const originalOptions = (q.options || []).map((optText, oIdx) => {
-          const letter = String.fromCharCode(65 + oIdx);
-          return {
-            originalLetter: letter,
-            originalIndex: oIdx,
-            text: String(optText).replace(/^[A-D][.:)]\s*/i, '')
-          };
-        });
+        const originalOptions = (q.options || []).map((optText, oIdx) => ({
+          originalLetter: String.fromCharCode(65 + oIdx),
+          originalIndex: oIdx,
+          text: String(optText).replace(/^[A-D][.:)]\s*/i, '')
+        }));
 
         return {
           qId: qId,
@@ -345,7 +351,12 @@ export async function handleConfirmSubmitExam(examId, totalQuestions) {
     confirmMsg = `⚠️ CẢNH BÁO: Bạn vẫn còn ${totalQuestions - answeredCount} câu chưa trả lời!\n\n` + confirmMsg;
   }
 
-  if (confirm(confirmMsg)) {
+  // Khóa tracking trước khi hiện dialog xác nhận
+  window.isInternalDialogActive = true;
+  const isConfirmed = confirm(confirmMsg);
+  window.isInternalDialogActive = false;
+
+  if (isConfirmed) {
     if (window.activeExamTimer) clearInterval(window.activeExamTimer);
     const questions = window.currentActiveQuestionsForExam || [];
     executeSubmitExam(examId, questions, answers);
