@@ -83,46 +83,56 @@ export async function handleLogin(username, password) {
 // 3. THEO DÕI VI PHẠM QUY CHẾ THI (VIOLATION TRACKER)
 // =========================================================================
 window.violationCount = 0;
-let isTrackingViolations = false;
-
-function onVisibilityOrFocusChange() {
-  if (!isTrackingViolations) return;
-
-  if (document.hidden || !document.hasFocus()) {
-    window.violationCount = (window.violationCount || 0) + 1;
-    const count = window.violationCount;
-
-    alert(
-      `⚠️ CẢNH BÁO VI PHẠM QUY CHẾ THI! (Lần ${count}/3)\n` +
-      `Bạn vừa rời khỏi màn hình làm bài thi.\n` +
-      `Lưu ý: Rời màn hình quá 3 lần bài thi sẽ tự động nộp!`
-    );
-
-    if (count >= 3) {
-      alert('❌ BẠN ĐÃ VI PHẠM DƯỚI 3 LẦN! Hệ thống tự động thu bài làm.');
-      stopViolationTracking();
-      if (typeof window.executeSubmitExam === 'function') {
-        window.executeSubmitExam();
-      }
-    }
-  }
-}
+window.isViolationTrackingActive = false;
+window.isInternalDialogActive = false; // Cờ khóa tạm thời khi mở Hộp thoại thông báo nội bộ
+let violationListener = null;
 
 export function startViolationTracking() {
   window.violationCount = 0;
-  isTrackingViolations = true;
+  window.isViolationTrackingActive = true;
+  window.isInternalDialogActive = false;
 
-  window.removeEventListener('blur', onVisibilityOrFocusChange);
-  document.removeEventListener('visibilitychange', onVisibilityOrFocusChange);
+  if (violationListener) {
+    document.removeEventListener('visibilitychange', violationListener);
+  }
 
-  window.addEventListener('blur', onVisibilityOrFocusChange);
-  document.addEventListener('visibilitychange', onVisibilityOrFocusChange);
+  violationListener = function () {
+    // Chỉ tính vi phạm khi: Đang bật giám sát + Trang bị ẩn/Chuyển tab + KHÔNG mở Dialog nội bộ
+    if (window.isViolationTrackingActive && document.hidden && !window.isInternalDialogActive) {
+      window.violationCount = (window.violationCount || 0) + 1;
+      const count = window.violationCount;
+
+      if (count >= 3) {
+        window.isInternalDialogActive = true;
+        alert('⚠️ BẠN ĐÃ VI PHẠM QUY CHẾ 3 LẦN! Hệ thống sẽ tự động nộp bài thi.');
+        window.isInternalDialogActive = false;
+        
+        stopViolationTracking();
+        if (typeof window.executeSubmitExam === 'function') {
+          window.executeSubmitExam();
+        }
+      } else {
+        window.isInternalDialogActive = true;
+        alert(
+          `⚠️ CẢNH BÁO VI PHẠM QUY CHẾ THI! (Lần ${count}/3)\n` +
+          `Bạn vừa rời khỏi màn hình làm bài thi.\n` +
+          `Lưu ý: Rời màn hình quá 3 lần bài thi sẽ tự động nộp!`
+        );
+        window.isInternalDialogActive = false;
+      }
+    }
+  };
+
+  document.addEventListener('visibilitychange', violationListener);
 }
 
 export function stopViolationTracking() {
-  isTrackingViolations = false;
-  window.removeEventListener('blur', onVisibilityOrFocusChange);
-  document.removeEventListener('visibilitychange', onVisibilityOrFocusChange);
+  window.isViolationTrackingActive = false;
+  window.isInternalDialogActive = false;
+  if (violationListener) {
+    document.removeEventListener('visibilitychange', violationListener);
+    violationListener = null;
+  }
 }
 
 // =========================================================================
@@ -165,11 +175,6 @@ export function escapeHtml(str) {
     .replace(/'/g, '&#039;');
 }
 
-window.getLoggedInUser = getLoggedInUser;
-window.getLoggedInUsername = getLoggedInUsername;
-window.getLoggedInRole = getLoggedInRole;
-window.handleLogout = handleLogout;
-
 // =========================================================================
 // 5. CHỨC NĂNG ẨN / HIỆN MẬT KHẨU
 // =========================================================================
@@ -189,16 +194,18 @@ export function togglePasswordVisibility(inputId, iconElement) {
 // 6. XỬ LÝ ĐĂNG KÝ GIẢNG VIÊN VÀ MÃ OTP
 // =========================================================================
 export function openRegisterLecturerModal() {
-  document.getElementById('registerModal').style.display = 'flex';
+  const modal = document.getElementById('registerModal');
+  if (modal) modal.style.display = 'flex';
 }
 
 export function closeRegisterModal() {
-  document.getElementById('registerModal').style.display = 'none';
+  const modal = document.getElementById('registerModal');
+  if (modal) modal.style.display = 'none';
 }
 
 export async function sendRegisterOTP() {
-  const username = document.getElementById('regUser').value.trim();
-  const email = document.getElementById('regEmail').value.trim();
+  const username = document.getElementById('regUser')?.value.trim();
+  const email = document.getElementById('regEmail')?.value.trim();
 
   if (!username || !email) {
     alert('Vui lòng nhập Tên đăng nhập và Email trước khi nhận OTP!');
@@ -217,12 +224,12 @@ export async function sendRegisterOTP() {
 }
 
 export async function submitLecturerRegistration() {
-  const username = document.getElementById('regUser').value.trim();
-  const password = document.getElementById('regPass').value.trim();
-  const fullName = document.getElementById('regFullName').value.trim();
-  const phone = document.getElementById('regPhone').value.trim();
-  const email = document.getElementById('regEmail').value.trim();
-  const otp = document.getElementById('regOTP').value.trim();
+  const username = document.getElementById('regUser')?.value.trim();
+  const password = document.getElementById('regPass')?.value.trim();
+  const fullName = document.getElementById('regFullName')?.value.trim();
+  const phone = document.getElementById('regPhone')?.value.trim();
+  const email = document.getElementById('regEmail')?.value.trim();
+  const otp = document.getElementById('regOTP')?.value.trim();
 
   showAppLoading('⏳ Đang xác thực và tạo tài khoản...');
   try {
@@ -242,17 +249,19 @@ export async function submitLecturerRegistration() {
 // 7. XỬ LÝ QUÊN MẬT KHẨU VÀ OTP
 // =========================================================================
 export function openForgotPasswordModal() {
-  document.getElementById('forgotModal').style.display = 'flex';
+  const modal = document.getElementById('forgotModal');
+  if (modal) modal.style.display = 'flex';
 }
 
 export function closeForgotModal() {
-  document.getElementById('forgotModal').style.display = 'none';
+  const modal = document.getElementById('forgotModal');
+  if (modal) modal.style.display = 'none';
 }
 
 let verifiedForgotUsername = '';
 
 export async function sendForgotOTP() {
-  const accountOrEmail = document.getElementById('forgotInput').value.trim();
+  const accountOrEmail = document.getElementById('forgotInput')?.value.trim();
   if (!accountOrEmail) {
     alert('Vui lòng nhập Tên đăng nhập hoặc Email!');
     return;
@@ -271,8 +280,8 @@ export async function sendForgotOTP() {
 }
 
 export async function submitResetPassword() {
-  const otp = document.getElementById('forgotOTP').value.trim();
-  const newPassword = document.getElementById('forgotNewPass').value.trim();
+  const otp = document.getElementById('forgotOTP')?.value.trim();
+  const newPassword = document.getElementById('forgotNewPass')?.value.trim();
 
   if (!verifiedForgotUsername) {
     alert('Vui lòng gửi mã OTP trước!');
@@ -295,7 +304,11 @@ export async function submitResetPassword() {
   }
 }
 
-// Binding Window Scope
+// Scope Window Binding
+window.getLoggedInUser = getLoggedInUser;
+window.getLoggedInUsername = getLoggedInUsername;
+window.getLoggedInRole = getLoggedInRole;
+window.handleLogout = handleLogout;
 window.togglePasswordVisibility = togglePasswordVisibility;
 window.openRegisterLecturerModal = openRegisterLecturerModal;
 window.closeRegisterModal = closeRegisterModal;
