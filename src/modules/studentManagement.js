@@ -1,30 +1,30 @@
 import { appsScriptService } from '../services/appsScriptService.js';
-import { showAppLoading, hideAppLoading, escapeHtml } from './authAndCore.js';
+import { showAppLoading, hideAppLoading, getLoggedInUsername, escapeHtml } from './authAndCore.js';
 
 /**
- * 1. TẢI VÀ RENDER TRANG QUẢN LÝ SINH VIÊN
+ * 1. TẢI VÀ RENDER TRANG QUẢN LÝ SINH VIÊN (CHỈ LẤY SINH VIÊN DO GIẢNG VIÊN NÀY UPLOAD)
  */
 export async function handleLoadStudentManagement() {
-  const mainContentArea = document.getElementById('mainContentArea');
-  if (!mainContentArea) return;
+  const container = document.getElementById('studentManagementContainer') || document.getElementById('mainContentArea');
+  if (!container) return;
 
-  // Kiểm tra nếu đang ở Tab Sinh viên thì mới tiến hành render
+  // Kiểm tra nếu không ở Tab Sinh viên thì không tiến hành render
   if (window.currentActiveTab && window.currentActiveTab !== 'tab-students') return;
 
-  showAppLoading('⏳ Đang tải danh sách sinh viên...');
+  const currentLecturer = getLoggedInUsername();
 
   try {
-    const res = await appsScriptService.request('GET_STUDENTS', {});
-    hideAppLoading();
+    const res = await appsScriptService.request('GET_STUDENTS', {
+      uploadedBy: currentLecturer
+    });
 
     if (window.currentActiveTab && window.currentActiveTab !== 'tab-students') return;
 
     const students = (res && res.students) ? res.students : [];
-    renderStudentManagementUI(students, mainContentArea);
+    renderStudentManagementUI(students, container);
 
   } catch (err) {
-    hideAppLoading();
-    mainContentArea.innerHTML = `<div style="padding:20px; color:#ef4444;">⚠️ Lỗi tải danh sách sinh viên: ${escapeHtml(err.message)}</div>`;
+    container.innerHTML = `<div style="padding:20px; color:#ef4444;">⚠️ Lỗi tải danh sách sinh viên: ${escapeHtml(err.message)}</div>`;
   }
 }
 
@@ -61,7 +61,7 @@ export function renderStudentManagementUI(students = [], container) {
       </div>
 
       ${students.length === 0 
-        ? '<div style="text-align:center; padding:30px; color:#64748b;">📭 Chưa có sinh viên nào trong hệ thống. Vui lòng tải lên file Excel.</div>'
+        ? '<div style="text-align:center; padding:30px; color:#64748b;">📭 Chưa có sinh viên nào do bạn quản lý. Vui lòng tải lên file Excel.</div>'
         : renderStudentTable(students)
       }
     </div>
@@ -93,7 +93,7 @@ function renderStudentTable(students = []) {
               <td style="padding:10px; color:#64748b;">${idx + 1}</td>
               <td style="padding:10px; font-weight:600; color:#2563eb;">${escapeHtml(st.studentId || st.username || '')}</td>
               <td style="padding:10px; color:#0f172a; font-weight:600;">${escapeHtml(st.fullName || st.name || '')}</td>
-              <td style="padding:10px; color:#475569;">${escapeHtml(st.className || st.class || '')}</td>
+              <td style="padding:10px; color:#475569; font-weight:600;">${escapeHtml(st.className || st.class || 'N/A')}</td>
               <td style="padding:10px; color:#64748b;">${escapeHtml(st.email || st.phone || '')}</td>
               <td style="padding:10px; text-align:center;">
                 <button type="button" onclick="resetStudentPassword('${escapeHtml(st.studentId || st.username)}')" style="background:#f59e0b; color:#fff; border:none; padding:4px 8px; border-radius:4px; font-size:11px; font-weight:600; cursor:pointer; margin-right:4px;">
@@ -112,33 +112,38 @@ function renderStudentTable(students = []) {
 }
 
 /**
- * 4. XỬ LÝ KHI CHỌN FILE EXCEL / CSV TẢI LÊN
+ * 4. XỬ LÝ KHI CHỌN FILE EXCEL / CSV TẢI LÊN (GỬI KÈM THÔNG TIN GIẢNG VIÊN UPLOAD)
  */
 export async function handleStudentFileSelected(event) {
   const file = event.target.files?.[0];
   if (!file) return;
 
-  document.getElementById('selectedFileName').innerText = `📄 Đang xử lý tệp: ${file.name}`;
-  showAppLoading(`⏳ Đang đọc và tải lên danh sách sinh viên từ [${file.name}]...`);
+  const currentLecturer = getLoggedInUsername();
+
+  const selectedFileNameEl = document.getElementById('selectedFileName');
+  if (selectedFileNameEl) {
+    selectedFileNameEl.innerText = `📄 Đang xử lý tệp: ${file.name}`;
+  }
+
+  showAppLoading(`⏳ Đang tải lên danh sách sinh viên cho giảng viên [${currentLecturer}]...`);
 
   try {
-    // Chuyển đổi tệp sang dạng Base64
     const reader = new FileReader();
     reader.onload = async function (e) {
       const base64Data = e.target.result.split(',')[1];
 
-      // Gửi yêu cầu lên Apps Script qua action UPLOAD_EXCEL_DRIVE
       const res = await appsScriptService.request('UPLOAD_EXCEL_DRIVE', {
         fileName: file.name,
         fileData: base64Data,
-        mimeType: file.type
+        mimeType: file.type,
+        uploadedBy: currentLecturer
       });
 
       hideAppLoading();
 
       if (res && (res.status === 'success' || res.success)) {
-        alert(`🎉 Tải lên danh sách sinh viên thành công! (${res.addedCount || 'Đã cập nhật'} sinh viên)`);
-        handleLoadStudentManagement(); // Tải lại bảng sinh viên
+        alert(`🎉 Tải lên danh sách sinh viên thành công!`);
+        handleLoadStudentManagement();
       } else {
         alert(`⚠️ Lỗi tải danh sách: ${res?.message || 'Không thể cập nhật danh sách sinh viên'}`);
       }
@@ -199,7 +204,7 @@ export async function deleteStudent(studentId) {
   }
 }
 
-// Khai báo global window cho sự kiện HTML
+// Khai báo global window cho sự kiện HTML inline
 window.handleLoadStudentManagement = handleLoadStudentManagement;
 window.handleStudentFileSelected = handleStudentFileSelected;
 window.resetStudentPassword = resetStudentPassword;
