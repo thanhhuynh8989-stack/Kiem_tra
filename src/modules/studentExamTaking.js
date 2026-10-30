@@ -1,4 +1,5 @@
 import { appsScriptService } from '../services/appsScriptService.js';
+import { renderKaTeX } from '../utils/domHelper.js';
 import { 
   getLoggedInUsername, 
   showAppLoading, 
@@ -117,7 +118,7 @@ export async function handleLoadStudentDashboard() {
     return;
   }
 
-  container.innerHTML = '<p style="color:#2563eb; font-size:13px;">🔄 Đang nạp danh sách bài thi...</p>';
+  container.innerHTML = '<p style="color:#2563eb; font-size:13px; padding:12px;">🔄 Đang nạp danh sách bài thi...</p>';
 
   try {
     const res = await appsScriptService.request('GET_STUDENT_EXAMS', { 
@@ -128,7 +129,7 @@ export async function handleLoadStudentDashboard() {
     const exams = res.exams || res.data || [];
     renderStudentDashboard(exams);
   } catch (err) {
-    container.innerHTML = `<p style="color:#ef4444; font-size:13px;">Lỗi nạp bài thi: ${err.message}</p>`;
+    container.innerHTML = `<p style="color:#ef4444; font-size:13px; padding:12px;">⚠️ Lỗi nạp bài thi: ${escapeHtml(err.message)}</p>`;
   }
 }
 
@@ -155,14 +156,14 @@ export function renderStudentDashboard(exams = []) {
         <div style="border:1px solid ${isCompleted ? '#bbf7d0' : (hasDraft ? '#fde68a' : '#cbd5e1')}; border-radius:8px; padding:12px; display:flex; flex-direction:column; justify-content:space-between; gap:8px;">
           <div>
             <strong style="font-size:14px; color:#0f172a;">${escapeHtml(ex.title)}</strong>
-            <div style="font-size:12px; color:var(--text-muted);">Mã đề: ${ex.examCode || ex.examId} | ⏱️ ${ex.durationMinutes} phút</div>
+            <div style="font-size:12px; color:var(--text-muted);">Mã đề: ${escapeHtml(ex.examCode || ex.examId)} | ⏱️ ${ex.durationMinutes} phút</div>
           </div>
           <div style="display:flex; justify-content:space-between; align-items:center; border-top:1px solid #f1f5f9; padding-top:8px;">
             <span style="font-weight:700; color:${hasScore ? '#15803d' : '#94a3b8'}; font-size:14px;">${hasScore ? `${ex.score}/10` : '--'}</span>
             ${isCompleted ? `
-              <button type="button" onclick="handleReviewSubmittedExam('${ex.examId}', '${ex.examCode}')" style="background:#0d9488; color:#fff; border:none; padding:6px 12px; border-radius:6px; cursor:pointer; font-size:12px;">👁️ Xem lại bài</button>
+              <button type="button" onclick="handleReviewSubmittedExam('${escapeHtml(ex.examId)}', '${escapeHtml(ex.examCode || '')}')" style="background:#0d9488; color:#fff; border:none; padding:6px 12px; border-radius:6px; cursor:pointer; font-size:12px;">👁️ Xem lại bài</button>
             ` : `
-              <button type="button" onclick="handleStartTakeExam('${ex.examId}', '${ex.examCode}')" style="background:${hasDraft ? '#d97706' : '#2563eb'}; color:#fff; border:none; padding:6px 12px; border-radius:6px; cursor:pointer; font-size:12px;">
+              <button type="button" onclick="handleStartTakeExam('${escapeHtml(ex.examId)}', '${escapeHtml(ex.examCode || '')}')" style="background:${hasDraft ? '#d97706' : '#2563eb'}; color:#fff; border:none; padding:6px 12px; border-radius:6px; cursor:pointer; font-size:12px;">
                 ${hasDraft ? '🔄 Làm tiếp' : '✍️ Làm bài'}
               </button>
             `}
@@ -254,7 +255,7 @@ export function renderTakeExamScreen(examId, fileName, shuffledQuestions, savedA
   let html = `
     <div style="background:#fff; border-radius:10px; padding:16px; border:1px solid var(--border);">
       <div style="position:sticky; top:10px; z-index:100; background:#0f172a; color:#fff; padding:10px 16px; border-radius:8px; display:flex; justify-content:space-between; align-items:center; margin-bottom:16px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);">
-        <span style="font-weight:600; font-size:14px;">📝 ${escapeHtml(fileName)} <small style="color:#94a3b8; margin-left:8px;">(Đã xáo trộn đề)</small></span>
+        <span style="font-weight:600; font-size:14px;">📝 ${escapeHtml(fileName)} <small style="color:#38bdf8; margin-left:8px;">(Đã xáo trộn)</small></span>
         <div id="examTimerDisplay" style="font-size:16px; font-weight:700; color:#38bdf8;">⏱️ 00:00</div>
       </div>
 
@@ -274,7 +275,7 @@ export function renderTakeExamScreen(examId, fileName, shuffledQuestions, savedA
 
                   return `
                     <label style="display:flex; align-items:center; gap:10px; background:#fff; padding:10px 12px; border-radius:6px; border:1px solid ${isChecked ? '#2563eb' : '#cbd5e1'}; cursor:pointer; font-size:13px; transition: all 0.15s ease;">
-                      <input type="radio" name="take_ans_${qId}" value="${optObj.originalLetter}" ${isChecked ? 'checked' : ''} onchange="window.handleStudentSelectOption('${examId}', '${qId}', '${optObj.originalLetter}')">
+                      <input type="radio" name="take_ans_${qId}" value="${optObj.originalLetter}" ${isChecked ? 'checked' : ''} onchange="window.handleStudentSelectOption('${escapeHtml(examId)}', '${escapeHtml(qId)}', '${optObj.originalLetter}')">
                       <strong style="color:${isChecked ? '#2563eb' : '#475569'};">${visualLetter}.</strong> ${escapeHtml(optObj.text)}
                     </label>
                   `;
@@ -285,13 +286,18 @@ export function renderTakeExamScreen(examId, fileName, shuffledQuestions, savedA
         }).join('')}
       </div>
 
-      <button type="button" onclick="handleConfirmSubmitExam('${examId}', ${shuffledQuestions.length})" style="background:#16a34a; color:#fff; font-size:15px; font-weight:600; padding:12px; border:none; border-radius:8px; width:100%; margin-top:16px; cursor:pointer;">
+      <button type="button" onclick="handleConfirmSubmitExam('${escapeHtml(examId)}', ${shuffledQuestions.length})" style="background:#16a34a; color:#fff; font-size:15px; font-weight:600; padding:12px; border:none; border-radius:8px; width:100%; margin-top:16px; cursor:pointer;">
         🚀 Nộp Bài Thi
       </button>
     </div>
   `;
 
   container.innerHTML = html;
+
+  // Tải render công thức toán LaTeX (nếu có)
+  if (typeof renderKaTeX === 'function') {
+    setTimeout(() => renderKaTeX(container), 50);
+  }
 
   window.handleStudentSelectOption = function(eId, questionId, originalLetter) {
     currentAnswers[String(questionId)] = originalLetter;
@@ -309,7 +315,7 @@ export function renderTakeExamScreen(examId, fileName, shuffledQuestions, savedA
 
     if (remainingSeconds <= 0) {
       clearInterval(timerInterval);
-      alert('⏰ Đã hết giờ! Tự động nộp bài.');
+      alert('⏰ Đã hết giờ làm bài! Hệ thống tự động nộp bài.');
       executeSubmitExam(examId, shuffledQuestions, currentAnswers);
       return;
     }
@@ -326,15 +332,22 @@ export function renderTakeExamScreen(examId, fileName, shuffledQuestions, savedA
 }
 
 // =========================================================================
-// 7. XỬ LÝ NỘP BÀI THI KHI ẤN XÁC NHẬN
+// 7. XỬ LÝ NỘP BÀI THI KHI ẤN XÁC NHẬN (CÓ CẢNH BÁO CÂU CHƯA LÀM)
 // =========================================================================
 export async function handleConfirmSubmitExam(examId, totalQuestions) {
-  if (confirm(`Bạn có chắc chắn muốn NỘP BÀI THI ngay bây giờ?`)) {
+  const username = getLoggedInUsername();
+  const draft = ExamDraftManager.getDraft(username, examId);
+  const answers = draft ? draft.answers : (window.currentActiveAnswersForExam || {});
+  const answeredCount = Object.keys(answers).filter(k => answers[k]).length;
+
+  let confirmMsg = `Bạn đã hoàn thành ${answeredCount}/${totalQuestions} câu.\nBạn có chắc chắn muốn NỘP BÀI THI ngay bây giờ không?`;
+  if (answeredCount < totalQuestions) {
+    confirmMsg = `⚠️ CẢNH BÁO: Bạn vẫn còn ${totalQuestions - answeredCount} câu chưa trả lời!\n\n` + confirmMsg;
+  }
+
+  if (confirm(confirmMsg)) {
     if (window.activeExamTimer) clearInterval(window.activeExamTimer);
-    const username = getLoggedInUsername();
-    const draft = ExamDraftManager.getDraft(username, examId);
     const questions = window.currentActiveQuestionsForExam || [];
-    const answers = draft ? draft.answers : (window.currentActiveAnswersForExam || {});
     executeSubmitExam(examId, questions, answers);
   }
 }
@@ -517,6 +530,10 @@ export function renderExamReviewUI(fileName, questions, studentAnswers, score, s
     </div>
   `;
   container.innerHTML = html;
+
+  if (typeof renderKaTeX === 'function') {
+    setTimeout(() => renderKaTeX(container), 50);
+  }
 }
 
 window.handleLoadStudentDashboard = handleLoadStudentDashboard;
