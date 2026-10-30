@@ -102,15 +102,20 @@ export async function handleOpenAssignExamModal(examId, examTitle) {
   showAppLoading('⏳ Đang lấy danh sách sinh viên...');
 
   try {
-    if (!cachedStudentsList) {
-      const res = await appsScriptService.request('GET_STUDENTS', {});
-      cachedStudentsList = (res && res.students) ? res.students : [];
-    }
+    const currentLecturer = getLoggedInUsername();
+    const res = await appsScriptService.request('GET_STUDENTS', { uploadedBy: currentLecturer });
+    const studentsList = (res && res.students) ? res.students : [];
+    
     hideAppLoading();
 
-    const uniqueClasses = [...new Set(cachedStudentsList.map(s => s.className || s.class || 'Mặc định').filter(Boolean))];
+    // Tách và lấy danh sách các tên lớp riêng biệt (kể cả khi lớp chứa dấu phẩy)
+    const allClasses = studentsList.flatMap(s => 
+      (s.className || s.class || '').split(',').map(c => c.trim())
+    ).filter(Boolean);
 
-    renderAssignModalHTML(examId, examTitle, uniqueClasses, cachedStudentsList);
+    const uniqueClasses = [...new Set(allClasses)];
+
+    renderAssignModalHTML(examId, examTitle, uniqueClasses, studentsList);
 
   } catch (err) {
     hideAppLoading();
