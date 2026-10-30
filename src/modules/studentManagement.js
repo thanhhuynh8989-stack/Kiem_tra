@@ -2,13 +2,26 @@ import { appsScriptService } from '../services/appsScriptService.js';
 import { showAppLoading, hideAppLoading, getLoggedInUsername, escapeHtml } from './authAndCore.js';
 
 /**
- * 1. TẢI VÀ RENDER TRANG QUẢN LÝ SINH VIÊN (CHỈ LẤY SINH VIÊN DO GIẢNG VIÊN NÀY UPLOAD)
+ * TẠI LẠI THƯ VIỆN SHEETJS (XLSX) DYNAMICALLY NẾU CHƯA CÓ
+ */
+async function loadSheetJS() {
+  if (window.XLSX) return window.XLSX;
+  return new Promise((resolve, reject) => {
+    const script = document.createElement('script');
+    script.src = 'https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js';
+    script.onload = () => resolve(window.XLSX);
+    script.onerror = () => reject(new Error('Không thể tải thư viện đọc Excel XLSX!'));
+    document.head.appendChild(script);
+  });
+}
+
+/**
+ * 1. TẢI VÀ RENDER TRANG QUẢN LÝ SINH VIÊN
  */
 export async function handleLoadStudentManagement() {
   const container = document.getElementById('studentManagementContainer') || document.getElementById('mainContentArea');
   if (!container) return;
 
-  // Kiểm tra nếu không ở Tab Sinh viên thì không tiến hành render
   if (window.currentActiveTab && window.currentActiveTab !== 'tab-students') return;
 
   const currentLecturer = getLoggedInUsername();
@@ -29,17 +42,17 @@ export async function handleLoadStudentManagement() {
 }
 
 /**
- * 2. RENDER KHUNG GIAO DIỆN (UPLOAD FILE + BẢNG SINH VIÊN)
+ * 2. RENDER KHUNG GIAO DIỆN QUẢN LÝ SINH VIÊN
  */
 export function renderStudentManagementUI(students = [], container) {
   let html = `
     <div style="background:#fff; border-radius:10px; padding:20px; border:1px solid #e2e8f0; margin-top:16px;">
       
-      <!-- KHU VỰC 1: TẢI LÊN FILE DANH SÁCH SINH VIÊN -->
+      <!-- KHU VỰC TẢI LÊN FILE -->
       <div style="background:#f8fafc; border:2px dashed #cbd5e1; border-radius:8px; padding:20px; text-align:center; margin-bottom:20px;">
         <h4 style="margin:0 0 8px 0; color:#0f172a; font-size:16px;">📥 Tải Lên Danh Sách Sinh Viên (Excel / CSV)</h4>
         <p style="margin:0 0 14px 0; font-size:13px; color:#64748b;">
-          Chọn tệp <code>.xlsx</code>, <code>.xls</code> hoặc <code>.csv</code> chứa các cột: <strong>Mã SV, Họ và Tên, Lớp, Email</strong>
+          Chọn tệp <code>.xlsx</code>, <code>.xls</code> hoặc <code>.csv</code> chứa các cột: <strong>Mã SV, Họ và Tên, Lớp, Pass/Email</strong>
         </p>
 
         <div style="display:flex; justify-content:center; align-items:center; gap:10px; flex-wrap:wrap;">
@@ -52,7 +65,7 @@ export function renderStudentManagementUI(students = [], container) {
         <div id="selectedFileName" style="margin-top:10px; font-size:13px; color:#0284c7; font-weight:600;"></div>
       </div>
 
-      <!-- KHU VỰC 2: BẢNG DANH SÁCH SINH VIÊN -->
+      <!-- BẢNG DANH SÁCH SINH VIÊN -->
       <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px; border-bottom:1px solid #f1f5f9; padding-bottom:12px;">
         <h3 style="margin:0; font-size:18px; color:#0f172a;">👥 Danh Sách Sinh Viên (${students.length})</h3>
         <button type="button" onclick="handleLoadStudentManagement()" style="background:#f1f5f9; color:#334155; border:1px solid #cbd5e1; padding:6px 12px; border-radius:6px; cursor:pointer; font-size:13px;">
@@ -71,7 +84,7 @@ export function renderStudentManagementUI(students = [], container) {
 }
 
 /**
- * 3. RENDER BẢNG DỮ LIỆU SINH VIÊN
+ * 3. RENDER BẢNG SINH VIÊN
  */
 function renderStudentTable(students = []) {
   return `
@@ -83,7 +96,7 @@ function renderStudentTable(students = []) {
             <th style="padding:10px; border-bottom:2px solid #cbd5e1;">Mã SV</th>
             <th style="padding:10px; border-bottom:2px solid #cbd5e1;">Họ và Tên</th>
             <th style="padding:10px; border-bottom:2px solid #cbd5e1;">Lớp</th>
-            <th style="padding:10px; border-bottom:2px solid #cbd5e1;">Email / SĐT</th>
+            <th style="padding:10px; border-bottom:2px solid #cbd5e1;">Mật khẩu / Email</th>
             <th style="padding:10px; border-bottom:2px solid #cbd5e1; text-align:center;">Thao tác</th>
           </tr>
         </thead>
@@ -94,7 +107,7 @@ function renderStudentTable(students = []) {
               <td style="padding:10px; font-weight:600; color:#2563eb;">${escapeHtml(st.studentId || st.username || '')}</td>
               <td style="padding:10px; color:#0f172a; font-weight:600;">${escapeHtml(st.fullName || st.name || '')}</td>
               <td style="padding:10px; color:#475569; font-weight:600;">${escapeHtml(st.className || st.class || 'N/A')}</td>
-              <td style="padding:10px; color:#64748b;">${escapeHtml(st.email || st.phone || '')}</td>
+              <td style="padding:10px; color:#64748b;">${escapeHtml(st.email || st.pass || '123456')}</td>
               <td style="padding:10px; text-align:center;">
                 <button type="button" onclick="resetStudentPassword('${escapeHtml(st.studentId || st.username)}')" style="background:#f59e0b; color:#fff; border:none; padding:4px 8px; border-radius:4px; font-size:11px; font-weight:600; cursor:pointer; margin-right:4px;">
                   🔑 Reset MK
@@ -112,7 +125,7 @@ function renderStudentTable(students = []) {
 }
 
 /**
- * 4. XỬ LÝ KHI CHỌN FILE EXCEL / CSV TẢI LÊN (GỬI KÈM THÔNG TIN GIẢNG VIÊN UPLOAD)
+ * 4. BÓC TÁCH FILE EXCEL/CSV TRỰC TIẾP TRÊN BẰNG JAVASCRIPT
  */
 export async function handleStudentFileSelected(event) {
   const file = event.target.files?.[0];
@@ -125,35 +138,74 @@ export async function handleStudentFileSelected(event) {
     selectedFileNameEl.innerText = `📄 Đang xử lý tệp: ${file.name}`;
   }
 
-  showAppLoading(`⏳ Đang tải lên danh sách sinh viên cho giảng viên [${currentLecturer}]...`);
+  showAppLoading(`⏳ Đang bóc tách dữ liệu file [${file.name}]...`);
 
   try {
-    const reader = new FileReader();
-    reader.onload = async function (e) {
-      const base64Data = e.target.result.split(',')[1];
+    const XLSX = await loadSheetJS();
+    const arrayBuffer = await file.arrayBuffer();
+    const workbook = XLSX.read(arrayBuffer, { type: 'array' });
+    
+    // Lấy sheet đầu tiên
+    const firstSheetName = workbook.SheetNames[0];
+    const worksheet = workbook.Sheets[firstSheetName];
+    const rawRows = XLSX.utils.sheet_to_json(worksheet, { defval: '' });
 
-      const res = await appsScriptService.request('UPLOAD_EXCEL_DRIVE', {
-        fileName: file.name,
-        fileData: base64Data,
-        mimeType: file.type,
-        uploadedBy: currentLecturer
-      });
-
+    if (!rawRows || rawRows.length === 0) {
       hideAppLoading();
+      alert('Tệp Excel rỗng hoặc không có dữ liệu hợp lệ!');
+      return;
+    }
 
-      if (res && (res.status === 'success' || res.success)) {
-        alert(`🎉 Tải lên danh sách sinh viên thành công!`);
-        handleLoadStudentManagement();
-      } else {
-        alert(`⚠️ Lỗi tải danh sách: ${res?.message || 'Không thể cập nhật danh sách sinh viên'}`);
-      }
-    };
+    // Tự động nhận diện tên lớp từ tên file nếu trong file thiếu cột Lớp
+    const defaultClassName = file.name.replace(/\.[^/.]+$/, '').replace(/DS_?/i, '');
 
-    reader.readAsDataURL(file);
+    // Chuẩn hóa danh sách sinh viên sang JSON
+    const parsedStudents = rawRows.map(row => {
+      // Tìm khóa tương ứng bất kể viết hoa/viết thường
+      const getVal = (keys) => {
+        const foundKey = Object.keys(row).find(k => keys.some(key => k.trim().toLowerCase() === key.toLowerCase()));
+        return foundKey ? String(row[foundKey]).trim() : '';
+      };
+
+      const studentId = getVal(['Mã SV', 'Mã Sinh viên', 'Ma SV', 'Username', 'MSSV']);
+      const fullName = getVal(['Họ và Tên', 'Họ và tên', 'FullName', 'Name']);
+      const className = getVal(['Lớp', 'Class', 'Lớp học']) || defaultClassName;
+      const pass = getVal(['Pass', 'Password', 'Mật khẩu', 'Email']);
+
+      return {
+        studentId: studentId,
+        fullName: fullName,
+        className: className,
+        pass: pass || studentId.slice(-4) || '123456'
+      };
+    }).filter(s => s.studentId && s.fullName); // Lọc bỏ dòng tiêu đề rỗng
+
+    if (parsedStudents.length === 0) {
+      hideAppLoading();
+      alert('Không tìm thấy dòng dữ liệu sinh viên nào hợp lệ! Vui lòng kiểm tra tiêu đề các cột.');
+      return;
+    }
+
+    showAppLoading(`⏳ Đang lưu ${parsedStudents.length} sinh viên lên hệ thống...`);
+
+    // Gửi mảng JSON đã giải mã trực tiếp lên Apps Script
+    const res = await appsScriptService.request('IMPORT_STUDENT_LIST', {
+      studentList: parsedStudents,
+      uploadedBy: currentLecturer
+    });
+
+    hideAppLoading();
+
+    if (res && (res.status === 'success' || res.success)) {
+      alert(`🎉 Nhập thành công ${parsedStudents.length} sinh viên vào hệ thống!`);
+      handleLoadStudentManagement();
+    } else {
+      alert(`⚠️ Lỗi lưu danh sách: ${res?.message || 'Không thể cập nhật danh sách sinh viên'}`);
+    }
 
   } catch (err) {
     hideAppLoading();
-    alert(`Lỗi đọc tệp: ${err.message}`);
+    alert(`Lỗi đọc tệp Excel: ${err.message}`);
   }
 }
 
@@ -204,7 +256,6 @@ export async function deleteStudent(studentId) {
   }
 }
 
-// Khai báo global window cho sự kiện HTML inline
 window.handleLoadStudentManagement = handleLoadStudentManagement;
 window.handleStudentFileSelected = handleStudentFileSelected;
 window.resetStudentPassword = resetStudentPassword;
