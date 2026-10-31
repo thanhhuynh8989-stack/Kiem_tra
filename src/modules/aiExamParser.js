@@ -98,7 +98,7 @@ export function renderExamEditorScreen(fileName, questions = [], statusMessage =
           </button>
 
           ${currentEditingExamId ? `
-            <!-- LỰA CHỌN KHI ĐANG SỬA ĐỀ CỦ -->
+            <!-- LỰA CHỌN KHI ĐANG SỬA ĐỀ CŨ -->
             <button type="button" onclick="handleSaveAndPublishExamUI(false)" style="background:#0284c7; color:#fff; border:none; padding:8px 16px; border-radius:6px; font-weight:600; cursor:pointer;">
               💾 Lưu Đề (Cập nhật)
             </button>
@@ -279,7 +279,7 @@ export async function handleSaveAndPublishExamUI(isSaveAsNew = false) {
  * 7. RENDER MÀN HÌNH TẢI FILE MẶC ĐỊNH
  */
 export function renderDefaultUploadScreen() {
-  const container = document.getElementById('mainContentArea');
+  const container = document.getElementById('examEditorContainer') || document.getElementById('mainContentArea');
   if (!container) return;
 
   container.innerHTML = `
@@ -294,7 +294,7 @@ export function renderDefaultUploadScreen() {
         </button>
       </div>
 
-      <div id="examEditorContainer" style="margin-top:20px;"></div>
+      <div id="questionsEditorList" style="margin-top:20px;"></div>
     </div>
   `;
 }
