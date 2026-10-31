@@ -49,7 +49,7 @@ export const ExamDraftManager = {
       answers: userAnswers,
       remainingSeconds: remainingSeconds,
       layout: layout || existing.layout || null,
-      violationCount: Number(violationCount) || 0, // Lưu vết số lần vi phạm
+      violationCount: Number(violationCount) || 0,
       updatedAt: Date.now()
     }));
   },
@@ -181,7 +181,6 @@ export function renderStudentDashboard(exams = []) {
 // 5. KHỞI TẠO BÀI THI & XÁO TRỘN ĐỀ THI AN TOÀN
 // =========================================================================
 export async function handleStartTakeExam(examId, examCode = '') {
-  // Dừng mọi tracking cũ còn sót lại
   stopViolationTracking();
 
   const username = getLoggedInUsername();
@@ -210,16 +209,15 @@ export async function handleStartTakeExam(examId, examCode = '') {
     let initialViolationCount = 0;
 
     if (draft) {
-      // Đánh dấu hộp thoại nội bộ để tránh trigger vi phạm khi confirm
       window.isInternalDialogActive = true;
       const wantContinue = confirm('Bạn có muốn làm tiếp bài thi dở không?');
-      window.isInternalDialogActive = false;
+      setTimeout(() => { window.isInternalDialogActive = false; }, 500);
 
       if (wantContinue) {
         initialAnswers = draft.answers || {};
         if (draft.remainingSeconds > 0) initialTimeSeconds = draft.remainingSeconds;
         shuffledLayout = draft.layout || null;
-        initialViolationCount = Number(draft.violationCount) || 0; // Khôi phục số lần vi phạm cũ
+        initialViolationCount = Number(draft.violationCount) || 0;
       }
     }
 
@@ -259,7 +257,6 @@ export function renderTakeExamScreen(examId, fileName, shuffledQuestions, savedA
   let currentAnswers = { ...savedAnswers };
   let remainingSeconds = totalSeconds;
 
-  // Lưu draft ban đầu kèm số lần vi phạm đã tích lũy
   ExamDraftManager.saveDraft(username, examId, currentAnswers, remainingSeconds, shuffledQuestions, initialViolationCount);
 
   let html = `
@@ -304,7 +301,6 @@ export function renderTakeExamScreen(examId, fileName, shuffledQuestions, savedA
 
   container.innerHTML = html;
 
-  // Render công thức toán KaTeX
   if (typeof renderKaTeX === 'function') {
     setTimeout(() => renderKaTeX(container), 50);
   }
@@ -356,10 +352,9 @@ export async function handleConfirmSubmitExam(examId, totalQuestions) {
     confirmMsg = `⚠️ CẢNH BÁO: Bạn vẫn còn ${totalQuestions - answeredCount} câu chưa trả lời!\n\n` + confirmMsg;
   }
 
-  // Khóa tracking trước khi hiện dialog xác nhận
   window.isInternalDialogActive = true;
   const isConfirmed = confirm(confirmMsg);
-  window.isInternalDialogActive = false;
+  setTimeout(() => { window.isInternalDialogActive = false; }, 500);
 
   if (isConfirmed) {
     if (window.activeExamTimer) clearInterval(window.activeExamTimer);
