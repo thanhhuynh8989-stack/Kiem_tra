@@ -84,54 +84,88 @@ export async function handleLogin(username, password) {
 // =========================================================================
 window.violationCount = 0;
 window.isViolationTrackingActive = false;
-window.isInternalDialogActive = false; // Cờ khóa tạm thời khi mở Hộp thoại thông báo nội bộ
-let violationListener = null;
+window.isInternalDialogActive = false;
+
+let leftTimestamp = 0;
+let visibilityHandler = null;
+let pageHideHandler = null;
 
 export function startViolationTracking() {
   window.violationCount = 0;
   window.isViolationTrackingActive = true;
   window.isInternalDialogActive = false;
+  leftTimestamp = 0;
 
-  if (violationListener) {
-    document.removeEventListener('visibilitychange', violationListener);
-  }
+  stopViolationTracking(); // Xóa sạch listener cũ trước khi tạo mới
 
-  violationListener = function () {
-    // Chỉ tính vi phạm khi: Đang bật giám sát + Trang bị ẩn/Chuyển tab + KHÔNG mở Dialog nội bộ
-    if (window.isViolationTrackingActive && document.hidden && !window.isInternalDialogActive) {
-      window.violationCount = (window.violationCount || 0) + 1;
-      const count = window.violationCount;
+  // Xử lý sự kiện chuyển tab / ẩn màn hình
+  visibilityHandler = function () {
+    if (!window.isViolationTrackingActive || window.isInternalDialogActive) return;
 
-      if (count >= 3) {
-        window.isInternalDialogActive = true;
-        alert('⚠️ BẠN ĐÃ VI PHẠM QUY CHẾ 3 LẦN! Hệ thống sẽ tự động nộp bài thi.');
-        window.isInternalDialogActive = false;
-        
-        stopViolationTracking();
-        if (typeof window.executeSubmitExam === 'function') {
-          window.executeSubmitExam();
-        }
-      } else {
-        window.isInternalDialogActive = true;
-        alert(
-          `⚠️ CẢNH BÁO VI PHẠM QUY CHẾ THI! (Lần ${count}/3)\n` +
-          `Bạn vừa rời khỏi màn hình làm bài thi.\n` +
-          `Lưu ý: Rời màn hình quá 3 lần bài thi sẽ tự động nộp!`
-        );
-        window.isInternalDialogActive = false;
+    if (document.hidden) {
+      // Ghi nhận thời điểm sinh viên thoát màn hình / chuyển app
+      leftTimestamp = Date.now();
+    } else if (leftTimestamp > 0) {
+      // Sinh viên vừa mở lại ứng dụng -> Kiểm tra thời gian thoát
+      const elapsed = Date.now() - leftTimestamp;
+      leftTimestamp = 0;
+
+      // Tránh vi phạm giả do giật màn hình di động (< 500ms)
+      if (elapsed > 500) {
+        triggerViolationNotification();
       }
     }
   };
 
-  document.addEventListener('visibilitychange', violationListener);
+  // Sự kiện dành riêng cho điện thoại khi thoát hẳn app / đóng tab
+  pageHideHandler = function () {
+    if (!window.isViolationTrackingActive || window.isInternalDialogActive) return;
+    leftTimestamp = Date.now();
+  };
+
+  document.addEventListener('visibilitychange', visibilityHandler);
+  window.addEventListener('pagehide', pageHideHandler);
+}
+
+/**
+ * THỰC HIỆN CẢNH BÁO HOẶC TỰ ĐỘNG NỘP BÀI KHI QUAY LẠI MÀN HÌNH
+ */
+function triggerViolationNotification() {
+  window.violationCount = (window.violationCount || 0) + 1;
+  const count = window.violationCount;
+
+  window.isInternalDialogActive = true;
+
+  if (count >= 3) {
+    alert('⚠️ BẠN ĐÃ VI PHẠM QUY CHẾ 3 LẦN! Hệ thống sẽ tự động nộp bài thi.');
+    window.isInternalDialogActive = false;
+    
+    stopViolationTracking();
+    if (typeof window.executeSubmitExam === 'function') {
+      window.executeSubmitExam();
+    }
+  } else {
+    alert(
+      `⚠️ CẢNH BÁO VI PHẠM QUY CHẾ THI! (Lần ${count}/3)\n\n` +
+      `Bạn vừa rời khỏi màn hình làm bài thi.\n` +
+      `Lưu ý: Rời màn hình quá 3 lần bài thi sẽ tự động nộp!`
+    );
+    window.isInternalDialogActive = false;
+  }
 }
 
 export function stopViolationTracking() {
   window.isViolationTrackingActive = false;
   window.isInternalDialogActive = false;
-  if (violationListener) {
-    document.removeEventListener('visibilitychange', violationListener);
-    violationListener = null;
+  leftTimestamp = 0;
+
+  if (visibilityHandler) {
+    document.removeEventListener('visibilitychange', visibilityHandler);
+    visibilityHandler = null;
+  }
+  if (pageHideHandler) {
+    window.removeEventListener('pagehide', pageHideHandler);
+    pageHideHandler = null;
   }
 }
 
