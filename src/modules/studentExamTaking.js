@@ -32,7 +32,7 @@ function shuffleArray(arr) {
 }
 
 // =========================================================================
-// 2. DRAFT MANAGER (LƯU BÀI DỞ & BỐ CỤC XÁO TRỘN VÀO LOCAL STORAGE)
+// 2. DRAFT MANAGER (LƯU BÀI DỞ, BỐ CỤC XÁO TRỘN & SỐ LẦN VI PHẠM VÀO LOCAL STORAGE)
 // =========================================================================
 export const ExamDraftManager = {
   getDraftKey(username, examId) {
@@ -41,7 +41,7 @@ export const ExamDraftManager = {
     const shortId = matchHex ? matchHex[1].toLowerCase() : cleanId;
     return `exam_draft_${String(username).trim().toLowerCase()}_${shortId}`;
   },
-  saveDraft(username, examId, userAnswers, remainingSeconds, layout = null) {
+  saveDraft(username, examId, userAnswers, remainingSeconds, layout = null, violationCount = 0) {
     if (!username || !examId) return;
     const key = this.getDraftKey(username, examId);
     const existing = this.getDraft(username, examId) || {};
@@ -49,6 +49,7 @@ export const ExamDraftManager = {
       answers: userAnswers,
       remainingSeconds: remainingSeconds,
       layout: layout || existing.layout || null,
+      violationCount: Number(violationCount) || 0, // Lưu vết số lần vi phạm
       updatedAt: Date.now()
     }));
   },
@@ -206,9 +207,10 @@ export async function handleStartTakeExam(examId, examCode = '') {
     let initialAnswers = {};
     let initialTimeSeconds = (examData.durationMinutes || 45) * 60;
     let shuffledLayout = null;
+    let initialViolationCount = 0;
 
     if (draft) {
-      // Đánh dấu hộp thoại nội bộ để tránh trigger vi phạm
+      // Đánh dấu hộp thoại nội bộ để tránh trigger vi phạm khi confirm
       window.isInternalDialogActive = true;
       const wantContinue = confirm('Bạn có muốn làm tiếp bài thi dở không?');
       window.isInternalDialogActive = false;
@@ -217,6 +219,7 @@ export async function handleStartTakeExam(examId, examCode = '') {
         initialAnswers = draft.answers || {};
         if (draft.remainingSeconds > 0) initialTimeSeconds = draft.remainingSeconds;
         shuffledLayout = draft.layout || null;
+        initialViolationCount = Number(draft.violationCount) || 0; // Khôi phục số lần vi phạm cũ
       }
     }
 
@@ -238,7 +241,7 @@ export async function handleStartTakeExam(examId, examCode = '') {
       shuffledLayout = shuffleArray(shuffledLayout);
     }
 
-    renderTakeExamScreen(examId, rawName, shuffledLayout, initialAnswers, initialTimeSeconds);
+    renderTakeExamScreen(examId, rawName, shuffledLayout, initialAnswers, initialTimeSeconds, initialViolationCount);
   } catch (err) {
     hideAppLoading();
     alert(`Lỗi: ${err.message}`);
@@ -248,7 +251,7 @@ export async function handleStartTakeExam(examId, examCode = '') {
 // =========================================================================
 // 6. MÀN HÌNH LÀM BÀI VÀ MAPPING KHÓA DUY NHẤT
 // =========================================================================
-export function renderTakeExamScreen(examId, fileName, shuffledQuestions, savedAnswers = {}, totalSeconds = 2700) {
+export function renderTakeExamScreen(examId, fileName, shuffledQuestions, savedAnswers = {}, totalSeconds = 2700, initialViolationCount = 0) {
   const container = document.getElementById('studentExamContainer');
   if (!container) return;
 
@@ -256,7 +259,8 @@ export function renderTakeExamScreen(examId, fileName, shuffledQuestions, savedA
   let currentAnswers = { ...savedAnswers };
   let remainingSeconds = totalSeconds;
 
-  ExamDraftManager.saveDraft(username, examId, currentAnswers, remainingSeconds, shuffledQuestions);
+  // Lưu draft ban đầu kèm số lần vi phạm đã tích lũy
+  ExamDraftManager.saveDraft(username, examId, currentAnswers, remainingSeconds, shuffledQuestions, initialViolationCount);
 
   let html = `
     <div style="background:#fff; border-radius:10px; padding:16px; border:1px solid var(--border);">
@@ -300,23 +304,24 @@ export function renderTakeExamScreen(examId, fileName, shuffledQuestions, savedA
 
   container.innerHTML = html;
 
-  // Tải render công thức toán LaTeX (nếu có)
+  // Render công thức toán KaTeX
   if (typeof renderKaTeX === 'function') {
     setTimeout(() => renderKaTeX(container), 50);
   }
 
   window.handleStudentSelectOption = function(eId, questionId, originalLetter) {
     currentAnswers[String(questionId)] = originalLetter;
-    ExamDraftManager.saveDraft(username, eId, currentAnswers, remainingSeconds, shuffledQuestions);
+    ExamDraftManager.saveDraft(username, eId, currentAnswers, remainingSeconds, shuffledQuestions, window.violationCount || 0);
   };
 
-  startViolationTracking();
+  // Kích hoạt giám sát vi phạm với số lần vi phạm khởi tạo từ bản nháp
+  startViolationTracking(initialViolationCount);
 
   const timerEl = document.getElementById('examTimerDisplay');
   const timerInterval = setInterval(() => {
     remainingSeconds--;
     if (remainingSeconds % 5 === 0) {
-      ExamDraftManager.saveDraft(username, examId, currentAnswers, remainingSeconds, shuffledQuestions);
+      ExamDraftManager.saveDraft(username, examId, currentAnswers, remainingSeconds, shuffledQuestions, window.violationCount || 0);
     }
 
     if (remainingSeconds <= 0) {
