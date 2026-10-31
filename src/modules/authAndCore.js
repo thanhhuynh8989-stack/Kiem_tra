@@ -147,7 +147,7 @@ export function showViolationModal(count, onConfirm) {
 }
 
 // =========================================================================
-// 4. THEO DÕI VI PHẠM QUY CHẾ THI (VIOLATION TRACKER ENGINE)
+// 4. THEO DÕI VI PHẠM QUY CHẾ THI (VIOLATION TRACKER ENGINE - SỬA LỖI ĐẢO VỊ TRÍ)
 // =========================================================================
 window.violationCount = 0;
 window.isViolationTrackingActive = false;
@@ -160,13 +160,15 @@ let pageHideHandler = null;
 let isProcessingViolation = false;
 
 export function startViolationTracking(initialCount = 0) {
+  // 1. HỦY TẤT CẢ LISTENER CŨ TRƯỚC KHI THIẾT LẬP MỚI
+  stopViolationTracking();
+
+  // 2. KHỞI TẠO CÁC BIẾN THEO DÕI (ĐẶT SAU STOP)
   window.violationCount = Number(initialCount) || 0;
   window.isViolationTrackingActive = true;
   window.isInternalDialogActive = false;
   leftTimestamp = 0;
   isProcessingViolation = false;
-
-  stopViolationTracking();
 
   const handleViolationTrigger = () => {
     if (!window.isViolationTrackingActive || window.isInternalDialogActive || isProcessingViolation) return;
