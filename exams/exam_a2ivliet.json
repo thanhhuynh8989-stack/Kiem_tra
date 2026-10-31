@@ -1,0 +1,369 @@
+{
+  "examId": "exam_a2ivliet",
+  "title": "SHĐC_Quizz 1",
+  "durationMinutes": 20,
+  "createdBy": "thanh",
+  "createdAt": "2026-10-31T00:45:34.725Z",
+  "questions": [
+    {
+      "id": "q_1",
+      "stem": "(0.500 Point)\nVai trò cơ bản của hệ thống lông trên bề mặt vi khuẩn là:",
+      "options": [
+        "Bắt mồi",
+        "Bảo vệ",
+        "Vận động",
+        "Bám và dính vào giá thể"
+      ],
+      "correctAnswer": 3,
+      "hasImage": false,
+      "imageUrl": null,
+      "originalOptionCount": 4,
+      "flags": {
+        "needsUserConfirmation": false,
+        "note": "✅ Giữ nguyên từ bản gốc, AI không tác động."
+      }
+    },
+    {
+      "id": "q_2",
+      "stem": "(0.500 Point)\nHợp chất nào sau đây KHÔNG có trong thành phần màng tế bào?",
+      "options": [
+        "Glycolipid",
+        "Proline",
+        "Cholesterol",
+        "Phospholipids"
+      ],
+      "correctAnswer": 1,
+      "hasImage": false,
+      "imageUrl": null,
+      "originalOptionCount": 4,
+      "flags": {
+        "needsUserConfirmation": true,
+        "note": "🤖 AI (gemini-3.6-flash) đã sinh bổ sung phương án/đáp án. Giảng viên vui lòng rà soát lại."
+      }
+    },
+    {
+      "id": "q_3",
+      "stem": "(0.500 Point)\nĐặc điểm khác biệt cơ bản của tế bào nhân sơ (prokaryote) và tế bào nhân chuẩn (eukaryote) là:",
+      "options": [
+        "Màng plasma",
+        "Protein",
+        "Nhân",
+        "DNA"
+      ],
+      "correctAnswer": 2,
+      "hasImage": false,
+      "imageUrl": null,
+      "originalOptionCount": 4,
+      "flags": {
+        "needsUserConfirmation": true,
+        "note": "🤖 AI (gemini-3.6-flash) đã sinh bổ sung phương án/đáp án. Giảng viên vui lòng rà soát lại."
+      }
+    },
+    {
+      "id": "q_4",
+      "stem": "(0.500 Point)\nVai trò của cholesterol trong cấu trúc màng sinh chất ?",
+      "options": [
+        "Kênh vận chuyển các chất",
+        "Tạo khung cho màng",
+        "Cố định cơ học cho màng",
+        "Kênh dẫn truyền phân tử"
+      ],
+      "correctAnswer": 2,
+      "hasImage": false,
+      "imageUrl": null,
+      "originalOptionCount": 4,
+      "flags": {
+        "needsUserConfirmation": true,
+        "note": "🤖 AI (gemini-3.6-flash) đã sinh bổ sung phương án/đáp án. Giảng viên vui lòng rà soát lại."
+      }
+    },
+    {
+      "id": "q_5",
+      "stem": "(0.500 Point)\nThành phần cấu trúc của nhân tế bào Eukaryote bao gồm:",
+      "options": [
+        "Màng nhân, dịch nhân, nhiễm sắc thể, hạch nhân",
+        "Màng nhân, dịch nhân, hạch nhân, lỗ nhân",
+        "Lỗ nhân, nhiễm sắc thể, dịch nhân, màng nhân",
+        "Màng nhân, dịch nhân, nhiễm sắc thể, thể nhân"
+      ],
+      "correctAnswer": 0,
+      "hasImage": false,
+      "imageUrl": null,
+      "originalOptionCount": 4,
+      "flags": {
+        "needsUserConfirmation": false,
+        "note": "✅ Giữ nguyên từ bản gốc, AI không tác động."
+      }
+    },
+    {
+      "id": "q_6",
+      "stem": "(0.500 Point)\nMàng sinh chất có tính bán thấm vì ?",
+      "options": [
+        "Chỉ một lớp phospholipid trên màng kép có tính thấm",
+        "Chỉ cho các chất đi qua màng nhờ sự tiêu hao năng lượng ATP",
+        "Chỉ cho các chất đi qua màng theo kênh dẫn truyền protein",
+        "Chỉ cho phép các chất đi qua một cách có chọn lọc"
+      ],
+      "correctAnswer": 3,
+      "hasImage": false,
+      "imageUrl": null,
+      "originalOptionCount": 4,
+      "flags": {
+        "needsUserConfirmation": true,
+        "note": "🤖 AI (gemini-3.6-flash) đã sinh bổ sung phương án/đáp án. Giảng viên vui lòng rà soát lại."
+      }
+    },
+    {
+      "id": "q_7",
+      "stem": "(0.500 Point)\nỞ tế bào Eukaryote, ribosome hoàn chỉnh có mặt nhiều nhất tại:",
+      "options": [
+        "Nhân con",
+        "Lưới nội chất có hạt",
+        "Màng nhân",
+        "Ty thể"
+      ],
+      "correctAnswer": 1,
+      "hasImage": false,
+      "imageUrl": null,
+      "originalOptionCount": 4,
+      "flags": {
+        "needsUserConfirmation": true,
+        "note": "🤖 AI (gemini-3.6-flash) đã sinh bổ sung phương án/đáp án. Giảng viên vui lòng rà soát lại."
+      }
+    },
+    {
+      "id": "q_8",
+      "stem": "(0.500 Point)\nThành phần chính cấu tạo nên thành tế bào vi khuẩn Gram dương ?",
+      "options": [
+        "Polysaccharide",
+        "Phospholipid kép",
+        "Peptidoglycan",
+        "Lipopolysaccharide"
+      ],
+      "correctAnswer": 2,
+      "hasImage": false,
+      "imageUrl": null,
+      "originalOptionCount": 4,
+      "flags": {
+        "needsUserConfirmation": true,
+        "note": "🤖 AI (gemini-3.6-flash) đã sinh bổ sung phương án/đáp án. Giảng viên vui lòng rà soát lại."
+      }
+    },
+    {
+      "id": "q_9",
+      "stem": "(0.500 Point)\nThể nhân của tế bào Prokaryote KHÔNG có đặc điểm ?",
+      "options": [
+        "Là nơi chứa đựng thông tin di truyền",
+        "Chỉ có một phân tử DNA duy nhất",
+        "Không có màng nhân bao bọc",
+        "ADN xoắn kép, liên kết với protein histone."
+      ],
+      "correctAnswer": 3,
+      "hasImage": false,
+      "imageUrl": null,
+      "originalOptionCount": 4,
+      "flags": {
+        "needsUserConfirmation": true,
+        "note": "🤖 AI (gemini-3.6-flash) đã sinh bổ sung phương án/đáp án. Giảng viên vui lòng rà soát lại."
+      }
+    },
+    {
+      "id": "q_10",
+      "stem": "(0.500 Point)\nTy thể xuất hiện với số lượng lớn trong các tế bào ?",
+      "options": [
+        "Hoạt động trao đổi chất mạnh",
+        "Đang sinh sinh sản",
+        "Đang phân chia",
+        "Hoạt động trao đổi chất yếu"
+      ],
+      "correctAnswer": 0,
+      "hasImage": false,
+      "imageUrl": null,
+      "originalOptionCount": 4,
+      "flags": {
+        "needsUserConfirmation": false,
+        "note": "✅ Giữ nguyên từ bản gốc, AI không tác động."
+      }
+    },
+    {
+      "id": "q_11",
+      "stem": "(0.500 Point)\nỞ tế bào Prokaryote, bao nhầy được cấu tạo từ:",
+      "options": [
+        "Phospholipid kép",
+        "Polysaccharide",
+        "Lipopolysaccharide",
+        "Peptidoglycan"
+      ],
+      "correctAnswer": 1,
+      "hasImage": false,
+      "imageUrl": null,
+      "originalOptionCount": 4,
+      "flags": {
+        "needsUserConfirmation": true,
+        "note": "🤖 AI (gemini-3.6-flash) đã sinh bổ sung phương án/đáp án. Giảng viên vui lòng rà soát lại."
+      }
+    },
+    {
+      "id": "q_12",
+      "stem": "(0.500 Point)\nTy thể KHÔNG có mặt ở?",
+      "options": [
+        "Thực vật",
+        "Nấm",
+        "Vi khuẩn",
+        "Động vật có xương sống"
+      ],
+      "correctAnswer": 2,
+      "hasImage": false,
+      "imageUrl": null,
+      "originalOptionCount": 4,
+      "flags": {
+        "needsUserConfirmation": true,
+        "note": "🤖 AI (gemini-3.6-flash) đã sinh bổ sung phương án/đáp án. Giảng viên vui lòng rà soát lại."
+      }
+    },
+    {
+      "id": "q_13",
+      "stem": "(0.500 Point)\nRibosome của vi khuẩn E.coli có hằng số lắng:",
+      "options": [
+        "60S",
+        "90S",
+        "70S",
+        "80S"
+      ],
+      "correctAnswer": 2,
+      "hasImage": false,
+      "imageUrl": null,
+      "originalOptionCount": 4,
+      "flags": {
+        "needsUserConfirmation": true,
+        "note": "🤖 AI (gemini-3.6-flash) đã sinh bổ sung phương án/đáp án. Giảng viên vui lòng rà soát lại."
+      }
+    },
+    {
+      "id": "q_14",
+      "stem": "(0.500 Point)\nVai trò chính của màng sinh chất:",
+      "options": [
+        "Bảo vệ, duy trì hình dạng tế bào",
+        "Chống lại áp suất thẩm thấu của môi trường bên ngoài.",
+        "Trao đổi chất, thông tin giữa tế bào và môi trường",
+        "Tạo khung vững, cứng cho tế bào"
+      ],
+      "correctAnswer": 2,
+      "hasImage": false,
+      "imageUrl": null,
+      "originalOptionCount": 4,
+      "flags": {
+        "needsUserConfirmation": true,
+        "note": "🤖 AI (gemini-3.6-flash) đã sinh bổ sung phương án/đáp án. Giảng viên vui lòng rà soát lại."
+      }
+    },
+    {
+      "id": "q_15",
+      "stem": "(0.500 Point)\nMàng trong của ty thể gấp nếp có ý nghĩa gì ?",
+      "options": [
+        "Giúp tăng diện tích bề mặt ty thể",
+        "Giúp các protein dễ xuyên qua màng",
+        "Giúp tăng tổng hợp NADH",
+        "Giúp vận chuyển được nhiều ATP"
+      ],
+      "correctAnswer": 0,
+      "hasImage": false,
+      "imageUrl": null,
+      "originalOptionCount": 4,
+      "flags": {
+        "needsUserConfirmation": false,
+        "note": "✅ Giữ nguyên từ bản gốc, AI không tác động."
+      }
+    },
+    {
+      "id": "q_16",
+      "stem": "(0.500 Point)\nBào quan của tế bào được định vị trong ?",
+      "options": [
+        "Nhân con",
+        "Tế bào chất",
+        "Lục lạp",
+        "Ty thể"
+      ],
+      "correctAnswer": 1,
+      "hasImage": false,
+      "imageUrl": null,
+      "originalOptionCount": 4,
+      "flags": {
+        "needsUserConfirmation": true,
+        "note": "🤖 AI (gemini-3.6-flash) đã sinh bổ sung phương án/đáp án. Giảng viên vui lòng rà soát lại."
+      }
+    },
+    {
+      "id": "q_17",
+      "stem": "(0.500 Point)\nPhân hoá xoang nội bào KHÔNG xảy ra ở:",
+      "options": [
+        "Thực vật bậc thấp",
+        "Sinh vật nhân chuẩn",
+        "Sinh vật nhân sơ",
+        "Thực vật bậc cao"
+      ],
+      "correctAnswer": 2,
+      "hasImage": false,
+      "imageUrl": null,
+      "originalOptionCount": 4,
+      "flags": {
+        "needsUserConfirmation": true,
+        "note": "🤖 AI (gemini-3.6-flash) đã sinh bổ sung phương án/đáp án. Giảng viên vui lòng rà soát lại."
+      }
+    },
+    {
+      "id": "q_18",
+      "stem": "(0.500 Point)\nTy thể KHÔNG có mặt ở ?",
+      "options": [
+        "Vi khuẩn",
+        "Thực vật",
+        "Nấm",
+        "Động vật có xương sống"
+      ],
+      "correctAnswer": 0,
+      "hasImage": false,
+      "imageUrl": null,
+      "originalOptionCount": 4,
+      "flags": {
+        "needsUserConfirmation": false,
+        "note": "✅ Giữ nguyên từ bản gốc, AI không tác động."
+      }
+    },
+    {
+      "id": "q_19",
+      "stem": "(0.500 Point)\nPhát biểu nào sau đây KHÔNG đúng về prokaryote ?",
+      "options": [
+        "Prokaryote dự trữ thông tin di truyền trong nhân",
+        "Prokaryote sử dụng ADN để dự trữ thông tin di truyền",
+        "Prokaryote có sự đa dạng về kích thước và hình dạng",
+        "Hầu hết prokaryote là các sinh vật đơn bào nhưng một số là đa bào"
+      ],
+      "correctAnswer": 0,
+      "hasImage": false,
+      "imageUrl": null,
+      "originalOptionCount": 4,
+      "flags": {
+        "needsUserConfirmation": false,
+        "note": "✅ Giữ nguyên từ bản gốc, AI không tác động."
+      }
+    },
+    {
+      "id": "q_20",
+      "stem": "(0.500 Point)\nPhát biểu nào sau đây về lục lạp là KHÔNG đúng ?",
+      "options": [
+        "Lục lạp có một chồng các lớp màng trong và được bao bọc bởi lớp màng kép",
+        "Lục lạp có chứa ADN của riêng nó",
+        "Lục lạp được xem là bắt nguồn từ vi khuẩn",
+        "Lục lạp có mặt ở tất cả các tế bào nhân chuẩn"
+      ],
+      "correctAnswer": 3,
+      "hasImage": false,
+      "imageUrl": null,
+      "originalOptionCount": 4,
+      "flags": {
+        "needsUserConfirmation": true,
+        "note": "🤖 AI (gemini-3.6-flash) đã sinh bổ sung phương án/đáp án. Giảng viên vui lòng rà soát lại."
+      }
+    }
+  ]
+}
