@@ -80,7 +80,52 @@ export async function handleLogin(username, password) {
 }
 
 // =========================================================================
-// 3. THEO DÕI VI PHẠM QUY CHẾ THI (VIOLATION TRACKER HỖ TRỢ CẢ DESKTOP & MOBILE)
+// 3. THÔNG BÁO VI PHẠM BẰNG MODAL GIAO DIỆN (CHỐNG BỊ TRÌNH DUYỆT CHẶN)
+// =========================================================================
+export function showViolationModal(count, onConfirm) {
+  let modal = document.getElementById('violationModalOverlay');
+  if (!modal) {
+    modal = document.createElement('div');
+    modal.id = 'violationModalOverlay';
+    modal.style.cssText = `
+      position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+      background: rgba(15, 23, 42, 0.85); display: flex; justify-content: center;
+      align-items: center; z-index: 999999; font-family: system-ui, -apple-system, sans-serif;
+      backdrop-filter: blur(4px); padding: 16px; box-sizing: border-box;
+    `;
+    document.body.appendChild(modal);
+  }
+
+  const isFinal = count >= 3;
+  modal.innerHTML = `
+    <div style="background: #fff; border-radius: 12px; max-width: 420px; width: 100%; padding: 24px; text-align: center; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.3); border-top: 6px solid ${isFinal ? '#dc2626' : '#f59e0b'};">
+      <div style="font-size: 48px; margin-bottom: 12px;">${isFinal ? '❌' : '⚠️'}</div>
+      <h3 style="margin: 0 0 8px 0; color: ${isFinal ? '#dc2626' : '#d97706'}; font-size: 18px; font-weight: 700;">
+        ${isFinal ? 'VI PHẠM QUY CHẾ BÀI THI!' : `CẢNH BÁO VI PHẠM (Lần ${count}/3)`}
+      </h3>
+      <p style="margin: 0 0 20px 0; color: #475569; font-size: 14px; line-height: 1.5;">
+        ${isFinal 
+          ? 'Bạn đã rời màn hình quá 3 lần. Hệ thống sẽ <strong>tự động nộp bài thi</strong> của bạn ngay bây giờ!' 
+          : 'Hệ thống ghi nhận bạn vừa rời khỏi màn hình làm bài.<br><strong style="color:#dc2626;">Lưu ý: Rời màn hình quá 3 lần bài thi sẽ tự động nộp!</strong>'}
+      </p>
+      <button id="violationModalBtn" style="background: ${isFinal ? '#dc2626' : '#2563eb'}; color: #fff; border: none; padding: 12px 24px; border-radius: 8px; font-weight: 700; font-size: 14px; cursor: pointer; width: 100%; transition: background 0.2s;">
+        ${isFinal ? 'Tự Động Nộp Bài' : 'Tôi Đã Hiểu & Tiếp Tục Làm Bài'}
+      </button>
+    </div>
+  `;
+  modal.style.display = 'flex';
+
+  document.getElementById('violationModalBtn').onclick = function () {
+    modal.style.display = 'none';
+    window.isInternalDialogActive = false;
+    if (typeof onConfirm === 'function') {
+      onConfirm();
+    }
+  };
+}
+
+// =========================================================================
+// 4. THEO DÕI VI PHẠM QUY CHẾ THI (VIOLATION TRACKER ENGINE)
 // =========================================================================
 window.violationCount = 0;
 window.isViolationTrackingActive = false;
@@ -99,17 +144,16 @@ export function startViolationTracking(initialCount = 0) {
   leftTimestamp = 0;
   isProcessingViolation = false;
 
-  stopViolationTracking(); // Xóa sạch listener cũ trước khi tạo mới
+  stopViolationTracking();
 
   const handleViolationTrigger = () => {
     if (!window.isViolationTrackingActive || window.isInternalDialogActive || isProcessingViolation) return;
     
     isProcessingViolation = true;
     triggerViolationNotification();
-    setTimeout(() => { isProcessingViolation = false; }, 600);
+    setTimeout(() => { isProcessingViolation = false; }, 800);
   };
 
-  // 1. Xử lý sự kiện ẩn/hiện trang (Chuyển Tab trên Browser)
   visibilityHandler = function () {
     if (!window.isViolationTrackingActive || window.isInternalDialogActive) return;
 
@@ -122,13 +166,11 @@ export function startViolationTracking(initialCount = 0) {
     }
   };
 
-  // 2. Xử lý sự kiện Mất Focus Cửa Sổ (Mở ứng dụng khác, Click ra ngoài màn hình Desktop)
   blurHandler = function () {
     if (!window.isViolationTrackingActive || window.isInternalDialogActive) return;
     handleViolationTrigger();
   };
 
-  // 3. Xử lý sự kiện Thoát App / Ẩn trang trên Điện thoại
   pageHideHandler = function () {
     if (!window.isViolationTrackingActive || window.isInternalDialogActive) return;
     leftTimestamp = Date.now();
@@ -140,33 +182,20 @@ export function startViolationTracking(initialCount = 0) {
   window.addEventListener('pagehide', pageHideHandler);
 }
 
-/**
- * THỰC HIỆN CẢNH BÁO HOẶC TỰ ĐỘNG NỘP BÀI KHI PHÁT HIỆN VI PHẠM
- */
 function triggerViolationNotification() {
   window.violationCount = (window.violationCount || 0) + 1;
   const count = window.violationCount;
 
-  // Đánh dấu mở Hộp thoại Hệ thống để ngắt tạm thời các event lặp lại
   window.isInternalDialogActive = true;
 
-  if (count >= 3) {
-    alert('⚠️ BẠN ĐÃ VI PHẠM QUY CHẾ 3 LẦN! Hệ thống sẽ tự động nộp bài thi.');
-    stopViolationTracking();
-    
-    setTimeout(() => { window.isInternalDialogActive = false; }, 500);
-
-    if (typeof window.executeSubmitExam === 'function') {
-      window.executeSubmitExam();
+  showViolationModal(count, () => {
+    if (count >= 3) {
+      stopViolationTracking();
+      if (typeof window.executeSubmitExam === 'function') {
+        window.executeSubmitExam();
+      }
     }
-  } else {
-    alert(
-      `⚠️ CẢNH BÁO VI PHẠM QUY CHẾ THI! (Lần ${count}/3)\n\n` +
-      `Bạn vừa rời khỏi màn hình làm bài thi.\n` +
-      `Lưu ý: Rời màn hình quá 3 lần bài thi sẽ tự động nộp!`
-    );
-    setTimeout(() => { window.isInternalDialogActive = false; }, 500);
-  }
+  });
 }
 
 export function stopViolationTracking() {
@@ -190,7 +219,7 @@ export function stopViolationTracking() {
 }
 
 // =========================================================================
-// 4. TIỆN ÍCH HIỂN THỊ LOADING & CHỐNG XSS
+// 5. TIỆN ÍCH HIỂN THỊ LOADING & CHỐNG XSS
 // =========================================================================
 export function showAppLoading(msg = '⏳ Đang xử lý...') {
   let loader = document.getElementById('appGlobalLoader');
@@ -230,7 +259,7 @@ export function escapeHtml(str) {
 }
 
 // =========================================================================
-// 5. CHỨC NĂNG ẨN / HIỆN MẬT KHẨU
+// 6. CHỨC NĂNG ẨN / HIỆN MẬT KHẨU
 // =========================================================================
 export function togglePasswordVisibility(inputId, iconElement) {
   const input = document.getElementById(inputId);
@@ -244,131 +273,12 @@ export function togglePasswordVisibility(inputId, iconElement) {
   }
 }
 
-// =========================================================================
-// 6. XỬ LÝ ĐĂNG KÝ GIẢNG VIÊN VÀ MÃ OTP
-// =========================================================================
-export function openRegisterLecturerModal() {
-  const modal = document.getElementById('registerModal');
-  if (modal) modal.style.display = 'flex';
-}
-
-export function closeRegisterModal() {
-  const modal = document.getElementById('registerModal');
-  if (modal) modal.style.display = 'none';
-}
-
-export async function sendRegisterOTP() {
-  const username = document.getElementById('regUser')?.value.trim();
-  const email = document.getElementById('regEmail')?.value.trim();
-
-  if (!username || !email) {
-    alert('Vui lòng nhập Tên đăng nhập và Email trước khi nhận OTP!');
-    return;
-  }
-
-  showAppLoading('⏳ Đang gửi mã OTP đến email...');
-  try {
-    const res = await appsScriptService.request('SEND_OTP_REGISTER', { username, email });
-    hideAppLoading();
-    alert(res.message);
-  } catch (err) {
-    hideAppLoading();
-    alert(`Lỗi: ${err.message}`);
-  }
-}
-
-export async function submitLecturerRegistration() {
-  const username = document.getElementById('regUser')?.value.trim();
-  const password = document.getElementById('regPass')?.value.trim();
-  const fullName = document.getElementById('regFullName')?.value.trim();
-  const phone = document.getElementById('regPhone')?.value.trim();
-  const email = document.getElementById('regEmail')?.value.trim();
-  const otp = document.getElementById('regOTP')?.value.trim();
-
-  showAppLoading('⏳ Đang xác thực và tạo tài khoản...');
-  try {
-    const res = await appsScriptService.request('REGISTER_LECTURER', {
-      username, password, fullName, phone, email, otp
-    });
-    hideAppLoading();
-    alert(res.message);
-    closeRegisterModal();
-  } catch (err) {
-    hideAppLoading();
-    alert(`Lỗi đăng ký: ${err.message}`);
-  }
-}
-
-// =========================================================================
-// 7. XỬ LÝ QUÊN MẬT KHẨU VÀ OTP
-// =========================================================================
-export function openForgotPasswordModal() {
-  const modal = document.getElementById('forgotModal');
-  if (modal) modal.style.display = 'flex';
-}
-
-export function closeForgotModal() {
-  const modal = document.getElementById('forgotModal');
-  if (modal) modal.style.display = 'none';
-}
-
-let verifiedForgotUsername = '';
-
-export async function sendForgotOTP() {
-  const accountOrEmail = document.getElementById('forgotInput')?.value.trim();
-  if (!accountOrEmail) {
-    alert('Vui lòng nhập Tên đăng nhập hoặc Email!');
-    return;
-  }
-
-  showAppLoading('⏳ Đang tìm tài khoản và gửi mã OTP...');
-  try {
-    const res = await appsScriptService.request('SEND_OTP_FORGOT', { accountOrEmail });
-    hideAppLoading();
-    verifiedForgotUsername = res.username || accountOrEmail;
-    alert(res.message);
-  } catch (err) {
-    hideAppLoading();
-    alert(`Lỗi: ${err.message}`);
-  }
-}
-
-export async function submitResetPassword() {
-  const otp = document.getElementById('forgotOTP')?.value.trim();
-  const newPassword = document.getElementById('forgotNewPass')?.value.trim();
-
-  if (!verifiedForgotUsername) {
-    alert('Vui lòng gửi mã OTP trước!');
-    return;
-  }
-
-  showAppLoading('⏳ Đang tiến hành đổi mật khẩu...');
-  try {
-    const res = await appsScriptService.request('RESET_PASSWORD_OTP', {
-      username: verifiedForgotUsername,
-      otp: otp,
-      newPassword: newPassword
-    });
-    hideAppLoading();
-    alert(res.message);
-    closeForgotModal();
-  } catch (err) {
-    hideAppLoading();
-    alert(`Lỗi: ${err.message}`);
-  }
-}
-
 // Scope Window Binding
 window.getLoggedInUser = getLoggedInUser;
 window.getLoggedInUsername = getLoggedInUsername;
 window.getLoggedInRole = getLoggedInRole;
 window.handleLogout = handleLogout;
+window.startViolationTracking = startViolationTracking;
+window.stopViolationTracking = stopViolationTracking;
+window.showViolationModal = showViolationModal;
 window.togglePasswordVisibility = togglePasswordVisibility;
-window.openRegisterLecturerModal = openRegisterLecturerModal;
-window.closeRegisterModal = closeRegisterModal;
-window.sendRegisterOTP = sendRegisterOTP;
-window.submitLecturerRegistration = submitLecturerRegistration;
-window.openForgotPasswordModal = openForgotPasswordModal;
-window.closeForgotModal = closeForgotModal;
-window.sendForgotOTP = sendForgotOTP;
-window.submitResetPassword = submitResetPassword;
