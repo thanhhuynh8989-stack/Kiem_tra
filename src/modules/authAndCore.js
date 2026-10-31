@@ -80,7 +80,7 @@ export async function handleLogin(username, password) {
 }
 
 // =========================================================================
-// 3. THEO DÕI VI PHẠM QUY CHẾ THI (VIOLATION TRACKER)
+// 3. THEO DÕI VI PHẠM QUY CHẾ THI (VIOLATION TRACKER HỖ TRỢ CẢ DESKTOP & MOBILE)
 // =========================================================================
 window.violationCount = 0;
 window.isViolationTrackingActive = false;
@@ -88,47 +88,70 @@ window.isInternalDialogActive = false;
 
 let leftTimestamp = 0;
 let visibilityHandler = null;
+let blurHandler = null;
 let pageHideHandler = null;
+let isProcessingViolation = false;
 
 export function startViolationTracking(initialCount = 0) {
   window.violationCount = Number(initialCount) || 0;
   window.isViolationTrackingActive = true;
   window.isInternalDialogActive = false;
   leftTimestamp = 0;
+  isProcessingViolation = false;
 
-  stopViolationTracking();
+  stopViolationTracking(); // Xóa sạch listener cũ
 
+  // KÍCH HOẠT THÔNG BÁO VI PHẠM AN TOÀN
+  const handleViolationTrigger = () => {
+    if (!window.isViolationTrackingActive || window.isInternalDialogActive || isProcessingViolation) return;
+    
+    isProcessingViolation = true;
+    triggerViolationNotification();
+    setTimeout(() => { isProcessingViolation = false; }, 1000);
+  };
+
+  // 1. Xử lý sự kiện ẩn/hiện trang (Mobile & Desktop Tab Switch)
   visibilityHandler = function () {
     if (!window.isViolationTrackingActive || window.isInternalDialogActive) return;
 
     if (document.hidden) {
       leftTimestamp = Date.now();
-    } else if (leftTimestamp > 0) {
-      const elapsed = Date.now() - leftTimestamp;
-      leftTimestamp = 0;
-
-      if (elapsed > 500) {
-        triggerViolationNotification();
+    } else {
+      // Khi mở lại trang
+      if (leftTimestamp > 0) {
+        leftTimestamp = 0;
+        handleViolationTrigger();
+      } else {
+        handleViolationTrigger();
       }
     }
   };
 
+  // 2. Xử lý sự kiện Mất Focus Cửa Sổ (Đặc trị cho Desktop: DevTools, Bấm ra ngoài App khác)
+  blurHandler = function () {
+    if (!window.isViolationTrackingActive || window.isInternalDialogActive) return;
+    handleViolationTrigger();
+  };
+
+  // 3. Xử lý sự kiện Thoát App trên điện thoại
   pageHideHandler = function () {
     if (!window.isViolationTrackingActive || window.isInternalDialogActive) return;
     leftTimestamp = Date.now();
   };
 
   document.addEventListener('visibilitychange', visibilityHandler);
+  window.addEventListener('blur', blurHandler);
   window.addEventListener('pagehide', pageHideHandler);
 }
 
 /**
- * THỰC HIỆN CẢNH BÁO HOẶC TỰ ĐỘNG NỘP BÀI KHI QUAY LẠI MÀN HÌNH
+ * THỰC HIỆN CẢNH BÁO HOẶC TỰ ĐỘNG NỘP BÀI KHI PHÁT HIỆN VI PHẠM
  */
 function triggerViolationNotification() {
   window.violationCount = (window.violationCount || 0) + 1;
   const count = window.violationCount;
 
+  // Đánh dấu mở Hộp thoại Hệ thống để ngắt tạm thời các event lặp lại
   window.isInternalDialogActive = true;
 
   if (count >= 3) {
@@ -153,10 +176,15 @@ export function stopViolationTracking() {
   window.isViolationTrackingActive = false;
   window.isInternalDialogActive = false;
   leftTimestamp = 0;
+  isProcessingViolation = false;
 
   if (visibilityHandler) {
     document.removeEventListener('visibilitychange', visibilityHandler);
     visibilityHandler = null;
+  }
+  if (blurHandler) {
+    window.removeEventListener('blur', blurHandler);
+    blurHandler = null;
   }
   if (pageHideHandler) {
     window.removeEventListener('pagehide', pageHideHandler);
