@@ -90,34 +90,29 @@ let leftTimestamp = 0;
 let visibilityHandler = null;
 let pageHideHandler = null;
 
-export function startViolationTracking() {
-  window.violationCount = 0;
+export function startViolationTracking(initialCount = 0) {
+  window.violationCount = Number(initialCount) || 0;
   window.isViolationTrackingActive = true;
   window.isInternalDialogActive = false;
   leftTimestamp = 0;
 
-  stopViolationTracking(); // Xóa sạch listener cũ trước khi tạo mới
+  stopViolationTracking();
 
-  // Xử lý sự kiện chuyển tab / ẩn màn hình
   visibilityHandler = function () {
     if (!window.isViolationTrackingActive || window.isInternalDialogActive) return;
 
     if (document.hidden) {
-      // Ghi nhận thời điểm sinh viên thoát màn hình / chuyển app
       leftTimestamp = Date.now();
     } else if (leftTimestamp > 0) {
-      // Sinh viên vừa mở lại ứng dụng -> Kiểm tra thời gian thoát
       const elapsed = Date.now() - leftTimestamp;
       leftTimestamp = 0;
 
-      // Tránh vi phạm giả do giật màn hình di động (< 500ms)
       if (elapsed > 500) {
         triggerViolationNotification();
       }
     }
   };
 
-  // Sự kiện dành riêng cho điện thoại khi thoát hẳn app / đóng tab
   pageHideHandler = function () {
     if (!window.isViolationTrackingActive || window.isInternalDialogActive) return;
     leftTimestamp = Date.now();
