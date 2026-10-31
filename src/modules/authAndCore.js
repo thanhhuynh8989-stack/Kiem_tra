@@ -88,59 +88,74 @@ window.isInternalDialogActive = false;
 
 let leftTimestamp = 0;
 let visibilityHandler = null;
+let blurHandler = null;
 let pageHideHandler = null;
+let isProcessingViolation = false;
 
-export function startViolationTracking() {
-  window.violationCount = 0;
+export function startViolationTracking(initialCount = 0) {
+  window.violationCount = Number(initialCount) || 0;
   window.isViolationTrackingActive = true;
   window.isInternalDialogActive = false;
   leftTimestamp = 0;
+  isProcessingViolation = false;
 
   stopViolationTracking(); // Xóa sạch listener cũ trước khi tạo mới
 
-  // Xử lý sự kiện chuyển tab / ẩn màn hình
+  const handleViolationTrigger = () => {
+    if (!window.isViolationTrackingActive || window.isInternalDialogActive || isProcessingViolation) return;
+    
+    isProcessingViolation = true;
+    triggerViolationNotification();
+    setTimeout(() => { isProcessingViolation = false; }, 600);
+  };
+
+  // 1. Xử lý sự kiện ẩn/hiện trang (Chuyển Tab trên Browser)
   visibilityHandler = function () {
     if (!window.isViolationTrackingActive || window.isInternalDialogActive) return;
 
     if (document.hidden) {
-      // Ghi nhận thời điểm sinh viên thoát màn hình / chuyển app
       leftTimestamp = Date.now();
+      handleViolationTrigger();
     } else if (leftTimestamp > 0) {
-      // Sinh viên vừa mở lại ứng dụng -> Kiểm tra thời gian thoát
-      const elapsed = Date.now() - leftTimestamp;
       leftTimestamp = 0;
-
-      // Tránh vi phạm giả do giật màn hình di động (< 500ms)
-      if (elapsed > 500) {
-        triggerViolationNotification();
-      }
+      handleViolationTrigger();
     }
   };
 
-  // Sự kiện dành riêng cho điện thoại khi thoát hẳn app / đóng tab
+  // 2. Xử lý sự kiện Mất Focus Cửa Sổ (Mở ứng dụng khác, Click ra ngoài màn hình Desktop)
+  blurHandler = function () {
+    if (!window.isViolationTrackingActive || window.isInternalDialogActive) return;
+    handleViolationTrigger();
+  };
+
+  // 3. Xử lý sự kiện Thoát App / Ẩn trang trên Điện thoại
   pageHideHandler = function () {
     if (!window.isViolationTrackingActive || window.isInternalDialogActive) return;
     leftTimestamp = Date.now();
+    handleViolationTrigger();
   };
 
   document.addEventListener('visibilitychange', visibilityHandler);
+  window.addEventListener('blur', blurHandler);
   window.addEventListener('pagehide', pageHideHandler);
 }
 
 /**
- * THỰC HIỆN CẢNH BÁO HOẶC TỰ ĐỘNG NỘP BÀI KHI QUAY LẠI MÀN HÌNH
+ * THỰC HIỆN CẢNH BÁO HOẶC TỰ ĐỘNG NỘP BÀI KHI PHÁT HIỆN VI PHẠM
  */
 function triggerViolationNotification() {
   window.violationCount = (window.violationCount || 0) + 1;
   const count = window.violationCount;
 
+  // Đánh dấu mở Hộp thoại Hệ thống để ngắt tạm thời các event lặp lại
   window.isInternalDialogActive = true;
 
   if (count >= 3) {
     alert('⚠️ BẠN ĐÃ VI PHẠM QUY CHẾ 3 LẦN! Hệ thống sẽ tự động nộp bài thi.');
-    window.isInternalDialogActive = false;
-    
     stopViolationTracking();
+    
+    setTimeout(() => { window.isInternalDialogActive = false; }, 500);
+
     if (typeof window.executeSubmitExam === 'function') {
       window.executeSubmitExam();
     }
@@ -150,7 +165,7 @@ function triggerViolationNotification() {
       `Bạn vừa rời khỏi màn hình làm bài thi.\n` +
       `Lưu ý: Rời màn hình quá 3 lần bài thi sẽ tự động nộp!`
     );
-    window.isInternalDialogActive = false;
+    setTimeout(() => { window.isInternalDialogActive = false; }, 500);
   }
 }
 
@@ -158,10 +173,15 @@ export function stopViolationTracking() {
   window.isViolationTrackingActive = false;
   window.isInternalDialogActive = false;
   leftTimestamp = 0;
+  isProcessingViolation = false;
 
   if (visibilityHandler) {
     document.removeEventListener('visibilitychange', visibilityHandler);
     visibilityHandler = null;
+  }
+  if (blurHandler) {
+    window.removeEventListener('blur', blurHandler);
+    blurHandler = null;
   }
   if (pageHideHandler) {
     window.removeEventListener('pagehide', pageHideHandler);
