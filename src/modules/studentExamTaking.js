@@ -19,9 +19,6 @@ export function resetExamSessionState() {
   }
 }
 
-// =========================================================================
-// 1. THUẬT TOÁN XÁO TRỘN NGUYÊN TẮC FISHER-YATES
-// =========================================================================
 function shuffleArray(arr) {
   const array = [...arr];
   for (let i = array.length - 1; i > 0; i--) {
@@ -32,7 +29,7 @@ function shuffleArray(arr) {
 }
 
 // =========================================================================
-// 2. DRAFT MANAGER (LƯU BÀI DỞ, BỐ CỤC XÁO TRỘN & SỐ LẦN VI PHẠM VÀO LOCAL STORAGE)
+// DRAFT MANAGER (KHÔI PHỤC BÀI THI DỞ & LƯU SỐ LẦN VI PHẠM)
 // =========================================================================
 export const ExamDraftManager = {
   getDraftKey(username, examId) {
@@ -66,69 +63,35 @@ export const ExamDraftManager = {
   }
 };
 
-// =========================================================================
-// 3. QUY ĐỔI ĐỒNG BỘ 2 CHIỀU CHỮ (A,B,C,D) VÀ CHỈ SỐ SỐ (0,1,2,3)
-// =========================================================================
 function normalizeChoice(val) {
   if (val === undefined || val === null) return { letter: '', index: '' };
   const str = String(val).trim().toUpperCase();
-  
   const letterToIdx = { 'A': '0', 'B': '1', 'C': '2', 'D': '3' };
   const idxToLetter = { '0': 'A', '1': 'B', '2': 'C', '3': 'D' };
 
-  if (letterToIdx[str] !== undefined) {
-    return { letter: str, index: letterToIdx[str] };
-  }
-  if (idxToLetter[str] !== undefined) {
-    return { letter: idxToLetter[str], index: str };
-  }
+  if (letterToIdx[str] !== undefined) return { letter: str, index: letterToIdx[str] };
+  if (idxToLetter[str] !== undefined) return { letter: idxToLetter[str], index: str };
   return { letter: str, index: str };
 }
 
 // =========================================================================
-// 4. BẢNG ĐIỀU KHIỂN & BÀI THI CỦA SINH VIÊN (STUDENT DASHBOARD)
+// DASHBOARD VÀ BÀI THI SINH VIÊN
 // =========================================================================
 export async function handleLoadStudentDashboard() {
   const container = document.getElementById('studentExamContainer');
   if (!container) return;
 
-  if (typeof renderStudentHeaderInfo === 'function') {
-    renderStudentHeaderInfo();
-  }
-
   let studentCode = getLoggedInUsername();
-  
-  if (!studentCode || studentCode === '--' || studentCode === 'N/A') {
-    try {
-      const raw = sessionStorage.getItem('currentUser') || localStorage.getItem('currentUser');
-      if (raw) {
-        const u = JSON.parse(raw);
-        studentCode = String(u.studentCode || u.username || u.code || u.user || '').trim();
-      }
-    } catch(e) {}
-  }
-
   if (!studentCode || studentCode === '--') {
-    container.innerHTML = `
-      <div style="text-align:center; padding:24px; background:#fff; border-radius:10px; border:1px solid #fca5a5;">
-        <p style="color:#dc2626; font-weight:700; font-size:14px; margin:0 0 8px 0;">⚠️ Không tìm thấy phiên đăng nhập của Sinh viên!</p>
-        <p style="color:#64748b; font-size:12px; margin:0 0 12px 0;">Vui lòng nhấn Đăng xuất và đăng nhập lại tài khoản Sinh viên.</p>
-        <button type="button" onclick="location.reload()" style="background:#2563eb; color:#fff; border:none; padding:6px 16px; border-radius:6px; cursor:pointer; font-size:12px;">🔄 Tải lại trang</button>
-      </div>
-    `;
+    container.innerHTML = `<p style="color:#ef4444; padding:12px;">⚠️ Chưa xác thực được tài khoản sinh viên.</p>`;
     return;
   }
 
   container.innerHTML = '<p style="color:#2563eb; font-size:13px; padding:12px;">🔄 Đang nạp danh sách bài thi...</p>';
 
   try {
-    const res = await appsScriptService.request('GET_STUDENT_EXAMS', { 
-      username: studentCode,
-      studentCode: studentCode
-    });
-    
-    const exams = res.exams || res.data || [];
-    renderStudentDashboard(exams);
+    const res = await appsScriptService.request('GET_STUDENT_EXAMS', { username: studentCode, studentCode: studentCode });
+    renderStudentDashboard(res.exams || res.data || []);
   } catch (err) {
     container.innerHTML = `<p style="color:#ef4444; font-size:13px; padding:12px;">⚠️ Lỗi nạp bài thi: ${escapeHtml(err.message)}</p>`;
   }
@@ -177,9 +140,6 @@ export function renderStudentDashboard(exams = []) {
   container.innerHTML = html;
 }
 
-// =========================================================================
-// 5. KHỞI TẠO BÀI THI & XÁO TRỘN ĐỀ THI AN TOÀN
-// =========================================================================
 export async function handleStartTakeExam(examId, examCode = '') {
   stopViolationTracking();
 
@@ -246,9 +206,6 @@ export async function handleStartTakeExam(examId, examCode = '') {
   }
 }
 
-// =========================================================================
-// 6. MÀN HÌNH LÀM BÀI VÀ MAPPING KHÓA DUY NHẤT
-// =========================================================================
 export function renderTakeExamScreen(examId, fileName, shuffledQuestions, savedAnswers = {}, totalSeconds = 2700, initialViolationCount = 0) {
   const container = document.getElementById('studentExamContainer');
   if (!container) return;
@@ -310,7 +267,6 @@ export function renderTakeExamScreen(examId, fileName, shuffledQuestions, savedA
     ExamDraftManager.saveDraft(username, eId, currentAnswers, remainingSeconds, shuffledQuestions, window.violationCount || 0);
   };
 
-  // Kích hoạt giám sát vi phạm với số lần vi phạm khởi tạo từ bản nháp
   startViolationTracking(initialViolationCount);
 
   const timerEl = document.getElementById('examTimerDisplay');
@@ -338,9 +294,6 @@ export function renderTakeExamScreen(examId, fileName, shuffledQuestions, savedA
   window.currentActiveExamId = examId;
 }
 
-// =========================================================================
-// 7. XỬ LÝ NỘP BÀI THI KHI ẤN XÁC NHẬN (CÓ CẢNH BÁO CÂU CHƯA LÀM)
-// =========================================================================
 export async function handleConfirmSubmitExam(examId, totalQuestions) {
   const username = getLoggedInUsername();
   const draft = ExamDraftManager.getDraft(username, examId);
@@ -363,9 +316,6 @@ export async function handleConfirmSubmitExam(examId, totalQuestions) {
   }
 }
 
-// =========================================================================
-// 8. HÀM CHUYỂN DỮ LIỆU NỘP VỀ BACKEND CHẤM ĐIỂM (SERVER-SIDE GRADING)
-// =========================================================================
 export async function executeSubmitExam(
   examId = window.currentActiveExamId, 
   questions = window.currentActiveQuestionsForExam || [], 
@@ -406,15 +356,12 @@ export async function executeSubmitExam(
       loggedUser = JSON.parse(sessionStorage.getItem('currentUser') || localStorage.getItem('currentUser') || '{}');
     } catch(e) {}
 
-    const studentName = loggedUser.fullName || loggedUser.name || username;
-    const studentClass = loggedUser.className || loggedUser.class || '';
-
     const payload = {
       examId: shortExamId, 
       username: username,
       studentCode: username,
-      studentName: studentName,
-      studentClass: studentClass,
+      studentName: loggedUser.fullName || loggedUser.name || username,
+      studentClass: loggedUser.className || loggedUser.class || '',
       answers: cleanAnswersMap,
       totalQuestions: activeQuestions.length,
       violationInfo: {
@@ -446,11 +393,7 @@ export async function executeSubmitExam(
       `Số câu đã làm: ${answeredCount}/${totalQ}`
     );
     
-    if (typeof handleLoadStudentDashboard === 'function') {
-      handleLoadStudentDashboard();
-    } else if (typeof window.handleLoadStudentDashboard === 'function') {
-      window.handleLoadStudentDashboard();
-    }
+    handleLoadStudentDashboard();
 
   } catch (err) {
     hideAppLoading();
@@ -458,9 +401,6 @@ export async function executeSubmitExam(
   }
 }
 
-// =========================================================================
-// 9. XEM LẠI BÀI THI ĐÃ NỘP (SUBMISSION REVIEW)
-// =========================================================================
 export async function handleReviewSubmittedExam(examId, examCode = '') {
   const username = getLoggedInUsername();
   showAppLoading('🔍 Đang tải bài làm đã nộp...');
