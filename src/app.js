@@ -70,8 +70,9 @@ export function switchTab(tabId) {
   } else if (targetTab === 'tab-students') {
     handleLoadStudentManagement();
   } else if (targetTab === 'tab-parser') {
-    const parserContent = document.getElementById('questionsEditorList') || document.getElementById('examEditorContainer');
-    if (parserContent && !parserContent.innerHTML.trim()) {
+    // SỬA TẠI ĐÂY: Render lại giao diện Upload nếu chưa có danh sách câu hỏi đang mở biên tập
+    const questionsEditorList = document.getElementById('questionsEditorList');
+    if (!questionsEditorList || !questionsEditorList.children.length) {
       renderDefaultUploadScreen();
     }
   } else if (targetTab === 'tab-student-exams') {
