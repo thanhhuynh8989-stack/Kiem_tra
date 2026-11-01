@@ -116,6 +116,14 @@ export function renderStudentDashboard(exams = []) {
     exams.forEach(ex => {
       const hasScore = ex.score !== null && ex.score !== undefined && ex.score !== '';
       const isCompleted = ex.isCompleted || hasScore;
+
+      // ⚡ TỰ ĐỘNG XÓA BẢN NHÁP VÀ RESET VI PHẠM NẾU BẢNG ĐIỂM VỪA ĐƯỢC GIẢNG VIÊN RESET
+      if (ex.wasReset) {
+        ExamDraftManager.clearDraft(username, ex.examId);
+        ExamDraftManager.clearDraft(username, ex.examCode);
+      }
+
+      // Kiểm tra nháp sau khi đã xử lý xóa nháp tự động
       const draft = ExamDraftManager.getDraft(username, ex.examId) || ExamDraftManager.getDraft(username, ex.examCode);
       const hasDraft = !isCompleted && draft && Object.keys(draft.answers || {}).length > 0;
 
