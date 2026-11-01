@@ -147,7 +147,7 @@ export function showViolationModal(count, onConfirm) {
 }
 
 // =========================================================================
-// 4. THEO DÕI VI PHẠM QUY CHẾ THI (VIOLATION TRACKER ENGINE - SỬA LỖI ĐẢO VỊ TRÍ)
+// 4. THEO DÕI VI PHẠM QUY CHẾ THI & CHIA ĐÔI MÀN HÌNH (AUTH & CORE ENGINE)
 // =========================================================================
 window.violationCount = 0;
 window.isViolationTrackingActive = false;
@@ -157,18 +157,25 @@ let leftTimestamp = 0;
 let visibilityHandler = null;
 let blurHandler = null;
 let pageHideHandler = null;
+let resizeHandler = null; // 👈 BỔ SUNG HANDLER BẮT CHIA ĐÔI MÀN HÌNH
 let isProcessingViolation = false;
+
+let initialScreenWidth = window.innerWidth;
+let initialScreenHeight = window.innerHeight;
 
 export function startViolationTracking(initialCount = 0) {
   // 1. HỦY TẤT CẢ LISTENER CŨ TRƯỚC KHI THIẾT LẬP MỚI
   stopViolationTracking();
 
-  // 2. KHỞI TẠO CÁC BIẾN THEO DÕI (ĐẶT SAU STOP)
+  // 2. KHỞI TẠO CÁC BIẾN THEO DÕI
   window.violationCount = Number(initialCount) || 0;
   window.isViolationTrackingActive = true;
   window.isInternalDialogActive = false;
   leftTimestamp = 0;
   isProcessingViolation = false;
+
+  initialScreenWidth = window.innerWidth;
+  initialScreenHeight = window.innerHeight;
 
   const handleViolationTrigger = () => {
     if (!window.isViolationTrackingActive || window.isInternalDialogActive || isProcessingViolation) return;
@@ -178,6 +185,7 @@ export function startViolationTracking(initialCount = 0) {
     setTimeout(() => { isProcessingViolation = false; }, 800);
   };
 
+  // TH1: Chuyển Tab hoặc Ẩn Trình Duyệt
   visibilityHandler = function () {
     if (!window.isViolationTrackingActive || window.isInternalDialogActive) return;
 
@@ -190,20 +198,39 @@ export function startViolationTracking(initialCount = 0) {
     }
   };
 
+  // TH2: Mất tiêu điểm (Click sang ứng dụng khác / cửa sổ song song khi chia đôi PC)
   blurHandler = function () {
     if (!window.isViolationTrackingActive || window.isInternalDialogActive) return;
     handleViolationTrigger();
   };
 
+  // TH3: Thoát hoặc chuyển trang
   pageHideHandler = function () {
     if (!window.isViolationTrackingActive || window.isInternalDialogActive) return;
     leftTimestamp = Date.now();
     handleViolationTrigger();
   };
 
+  // TH4: Chia đôi màn hình trên Điện thoại hoặc Thu nhỏ trình duyệt trên PC
+  resizeHandler = function () {
+    if (!window.isViolationTrackingActive || window.isInternalDialogActive) return;
+
+    const currentWidth = window.innerWidth;
+    const currentHeight = window.innerHeight;
+
+    // Thu nhỏ chiều rộng > 30% (PC Chia đôi màn hình) hoặc giảm chiều cao > 35% (Mobile Chia đôi app)
+    const isWidthSplit = currentWidth < (screen.availWidth * 0.7);
+    const isHeightSplit = currentHeight < (initialScreenHeight * 0.65);
+
+    if (isWidthSplit || isHeightSplit) {
+      handleViolationTrigger();
+    }
+  };
+
   document.addEventListener('visibilitychange', visibilityHandler);
   window.addEventListener('blur', blurHandler);
   window.addEventListener('pagehide', pageHideHandler);
+  window.addEventListener('resize', resizeHandler); // 👈 ĐĂNG KÝ BẮT CHIA ĐÔI MÀN HÌNH
 }
 
 function triggerViolationNotification() {
@@ -239,6 +266,10 @@ export function stopViolationTracking() {
   if (pageHideHandler) {
     window.removeEventListener('pagehide', pageHideHandler);
     pageHideHandler = null;
+  }
+  if (resizeHandler) {
+    window.removeEventListener('resize', resizeHandler); // 👈 HỦY LẮNG NGHE RESIZE
+    resizeHandler = null;
   }
 }
 
