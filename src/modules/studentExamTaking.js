@@ -9,6 +9,9 @@ import {
   escapeHtml 
 } from './authAndCore.js';
 
+import { saveExamDraftToLocal, exportEmergencyFile } from './offlineExamEngine.js';
+
+
 // =========================================================================
 // RESET SẠCH BỘ NHỚ ĐÁP ÁN TRƯỚC KHI VÀO THI
 // =========================================================================
