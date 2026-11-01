@@ -327,29 +327,45 @@ export async function handleConfirmSubmitExam(examId, totalQuestions) {
   }
 }
 
+/**
+ * HÀM NỘP BÀI THI & CHẤM ĐIỂM TẠI SERVER
+ * Support linh hoạt tham số và đồng bộ dữ liệu toàn cục
+ */
 export async function executeSubmitExam(
-  examId = window.currentActiveExamId, 
-  questions = window.currentActiveQuestionsForExam || [], 
-  answers = window.currentActiveAnswersForExam || {}
+  examId = (window.currentActiveExamId || window.currentExamId), 
+  questions = (window.currentActiveQuestionsForExam || window.currentExamQuestions || []), 
+  answers = (window.currentActiveAnswersForExam || window.currentStudentAnswers || {}),
+  customReason = null,
+  customAutoSubmitted = null
 ) {
   showAppLoading('⏳ Đang tính điểm & gửi bài...');
-  stopViolationTracking();
+
+  // 1. TẮT THEO DÕI VI PHẠM AN TOÀN
+  if (typeof stopViolationTracking === 'function') {
+    stopViolationTracking();
+  } else if (typeof window.stopViolationTracking === 'function') {
+    window.stopViolationTracking();
+  }
 
   try {
-    const username = getLoggedInUsername();
+    // 2. LẤY MÃ ĐỀ & CHUẨN HÓA SHORT EXAM ID
+    const username = typeof getLoggedInUsername === 'function' 
+      ? getLoggedInUsername() 
+      : (window.getLoggedInUsername ? window.getLoggedInUsername() : '');
 
-    let shortExamId = String(examId || '').trim().toLowerCase()
-      .replace(/\.json$/i, '').replace(/^exams\//i, '');
+    let rawExamId = String(examId || window.currentActiveExamId || window.currentExamId || '').trim();
+    let shortExamId = rawExamId.toLowerCase().replace(/\.json$/i, '').replace(/^exams\//i, '');
     const matchHex = shortExamId.match(/(exam_[a-f0-9]{8})/i);
     if (matchHex) shortExamId = matchHex[1].toLowerCase();
 
+    // 3. LỌC VÀ CHUẨN HÓA ĐÁP ÁN DẠNG MAP
     const activeQuestions = (Array.isArray(questions) && questions.length > 0) 
       ? questions 
-      : (window.currentActiveQuestionsForExam || []);
+      : (window.currentActiveQuestionsForExam || window.currentExamQuestions || []);
 
-    const rawAnswers = (answers && Object.keys(answers).length > 0) 
+    const rawAnswers = (answers && typeof answers === 'object' && Object.keys(answers).length > 0) 
       ? answers 
-      : (window.currentActiveAnswersForExam || {});
+      : (window.currentActiveAnswersForExam || window.currentStudentAnswers || {});
 
     const cleanAnswersMap = {};
     Object.keys(rawAnswers).forEach(key => {
@@ -362,10 +378,27 @@ export async function executeSubmitExam(
       }
     });
 
+    // 4. LẤY THÔNG TIN USER ĐĂNG NHẬP
     let loggedUser = {};
-    try {
-      loggedUser = JSON.parse(sessionStorage.getItem('currentUser') || localStorage.getItem('currentUser') || '{}');
-    } catch (e) {}
+    if (typeof getLoggedInUser === 'function') {
+      loggedUser = getLoggedInUser() || {};
+    } else {
+      try {
+        loggedUser = JSON.parse(sessionStorage.getItem('currentUser') || localStorage.getItem('currentUser') || '{}');
+      } catch (e) {}
+    }
+
+    // 5. TRÍCH XUẤT THÔNG TIN VI PHẠM & LÝ DO NỘP BÀI
+    const violationCount = Number(window.violationCount) || 0;
+    const isAutoSubmitted = customAutoSubmitted !== null 
+      ? Boolean(customAutoSubmitted) 
+      : violationCount >= 3;
+
+    const reason = customReason || (
+      isAutoSubmitted 
+        ? 'Tự động nộp do vi phạm quy chế (quá 3 lần)' 
+        : 'Nộp bài thi'
+    );
 
     const payload = {
       examId: shortExamId, 
@@ -376,22 +409,36 @@ export async function executeSubmitExam(
       answers: cleanAnswersMap,
       totalQuestions: activeQuestions.length,
       violationInfo: {
-        violationCount: window.violationCount || 0,
-        isAutoSubmitted: (window.violationCount || 0) >= 3,
-        reason: (window.violationCount || 0) >= 3 ? 'Tự động nộp do vi phạm quy chế' : 'Nộp bài thi'
+        violationCount: violationCount,
+        isAutoSubmitted: isAutoSubmitted,
+        reason: reason
       }
     };
 
+    // 6. GỬI YÊU CẦU NỘP BÀI LÊN SERVER
     const res = await appsScriptService.request('SUBMIT_EXAM', payload);
 
-    resetExamSessionState();
+    // KIỂM TRA LỖI TỪ SERVER TRƯỚC KHI XÓA BẢN NHÁP
+    if (res && res.status === 'error') {
+      throw new Error(res.message || 'Lỗi xác thực từ Server khi chấm bài!');
+    }
+
+    // 7. XÓA BẢN NHÁP VÀ RESET TRẠNG THÁI BÀI THI KHI NỘP THÀNH CÔNG
+    if (typeof resetExamSessionState === 'function') {
+      resetExamSessionState();
+    } else if (typeof window.resetExamSessionState === 'function') {
+      window.resetExamSessionState();
+    }
+
     if (typeof ExamDraftManager !== 'undefined') {
-      ExamDraftManager.clearDraft(username, examId);
+      ExamDraftManager.clearDraft(username, rawExamId);
       ExamDraftManager.clearDraft(username, shortExamId);
+      ExamDraftManager.clearDraft(username, `${shortExamId}.json`);
     }
 
     hideAppLoading();
 
+    // 8. THÔNG BÁO KẾT QUẢ VÀ TRẢ VỀ DASHBOARD
     const finalGrade = res.finalGrade !== undefined ? res.finalGrade : (res.score !== undefined ? res.score : 0);
     const correctCount = res.correctCount !== undefined ? res.correctCount : 0;
     const answeredCount = res.answeredCount !== undefined ? res.answeredCount : Object.keys(cleanAnswersMap).length;
@@ -404,11 +451,18 @@ export async function executeSubmitExam(
       `Số câu đã làm: ${answeredCount}/${totalQ}`
     );
     
-    handleLoadStudentDashboard();
+    // TẢI LẠI TRANG DANH SÁCH BÀI THI
+    if (typeof handleLoadStudentDashboard === 'function') {
+      handleLoadStudentDashboard();
+    } else if (typeof window.handleLoadStudentDashboard === 'function') {
+      window.handleLoadStudentDashboard();
+    } else if (typeof window.switchTab === 'function') {
+      window.switchTab('tab-student-exams');
+    }
 
   } catch (err) {
     hideAppLoading();
-    alert(`Lỗi nộp bài: ${err.message}`);
+    alert(`❌ Lỗi nộp bài: ${err.message}`);
   }
 }
 
