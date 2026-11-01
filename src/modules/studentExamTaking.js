@@ -584,7 +584,7 @@ export async function handleReviewSubmittedExam(arg1, arg2 = '', arg3 = '') {
  * 2. HÀM RENDER KHUNG BÀI LÀM CHI TIẾT
  */
 export function renderExamReviewUI(data) {
-  // Hỗ trợ truyền dạng Object linh hoạt hoặc tham số đơn lẻ cũ
+  // 1. CHUẨN HÓA DỮ LIỆU ĐẦU VÀO
   const config = (typeof data === 'object' && data !== null && !Array.isArray(data)) ? data : {
     fileName: arguments[0],
     questions: arguments[1] || [],
@@ -607,17 +607,36 @@ export function renderExamReviewUI(data) {
     isLecturerView = false
   } = config;
 
-  // Tự động tìm Container linh hoạt (Ưu tiên Bảng điểm nếu là Giảng viên)
-  const container = document.getElementById('submissionsContainer') || 
-                    document.getElementById('studentExamContainer') || 
-                    document.getElementById('mainContentArea');
+  // 2. PHÂN LUỒNG VÀ CHỌN ĐÚNG CONTAINER THEO VAI TRÒ
+  let container = null;
+  const submissionsEl = document.getElementById('submissionsContainer');
+  const studentExamEl = document.getElementById('studentExamContainer');
+  const lecturerDashEl = document.getElementById('lecturerDashboardContainer');
+
+  if (isLecturerView) {
+    // Trường hợp GIẢNG VIÊN xem bài -> Đổ vào submissionsContainer
+    container = submissionsEl || lecturerDashEl;
+    if (lecturerDashEl && container !== lecturerDashEl) {
+      lecturerDashEl.style.display = 'none'; // Ẩn danh sách đề thi chính
+    }
+  } else {
+    // Trường hợp SINH VIÊN xem lại bài -> Đổ vào studentExamContainer
+    container = studentExamEl;
+    if (submissionsEl) submissionsEl.style.display = 'none';
+  }
+
+  if (!container) container = document.getElementById('mainContentArea');
   if (!container) return;
 
-  // Xác định sự kiện cho Nút Quay Lại
+  // 🔑 QUAN TRỌNG: BẮT BUỘC BẬT CONTAINER HIỂN THỊ TRÊN MÀN HÌNH (0ms Delay)
+  container.style.display = 'block';
+
+  // 3. XÁC ĐỊNH SỰ KIỆN QUAY LẠI
   const backAction = isLecturerView 
     ? `handleViewExamSubmissions('${escapeHtml(examId)}')` 
     : `handleLoadStudentDashboard()`;
 
+  // 4. TẠO GIAO DIỆN HTML BÀI LÀM
   let html = `
     <div style="background:#fff; border-radius:10px; padding:16px; border:1px solid var(--border, #cbd5e1); margin-top:10px;">
       
@@ -645,7 +664,7 @@ export function renderExamReviewUI(data) {
         </div>
       </div>
 
-      <!-- DANH SÁCH CÂU HỎI VÀ ĐÁP ÁN -->
+      <!-- DANH SÁCH CÂU HỎI VÀ ĐÁP ÁN CHI TIẾT -->
       <div>
         ${questions.map((q, idx) => {
           const qId = String(q.id || (idx + 1));
@@ -674,7 +693,6 @@ export function renderExamReviewUI(data) {
                   const isKey = (keyAnsNorm.letter === letter || keyAnsNorm.index === String(oIdx));
                   const isStudentChoice = (userAnsNorm.letter === letter || userAnsNorm.index === String(oIdx));
 
-                  // Nhãn phân biệt khi GV xem hoặc SV xem
                   let labelNote = '';
                   if (isKey) labelNote = ' (Đáp án đúng)';
                   if (isStudentChoice) {
