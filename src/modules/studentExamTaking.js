@@ -466,49 +466,162 @@ export async function executeSubmitExam(
   }
 }
 
-export async function handleReviewSubmittedExam(examId, examCode = '') {
-  const username = getLoggedInUsername();
+/**
+ * 1. HÀM TẢI DỮ LIỆU & XỬ LÝ XEM LẠI BÀI THI (HỖ TRỢ CẢ GV VÀ SV)
+ */
+export async function handleReviewSubmittedExam(examId, targetStudentCode = '', examCode = '') {
+  const currentUsername = getLoggedInUsername();
+  // Nếu không truyền targetStudentCode thì mặc định lấy tài khoản đang đăng nhập (dành cho SV)
+  const studentCodeToFetch = String(targetStudentCode || currentUsername).trim();
+
+  if (!examId || !studentCodeToFetch) {
+    alert('⚠️ Thiếu thông tin Mã đề thi hoặc Mã sinh viên để xem bài làm!');
+    return;
+  }
+
   showAppLoading('🔍 Đang tải bài làm đã nộp...');
 
   try {
-    let rawName = String(examCode || examId).trim();
+    let cleanExamId = String(examId).trim().toLowerCase().replace(/\.json$/i, '').replace(/^exams\//i, '');
+    let rawName = String(examCode || cleanExamId).trim();
     if (rawName.includes('-')) rawName = rawName.split('-')[0];
     if (!rawName.endsWith('.json')) rawName = `${rawName}.json`;
 
-    const filePath = `exams/${rawName}`;
-    const cdnUrl = `https://raw.githubusercontent.com/thanhhuynh8989-stack/Kiem_tra/main/${filePath}?v=${Date.now()}`;
-    
-    const resExam = await fetch(cdnUrl);
-    const examData = await resExam.json();
-    const questions = examData.questions || examData;
+    // A. TẢI ĐỀ THI GỐC (CÓ CHỐNG LỖI 404 CDN GITHUB)
+    let questions = [];
+    let examTitle = rawName;
 
-    const resSub = await appsScriptService.request('GET_SUBMISSION_DETAIL', { examId, username });
+    try {
+      const fileUrl = `https://raw.githubusercontent.com/thanhhuynh8989-stack/Kiem_tra/main/exams/${cleanExamId}.json?v=${Date.now()}`;
+      const fetchRes = await fetch(fileUrl);
+      
+      if (fetchRes.ok) {
+        const textData = await fetchRes.text();
+        if (textData.trim().startsWith('{') || textData.trim().startsWith('[')) {
+          const examJson = JSON.parse(textData);
+          questions = examJson.questions || examJson || [];
+          examTitle = examJson.title || rawName;
+        }
+      } else {
+        // Dự phòng lấy đề thi từ Apps Script nếu CDN lỗi 404
+        const serverExam = await appsScriptService.request('GET_EXAM_DETAIL', { examId: cleanExamId });
+        if (serverExam && serverExam.status === 'success' && serverExam.examData) {
+          questions = serverExam.examData.questions || serverExam.examData || [];
+          examTitle = serverExam.examData.title || rawName;
+        }
+      }
+    } catch (e) {
+      console.warn('⚠️ Lỗi nạp đề thi CDN, chuyển sang chế độ dự phòng:', e);
+    }
+
+    // B. LẤY CHI TIẾT BÀI NỘP CỦA CHÍNH SINH VIÊN ĐÓ TỪ SERVER
+    const subRes = await appsScriptService.request('GET_SUBMISSION_DETAIL', { 
+      examId: cleanExamId, 
+      studentCode: studentCodeToFetch,
+      username: studentCodeToFetch 
+    });
+
     hideAppLoading();
 
-    renderExamReviewUI(rawName, questions, resSub.answers || {}, resSub.score, resSub.submittedAt);
+    if (!subRes || subRes.status === 'error') {
+      alert(`❌ Lỗi: ${subRes?.message || 'Không tìm thấy dữ liệu bài nộp của sinh viên này!'}`);
+      return;
+    }
+
+    // C. PHÂN TÍCH NẠP ĐÁP ÁN AN TOÀN
+    let studentAnswers = {};
+    if (typeof subRes.answers === 'object' && subRes.answers !== null) {
+      studentAnswers = subRes.answers;
+    } else if (typeof subRes.answers === 'string') {
+      try { studentAnswers = JSON.parse(subRes.answers); } catch (e) { studentAnswers = {}; }
+    }
+
+    // D. GỌI RENDER GIAO DIỆN
+    renderExamReviewUI({
+      examId: cleanExamId,
+      fileName: examTitle,
+      questions: questions,
+      studentAnswers: studentAnswers,
+      score: subRes.score !== undefined ? subRes.score : 0,
+      submittedAt: subRes.submittedAt || '--',
+      studentCode: subRes.studentCode || studentCodeToFetch,
+      studentName: subRes.studentName || subRes.fullName || studentCodeToFetch,
+      studentClass: subRes.studentClass || subRes.className || '',
+      isLecturerView: (currentUsername.toLowerCase() !== studentCodeToFetch.toLowerCase())
+    });
+
   } catch (err) {
     hideAppLoading();
-    alert(`Lỗi: ${err.message}`);
+    alert(`❌ Lỗi: ${err.message}`);
   }
 }
 
-export function renderExamReviewUI(fileName, questions, studentAnswers, score, submittedAt) {
-  const container = document.getElementById('studentExamContainer');
+/**
+ * 2. HÀM RENDER KHUNG BÀI LÀM CHI TIẾT
+ */
+export function renderExamReviewUI(data) {
+  // Hỗ trợ truyền dạng Object linh hoạt hoặc tham số đơn lẻ cũ
+  const config = (typeof data === 'object' && data !== null && !Array.isArray(data)) ? data : {
+    fileName: arguments[0],
+    questions: arguments[1] || [],
+    studentAnswers: arguments[2] || {},
+    score: arguments[3] || 0,
+    submittedAt: arguments[4] || '--',
+    isLecturerView: false
+  };
+
+  const {
+    examId = '',
+    fileName = '',
+    questions = [],
+    studentAnswers = {},
+    score = 0,
+    submittedAt = '--',
+    studentCode = '',
+    studentName = '',
+    studentClass = '',
+    isLecturerView = false
+  } = config;
+
+  // Tự động tìm Container linh hoạt (Ưu tiên Bảng điểm nếu là Giảng viên)
+  const container = document.getElementById('submissionsContainer') || 
+                    document.getElementById('studentExamContainer') || 
+                    document.getElementById('mainContentArea');
   if (!container) return;
 
+  // Xác định sự kiện cho Nút Quay Lại
+  const backAction = isLecturerView 
+    ? `handleViewExamSubmissions('${escapeHtml(examId)}')` 
+    : `handleLoadStudentDashboard()`;
+
   let html = `
-    <div style="background:#fff; border-radius:10px; padding:16px; border:1px solid var(--border);">
-      <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px; margin-bottom:16px; background:#f8fafc; padding:12px; border-radius:8px;">
+    <div style="background:#fff; border-radius:10px; padding:16px; border:1px solid var(--border, #cbd5e1); margin-top:10px;">
+      
+      <!-- HEADER THÔNG TIN BÀI LÀM -->
+      <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px; margin-bottom:16px; background:#f8fafc; padding:14px; border-radius:8px; border:1px solid #e2e8f0;">
         <div>
-          <h4 style="margin:0;">👁️ Bài làm: ${escapeHtml(fileName)}</h4>
-          <small style="color:var(--text-muted);">Nộp lúc: ${submittedAt || '--'}</small>
+          <h4 style="margin:0 0 4px 0; color:#0f172a; font-size:16px;">👁️ Bài làm: ${escapeHtml(fileName)}</h4>
+          ${studentCode ? `
+            <div style="font-size:13px; color:#334155; margin-top:2px;">
+              👤 Sinh viên: <strong>${escapeHtml(studentName)}</strong> (${escapeHtml(studentCode)}) 
+              ${studentClass ? `| Lớp: <strong>${escapeHtml(studentClass)}</strong>` : ''}
+            </div>
+          ` : ''}
+          <small style="color:#64748b; font-size:12px;">🕒 Thời gian nộp: ${escapeHtml(submittedAt)}</small>
         </div>
-        <div style="display:flex; align-items:center; gap:10px;">
-          <strong style="font-size:18px; color:#15803d;">${score} / 10</strong>
-          <button type="button" onclick="handleLoadStudentDashboard()" style="min-height:32px; padding:4px 10px; font-size:12px; background:#64748b; color:#fff; border:none; border-radius:6px; cursor:pointer;">↩️ Quay lại</button>
+
+        <div style="display:flex; align-items:center; gap:12px;">
+          <div style="text-align:right;">
+            <div style="font-size:11px; color:#64748b; text-transform:uppercase; font-weight:600;">Điểm số</div>
+            <strong style="font-size:20px; color:#16a34a;">${score} / 10</strong>
+          </div>
+          <button type="button" onclick="${backAction}" style="padding:8px 14px; font-size:13px; background:#64748b; color:#fff; border:none; border-radius:6px; cursor:pointer; font-weight:600;">
+            ↩️ Quay lại
+          </button>
         </div>
       </div>
 
+      <!-- DANH SÁCH CÂU HỎI VÀ ĐÁP ÁN -->
       <div>
         ${questions.map((q, idx) => {
           const qId = String(q.id || (idx + 1));
@@ -521,20 +634,35 @@ export function renderExamReviewUI(fileName, questions, studentAnswers, score, s
           const isCorrect = userAnsNorm.letter !== '' && (userAnsNorm.letter === keyAnsNorm.letter || userAnsNorm.index === keyAnsNorm.index);
 
           return `
-            <div style="border:2px solid ${isCorrect ? '#86efac' : (userAnsNorm.letter ? '#fca5a5' : '#cbd5e1')}; border-radius:8px; padding:12px; margin-bottom:12px;">
-              <div style="display:flex; justify-content:space-between; margin-bottom:6px;">
-                <strong>Câu ${idx + 1}:</strong>
-                <span style="font-size:12px; font-weight:700; color:${isCorrect ? '#15803d' : '#dc2626'};">${isCorrect ? '✅ Đúng' : '❌ Sai'}</span>
+            <div style="border:2px solid ${isCorrect ? '#86efac' : (userAnsNorm.letter ? '#fca5a5' : '#cbd5e1')}; border-radius:8px; padding:14px; margin-bottom:14px; background:#fff;">
+              <div style="display:flex; justify-content:space-between; margin-bottom:8px; align-items:center;">
+                <strong style="color:#0f172a; font-size:14px;">Câu ${idx + 1}:</strong>
+                <span style="font-size:12px; font-weight:700; padding:2px 8px; border-radius:12px; background:${isCorrect ? '#dcfce7' : '#fee2e2'}; color:${isCorrect ? '#15803d' : '#dc2626'};">
+                  ${isCorrect ? '✅ Đúng' : (userAnsNorm.letter ? '❌ Sai' : '⚠️ Chưa làm')}
+                </span>
               </div>
-              <div style="margin-bottom:8px; font-size:13px;">${escapeHtml(q.stem || q.text || '')}</div>
-              <div style="display:flex; flex-direction:column; gap:4px;">
+
+              <div style="margin-bottom:10px; font-size:13px; color:#1e293b; line-height:1.5;">${escapeHtml(q.stem || q.text || '')}</div>
+
+              <div style="display:flex; flex-direction:column; gap:6px;">
                 ${(q.options || []).map((opt, oIdx) => {
                   const letter = String.fromCharCode(65 + oIdx);
                   const isKey = (keyAnsNorm.letter === letter || keyAnsNorm.index === String(oIdx));
                   const isStudentChoice = (userAnsNorm.letter === letter || userAnsNorm.index === String(oIdx));
+
+                  // Nhãn phân biệt khi GV xem hoặc SV xem
+                  let labelNote = '';
+                  if (isKey) labelNote = ' (Đáp án đúng)';
+                  if (isStudentChoice) {
+                    labelNote += isLecturerView ? ' 👈 SV chọn' : ' (Lựa chọn của bạn)';
+                  }
+
                   return `
-                    <div style="background:${isKey ? '#dcfce7' : (isStudentChoice ? '#fee2e2' : '#fff')}; border:1px solid ${isKey ? '#86efac' : '#e2e8f0'}; padding:6px 10px; border-radius:4px; font-size:12px;">
-                      <strong>${letter}.</strong> ${escapeHtml(String(opt).replace(/^[A-D][.:)]\s*/i, ''))} ${isKey ? ' (Đáp án đúng)' : (isStudentChoice ? ' (Lựa chọn của bạn)' : '')}
+                    <div style="background:${isKey ? '#dcfce7' : (isStudentChoice ? '#fee2e2' : '#f8fafc')}; border:1px solid ${isKey ? '#86efac' : (isStudentChoice ? '#fca5a5' : '#e2e8f0')}; padding:8px 12px; border-radius:6px; font-size:13px; color:#334155;">
+                      <strong>${letter}.</strong> ${escapeHtml(String(opt).replace(/^[A-D][.:)]\s*/i, ''))}
+                      <span style="font-weight:600; color:${isKey ? '#15803d' : (isStudentChoice ? '#dc2626' : 'transparent')};">
+                        ${labelNote}
+                      </span>
                     </div>
                   `;
                 }).join('')}
@@ -545,6 +673,7 @@ export function renderExamReviewUI(fileName, questions, studentAnswers, score, s
       </div>
     </div>
   `;
+
   container.innerHTML = html;
 
   if (typeof renderKaTeX === 'function') {
@@ -552,8 +681,11 @@ export function renderExamReviewUI(fileName, questions, studentAnswers, score, s
   }
 }
 
+// BIND TO WINDOW
+window.handleReviewSubmittedExam = handleReviewSubmittedExam;
+window.renderExamReviewUI = renderExamReviewUI;
+
 window.handleLoadStudentDashboard = handleLoadStudentDashboard;
 window.handleStartTakeExam = handleStartTakeExam;
 window.handleConfirmSubmitExam = handleConfirmSubmitExam;
 window.executeSubmitExam = executeSubmitExam;
-window.handleReviewSubmittedExam = handleReviewSubmittedExam;
