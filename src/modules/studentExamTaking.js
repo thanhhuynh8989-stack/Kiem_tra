@@ -465,13 +465,37 @@ export async function executeSubmitExam(
     alert(`❌ Lỗi nộp bài: ${err.message}`);
   }
 }
-
 /**
- * 1. HÀM TẢI DỮ LIỆU & XỬ LÝ XEM LẠI BÀI THI (HỖ TRỢ CẢ GV VÀ SV)
+ * 1. HÀM TẢI DỮ LIỆU & XỬ LÝ XEM LẠI BÀI THI (THÔNG MINH - HỖ TRỢ CẢ GV VÀ SV)
  */
-export async function handleReviewSubmittedExam(examId, targetStudentCode = '', examCode = '') {
+export async function handleReviewSubmittedExam(arg1, arg2 = '', arg3 = '') {
   const currentUsername = getLoggedInUsername();
-  // Nếu không truyền targetStudentCode thì mặc định lấy tài khoản đang đăng nhập (dành cho SV)
+
+  let examId = String(arg1 || '').trim();
+  let targetStudentCode = '';
+  let examCode = '';
+
+  // -------------------------------------------------------------------------
+  // BỘ LỌC TỰ ĐỘNG PHÂN BIỆT THAM SỐ GỌI HÀM:
+  // -------------------------------------------------------------------------
+  const arg2Str = String(arg2 || '').trim();
+
+  // TH1: Sinh viên bấm từ Dashboard -> handleReviewSubmittedExam(examId, examCode)
+  if (arg2Str.toLowerCase().endsWith('.json') || arg2Str.toLowerCase().startsWith('exam_')) {
+    examCode = arg2Str;
+    targetStudentCode = currentUsername; // Tự động lấy Mã SV đang đăng nhập
+  } 
+  // TH2: Giảng viên bấm từ Bảng điểm -> handleReviewSubmittedExam(examId, targetStudentCode, examCode)
+  else if (arg2Str !== '') {
+    targetStudentCode = arg2Str;
+    examCode = String(arg3 || '').trim();
+  } 
+  // TH3: Mặc định fallback
+  else {
+    targetStudentCode = currentUsername;
+    examCode = String(arg3 || '').trim();
+  }
+
   const studentCodeToFetch = String(targetStudentCode || currentUsername).trim();
 
   if (!examId || !studentCodeToFetch) {
