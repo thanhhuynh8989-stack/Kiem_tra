@@ -2,6 +2,8 @@ import { appsScriptService } from '../services/appsScriptService.js';
 import { loadExamForEditing } from './aiExamParser.js';
 import { showAppLoading, hideAppLoading, getLoggedInUsername, escapeHtml } from './authAndCore.js';
 
+import { parseAndVerifyEmergencyFile } from './offlineExamEngine.js';
+
 let cachedStudentsList = null;
 
 /**
@@ -341,6 +343,69 @@ export async function deleteExam(examId) {
     alert(`Lỗi khi xóa đề thi: ${err.message}`);
   }
 }
+
+
+/**
+ * RENDER NÚT VÀ DIALOG NẠP FILE DỰ PHÒNG CHO GIẢNG VIÊN
+ */
+export function renderEmergencyImportButton(containerId) {
+  const container = document.getElementById(containerId);
+  if (!container) return;
+
+  const btnHtml = `
+    <div style="margin-bottom: 16px;">
+      <label for="emergencyFileSelector" style="background:#0284c7; color:#fff; padding:9px 16px; border-radius:6px; cursor:pointer; font-weight:600; display:inline-block; font-size:13px;">
+        📂 Nạp Bài Thi Dự Phòng (.dat)
+      </label>
+      <input type="file" id="emergencyFileSelector" accept=".dat" style="display:none;" onchange="handleLecturerImportEmergencyFile(event)">
+    </div>
+  `;
+  container.insertAdjacentHTML('afterbegin', btnHtml);
+}
+
+/**
+ * XỬ LÝ KHI GIẢNG VIÊN CHỌN FILE .DAT
+ */
+window.handleLecturerImportEmergencyFile = async function (event) {
+  const file = event.target.files[0];
+  if (!file) return;
+
+  try {
+    // 1. Giải mã và kiểm tra SHA Checksum
+    const verifiedData = await parseAndVerifyEmergencyFile(file);
+    
+    // 2. Chấm điểm bài thi vừa giải mã
+    const examQuestions = window.allExamQuestionsMap?.[verifiedData.examId] || [];
+    const score = calculateScore(examQuestions, verifiedData.answers);
+
+    const confirmMsg = 
+      `✅ FILE HỢP LỆ (MÃ CHECKSUM CHUẨN)!\n\n` +
+      `• Sinh viên: ${verifiedData.studentName} (${verifiedData.studentCode})\n` +
+      `• Mã đề: ${verifiedData.examId}\n` +
+      `• Số lần vi phạm: ${verifiedData.violationCount}\n` +
+      `• Điểm số tính toán: ${score} / 10\n\n` +
+      `Bạn có muốn GHI ĐIỂM bài làm này vào Bảng điểm Backend ngay lập tức?`;
+
+    if (confirm(confirmMsg)) {
+      // 3. Đẩy kết quả lên Backend / Google Sheets
+      if (typeof window.submitScoreToBackend === 'function') {
+        window.submitScoreToBackend({
+          examId: verifiedData.examId,
+          studentCode: verifiedData.studentCode,
+          score: score,
+          violationCount: verifiedData.violationCount,
+          submittedAt: new Date(verifiedData.submittedAtClient).toLocaleString('vi-VN'),
+          isEmergencyImport: true
+        });
+      }
+    }
+  } catch (error) {
+    alert(error);
+  } finally {
+    event.target.value = ''; // Reset input file
+  }
+};
+
 
 // Global Window Bindings
 window.loadExamList = loadExamList;
