@@ -2,25 +2,31 @@ import { appsScriptService } from '../services/appsScriptService.js';
 import { loadExamForEditing } from './aiExamParser.js';
 import { showAppLoading, hideAppLoading, getLoggedInUsername, escapeHtml } from './authAndCore.js';
 
-let cachedStudentsList = null; // Cache lưu danh sách sinh viên
+let cachedStudentsList = null;
 
 /**
- * 1. TẢI DANH SÁCH ĐỀ THI TỪ APPS SCRIPT / GOOGLE SHEET
+ * 1. TẢI VÀ RENDER DANH SÁCH ĐỀ THI TỪ APPS SCRIPT
  */
 export async function loadExamList() {
-  const container = document.getElementById('examListContainer') || document.getElementById('mainContentArea');
+  const container = document.getElementById('examManagementContainer') || 
+                    document.getElementById('examListContainer') || 
+                    document.getElementById('mainContentArea');
   if (!container) return;
 
-  container.innerHTML = `<div style="padding:20px; text-align:center; color:#64748b;">⏳ Đang tải danh sách đề thi...</div>`;
+  if (window.currentActiveTab && window.currentActiveTab !== 'tab-exams') return;
+
+  container.innerHTML = `<div style="padding:30px; text-align:center; color:#64748b;">⏳ Đang tải danh sách đề thi...</div>`;
 
   try {
     const res = await appsScriptService.request('GET_EXAM_LIST', {});
     
+    if (window.currentActiveTab && window.currentActiveTab !== 'tab-exams') return;
+
     if (!res || !res.exams || res.exams.length === 0) {
       container.innerHTML = `
-        <div style="background:#fff; border-radius:8px; padding:30px; text-align:center; border:1px solid #e2e8f0; margin-top:16px;">
-          <p style="color:#64748b; margin-bottom:12px;">📭 Chưa có đề thi nào được tạo.</p>
-          <button onclick="document.querySelector('[data-tab=\\'tab-parser\\']')?.click()" style="background:#2563eb; color:#fff; border:none; padding:8px 16px; border-radius:6px; font-weight:600; cursor:pointer;">
+        <div style="background:#fff; border-radius:10px; padding:30px; text-align:center; border:1px solid #e2e8f0; margin-top:16px;">
+          <p style="color:#64748b; margin-bottom:16px; font-size:14px;">📭 Chưa có đề thi nào được tạo trong hệ thống.</p>
+          <button type="button" onclick="switchTab('tab-parser')" style="background:#2563eb; color:#fff; border:none; padding:9px 18px; border-radius:6px; font-weight:600; cursor:pointer; font-size:13px;">
             ➕ Bóc Tách / Tạo Đề Thi Mới
           </button>
         </div>
@@ -35,17 +41,31 @@ export async function loadExamList() {
   }
 }
 
+// Alias hỗ trợ Router gọi hàm đồng bộ
+export const handleLoadExamManagement = loadExamList;
+
 /**
- * 2. RENDER DANH SÁCH THẺ ĐỀ THI
+ * 2. RENDER KHUNG DANH SÁCH THẺ ĐỀ THI
  */
 export function renderExamList(exams = [], container) {
   let html = `
     <div style="background:#fff; border-radius:10px; padding:20px; border:1px solid #e2e8f0; margin-top:16px;">
-      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px; border-bottom:1px solid #f1f5f9; padding-bottom:12px;">
-        <h3 style="margin:0; font-size:18px; color:#0f172a;">📊 Danh Sách Đề Thi Đã Tạo (${exams.length})</h3>
-        <button type="button" onclick="loadExamList()" style="background:#f1f5f9; color:#334155; border:1px solid #cbd5e1; padding:6px 12px; border-radius:6px; cursor:pointer; font-size:13px;">
-          🔄 Tải lại
-        </button>
+      
+      <!-- TOOLBAR HEADER -->
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px; border-bottom:1px solid #f1f5f9; padding-bottom:12px; flex-wrap:wrap; gap:10px;">
+        <div>
+          <h3 style="margin:0; font-size:18px; color:#0f172a;">📊 Danh Sách Đề Thi Đã Tạo (${exams.length})</h3>
+          <small style="color:#64748b;">Quản lý, phân công đề thi và theo dõi kết quả</small>
+        </div>
+
+        <div style="display:flex; gap:8px;">
+          <button type="button" onclick="switchTab('tab-parser')" style="background:#2563eb; color:#fff; border:none; padding:8px 14px; border-radius:6px; cursor:pointer; font-weight:600; font-size:13px;">
+            ➕ Tạo / Bóc tách đề mới
+          </button>
+          <button type="button" onclick="handleLoadExamManagement()" style="background:#f1f5f9; color:#334155; border:1px solid #cbd5e1; padding:8px 14px; border-radius:6px; cursor:pointer; font-weight:600; font-size:13px;">
+            🔄 Tải lại
+          </button>
+        </div>
       </div>
 
       <div style="display:flex; flex-wrap:wrap; gap:16px;">
@@ -58,7 +78,7 @@ export function renderExamList(exams = [], container) {
 }
 
 /**
- * 3. RENDER TỪNG THẺ ĐỀ THI (CÓ ĐẦY ĐỦ CÁC NÚT THAO TÁC)
+ * 3. RENDER TỪNG THẺ ĐỀ THI
  */
 export function renderExamCard(exam) {
   const examId = escapeHtml(exam.examId || '');
@@ -79,8 +99,8 @@ export function renderExamCard(exam) {
           📌 Giao đề
         </button>
 
-        <button type="button" onclick="viewExamScores('${examId}')" style="background:#2563eb; color:#fff; border:none; padding:6px 8px; border-radius:6px; font-size:12px; font-weight:600; cursor:pointer;">
-          📊 Điểm
+        <button type="button" onclick="handleViewExamSubmissions('${examId}')" style="background:#2563eb; color:#fff; border:none; padding:6px 8px; border-radius:6px; font-size:12px; font-weight:600; cursor:pointer;">
+          📊 Bảng điểm
         </button>
 
         <button type="button" onclick="handleEditExam('${examId}')" style="background:#f59e0b; color:#fff; border:none; padding:6px 8px; border-radius:6px; font-size:12px; font-weight:600; cursor:pointer;">
@@ -108,13 +128,11 @@ export async function handleOpenAssignExamModal(examId, examTitle) {
     
     hideAppLoading();
 
-    // Tách và lấy danh sách các tên lớp riêng biệt (kể cả khi lớp chứa dấu phẩy)
     const allClasses = studentsList.flatMap(s => 
       (s.className || s.class || '').split(',').map(c => c.trim())
     ).filter(Boolean);
 
     const uniqueClasses = [...new Set(allClasses)];
-
     renderAssignModalHTML(examId, examTitle, uniqueClasses, studentsList);
 
   } catch (err) {
@@ -124,7 +142,7 @@ export async function handleOpenAssignExamModal(examId, examTitle) {
 }
 
 /**
- * 5. RENDER CHÍNH XÁC HTML POPUP MODAL GIAO ĐỀ
+ * 5. RENDER MODAL HTML GIAO ĐỀ
  */
 function renderAssignModalHTML(examId, examTitle, classesList = [], studentsList = []) {
   const oldModal = document.getElementById('assignExamModal');
@@ -150,7 +168,6 @@ function renderAssignModalHTML(examId, examTitle, classesList = [], studentsList
           </select>
         </div>
 
-        <!-- DROPDOWN LỚP HỌC -->
         <div id="assignClassGroup" style="margin-bottom:14px;">
           <label style="display:block; font-size:13px; font-weight:600; color:#334155; margin-bottom:6px;">Chọn Lớp học:</label>
           <select id="assignClassSelect" style="width:100%; padding:8px 12px; border:1px solid #cbd5e1; border-radius:6px; font-size:13px; outline:none;">
@@ -159,7 +176,6 @@ function renderAssignModalHTML(examId, examTitle, classesList = [], studentsList
           </select>
         </div>
 
-        <!-- DROPDOWN SINH VIÊN -->
         <div id="assignStudentGroup" style="margin-bottom:14px; display:none;">
           <label style="display:block; font-size:13px; font-weight:600; color:#334155; margin-bottom:6px;">Chọn Sinh viên:</label>
           <select id="assignStudentSelect" style="width:100%; padding:8px 12px; border:1px solid #cbd5e1; border-radius:6px; font-size:13px; outline:none;">
@@ -194,7 +210,7 @@ function renderAssignModalHTML(examId, examTitle, classesList = [], studentsList
 }
 
 /**
- * 6. TOGGLE ẨN/HIỆN CÁC DROPDOWN PHÂN CÔNG
+ * 6. TOGGLE CÁC DROPDOWN PHÂN CÔNG
  */
 export function toggleAssignTargetDropdown() {
   const type = document.getElementById('assignTargetType').value;
@@ -203,7 +219,7 @@ export function toggleAssignTargetDropdown() {
 }
 
 /**
- * 7. XỬ LÝ GỬI THÔNG TIN GIAO ĐỀ LÊN SERVER
+ * 7. GỬI PHÂN CÔNG ĐỀ THI LÊN SERVER
  */
 export async function submitAssignExam(examId) {
   const targetType = document.getElementById('assignTargetType').value;
@@ -243,7 +259,7 @@ export async function submitAssignExam(examId) {
 }
 
 /**
- * 8. XỬ LÝ KHI BẤM NÚT "✏️ SỬA" ĐỀ THI
+ * 8. SỬA ĐỀ THI
  */
 export async function handleEditExam(examId) {
   if (!examId) return;
@@ -277,8 +293,6 @@ export async function handleEditExam(examId) {
 
     hideAppLoading();
 
-    if (window.currentActiveTab !== 'tab-parser') return;
-
     if (!examData) {
       alert('Không thể nạp chi tiết câu hỏi của đề thi này!');
       return;
@@ -291,7 +305,9 @@ export async function handleEditExam(examId) {
       questions: examData.questions || (Array.isArray(examData) ? examData : [])
     };
 
-    loadExamForEditing(formattedExam);
+    if (typeof loadExamForEditing === 'function') {
+      loadExamForEditing(formattedExam);
+    }
 
   } catch (err) {
     hideAppLoading();
@@ -300,7 +316,7 @@ export async function handleEditExam(examId) {
 }
 
 /**
- * 9. XỬ LÝ XÓA ĐỀ THI
+ * 9. XÓA ĐỀ THI
  */
 export async function deleteExam(examId) {
   if (!confirm(`Bạn có chắc chắn muốn xóa đề thi [${examId}] không? Thao tác này không thể hoàn tác!`)) {
@@ -326,8 +342,9 @@ export async function deleteExam(examId) {
   }
 }
 
-// Bắt buộc gán vào scope global window
+// Global Window Bindings
 window.loadExamList = loadExamList;
+window.handleLoadExamManagement = handleLoadExamManagement;
 window.handleEditExam = handleEditExam;
 window.deleteExam = deleteExam;
 window.handleOpenAssignExamModal = handleOpenAssignExamModal;
