@@ -35,9 +35,9 @@ export function switchTab(tabId) {
   window.currentActiveTab = targetTab;
 
   const containers = {
-    'tab-exams': document.getElementById('lecturerDashboardContainer'),
+    'tab-exams': document.getElementById('lecturerDashboardContainer') || document.getElementById('examManagementContainer'),
     'tab-students': document.getElementById('studentManagementContainer'),
-    'tab-parser': document.getElementById('examEditorContainer'),
+    'tab-parser': document.getElementById('examEditorContainer') || document.getElementById('examParserContainer'),
     'tab-student-exams': document.getElementById('studentExamContainer')
   };
 
@@ -67,17 +67,27 @@ export function switchTab(tabId) {
 
   // C. TẢI DỮ LIỆU CHẠY NGẦM SAU KHI ĐÃ ĐỔI GIAO DIỆN
   if (targetTab === 'tab-exams') {
-    handleLoadLecturerDashboard();
+    if (typeof handleLoadLecturerDashboard === 'function') {
+      handleLoadLecturerDashboard();
+    } else if (typeof loadExamList === 'function') {
+      loadExamList();
+    }
   } else if (targetTab === 'tab-students') {
-    handleLoadStudentManagement();
+    if (typeof handleLoadStudentManagement === 'function') {
+      handleLoadStudentManagement();
+    }
   } else if (targetTab === 'tab-parser') {
-    // SỬA TẠI ĐÂY: Render lại giao diện Upload nếu chưa có danh sách câu hỏi đang mở biên tập
+    // Render lại giao diện Upload nếu chưa có danh sách câu hỏi đang mở biên tập
     const questionsEditorList = document.getElementById('questionsEditorList');
     if (!questionsEditorList || !questionsEditorList.children.length) {
-      renderDefaultUploadScreen();
+      if (typeof renderDefaultUploadScreen === 'function') {
+        renderDefaultUploadScreen();
+      }
     }
   } else if (targetTab === 'tab-student-exams') {
-    handleLoadStudentDashboard();
+    if (typeof handleLoadStudentDashboard === 'function') {
+      handleLoadStudentDashboard();
+    }
   }
 }
 
@@ -97,7 +107,17 @@ export function switchMainTab(tabName) {
 
 /**
  * =========================================================================
- * 2. LẮNG NGHE SỰ KIỆN CLICK TAB VỚI EVENT DELEGATION (DUY NHẤT 1 LISTENER)
+ * 2. HÀM TẢI LẠI TRANG HIỆN TẠI (UNIVERSAL TAB RELOADER)
+ * =========================================================================
+ */
+export function reloadCurrentTab() {
+  const activeTab = window.currentActiveTab || 'tab-exams';
+  switchTab(activeTab);
+}
+
+/**
+ * =========================================================================
+ * 3. LẮNG NGHE SỰ KIỆN CLICK TAB VỚI EVENT DELEGATION
  * =========================================================================
  */
 document.addEventListener('click', (event) => {
@@ -110,7 +130,7 @@ document.addEventListener('click', (event) => {
 
 /**
  * =========================================================================
- * 3. XỬ LÝ SỰ KIỆN ĐĂNG NHẬP FORM
+ * 4. XỬ LÝ SỰ KIỆN ĐĂNG NHẬP FORM
  * =========================================================================
  */
 export async function submitLoginForm() {
@@ -128,7 +148,7 @@ export async function submitLoginForm() {
 
 /**
  * =========================================================================
- * 4. CẬP NHẬT GIAO DIỆN THEO PHIÊN ĐĂNG NHẬP (USER SESSION UI)
+ * 5. CẬP NHẬT GIAO DIỆN THEO PHIÊN ĐĂNG NHẬP (USER SESSION UI)
  * =========================================================================
  */
 export function initUserSessionUI() {
@@ -160,7 +180,7 @@ export function initUserSessionUI() {
   const role = getLoggedInRole();
   const name = user.fullName || user.username || 'Người dùng';
   if (userInfoDisplay) {
-    userInfoDisplay.innerHTML = `👤 <strong>${name}</strong> (${role})`;
+    userInfoDisplay.innerHTML = `👤 <strong>${escapeHtml(name)}</strong> (${role})`;
   }
 
   // Phân quyền hiển thị Menu
@@ -182,7 +202,7 @@ export function initUserSessionUI() {
 
 /**
  * =========================================================================
- * 5. KÍCH HOẠT TẢI FILE ĐỀ THI BÓC TÁCH
+ * 6. KÍCH HOẠT TẢI FILE ĐỀ THI BÓC TÁCH
  * =========================================================================
  */
 export function triggerExamUpload(inputElement) {
@@ -191,10 +211,12 @@ export function triggerExamUpload(inputElement) {
   }
 }
 
-// Scope window bindings
+// Global scope window bindings
 window.switchTab = switchTab;
 window.switchMainTab = switchMainTab;
+window.reloadCurrentTab = reloadCurrentTab;
 window.submitLoginForm = submitLoginForm;
+window.handleLogout = handleLogout;
 window.triggerExamUpload = triggerExamUpload;
 
 // Khởi chạy khi tải xong trang
