@@ -1,0 +1,459 @@
+{
+  "examId": "exam_mnp2hsf4",
+  "title": "ĐỀ OLYMPIC_1",
+  "durationMinutes": 25,
+  "createdBy": "thanh",
+  "createdAt": "2026-11-01T02:49:02.089Z",
+  "questions": [
+    {
+      "id": "q_1",
+      "stem": "Điểm kiểm soát M (Spindle checkpoint) là một cơ chế giám sát quan trọng trong nguyên phân. Tế bào sẽ tạm dừng ở kỳ giữa và không thể tiến sang kỳ sau nếu tín hiệu nào sau đây chưa được thỏa mãn?",
+      "options": [
+        "Nồng độ Cyclin B trong tế bào chất chưa đạt mức tối đa để kích hoạt MPF.",
+        "DNA chưa hoàn thành việc sửa chữa các sai sót phát sinh trong pha S.",
+        "Một hoặc nhiều tâm động của các NST chưa gắn kết chính xác với các vi ống của thoi phân chia và chưa chịu lực kéo căng từ hai cực.",
+        "Màng nhân chưa tan biến hoàn toàn để giải phóng các NST vào tế bào chất."
+      ],
+      "correctAnswer": 2,
+      "hasImage": false,
+      "imageUrl": null,
+      "originalOptionCount": 4,
+      "flags": {
+        "needsUserConfirmation": true,
+        "note": "🤖 AI (gemini-3.5-flash) đã sinh bổ sung phương án/đáp án. Giảng viên vui lòng rà soát lại."
+      }
+    },
+    {
+      "id": "q_2",
+      "stem": "Phức hợp MPF (Maturation-promoting factor) được coi là \"go-ahead signal\" - tín hiệu vượt điểm kiểm soát tại điểm kiểm soát G2. MPF được cấu tạo từ:",
+      "options": [
+        "Một protein kinase phụ thuộc cyclin (Cdk) liên kết với một protein cyclin có nồng độ biến thiên.",
+        "Một chuỗi các phân tử truyền tin thứ hai như cAMP và ion Ca2+.",
+        "Các protein cohesin và enzyme separase ở trạng thái chưa hoạt động.",
+        "Phức hợp các vi ống và protein động cơ tại trung thể."
+      ],
+      "correctAnswer": 0,
+      "hasImage": false,
+      "imageUrl": null,
+      "originalOptionCount": 4,
+      "flags": {
+        "needsUserConfirmation": false,
+        "note": "✅ Giữ nguyên từ bản gốc, AI không tác động."
+      }
+    },
+    {
+      "id": "q_3",
+      "stem": "Vinblastine là một loại thuốc hóa trị phổ biến được sử dụng để điều trị ung thư. Cơ chế tác động của nó là ngăn cản sự hình thành các vi ống. Tế bào ung thư khi xử lý bằng Vinblastine sẽ bị dừng lại ở giai đoạn nào?",
+      "options": [
+        "Kỳ đầu/Kỳ tiền giữa.",
+        "Pha S.",
+        "Kỳ sau.",
+        "Pha G1."
+      ],
+      "correctAnswer": 0,
+      "hasImage": false,
+      "imageUrl": null,
+      "originalOptionCount": 4,
+      "flags": {
+        "needsUserConfirmation": false,
+        "note": "✅ Giữ nguyên từ bản gốc, AI không tác động."
+      }
+    },
+    {
+      "id": "q_4",
+      "stem": "Hầu hết các tế bào trong cơ thể người trưởng thành (như tế bào thần kinh hoặc tế bào cơ) không còn khả năng phân chia thường xuyên. Những tế bào này được coi là đang ở trạng thái:",
+      "options": [
+        "Điểm kiểm soát G1.",
+        "Pha M kéo dài.",
+        "Pha G0 (nằm ngoài chu kỳ tế bào).",
+        "Trạng thái tiền Apoptosis."
+      ],
+      "correctAnswer": 2,
+      "hasImage": false,
+      "imageUrl": null,
+      "originalOptionCount": 4,
+      "flags": {
+        "needsUserConfirmation": true,
+        "note": "🤖 AI (gemini-3.5-flash) đã sinh bổ sung phương án/đáp án. Giảng viên vui lòng rà soát lại."
+      }
+    },
+    {
+      "id": "q_5",
+      "stem": "Trong quá trình giảm phân, phức hợp protein cohesin giữ các nhiễm sắc tử chị em (sister chromatids) liên kết với nhau. Ở kỳ sau I (Anaphase I), các nhiễm sắc thể tương đồng tách nhau ra nhưng các nhiễm sắc tử chị em vẫn dính nhau ở tâm động. Đâu là giải thích chính xác nhất cho hiện tượng này ở cấp độ phân tử?",
+      "options": [
+        "Enzyme separase chỉ được hoạt hóa ở giảm phân II để phân hủy cohesin.",
+        "Protein Shugoshin (Sgo) bảo vệ cohesin ở vùng tâm động không bị separase phân hủy ở giảm phân I.",
+        "Khối lượng phân tử của cohesin vùng tâm động lớn hơn vùng cánh nên phân hủy chậm hơn.",
+        "Lực kéo của thoi vô sắc ở giảm phân I chưa đủ mạnh để bẻ gãy liên kết cohesin tâm động."
+      ],
+      "correctAnswer": 1,
+      "hasImage": false,
+      "imageUrl": null,
+      "originalOptionCount": 4,
+      "flags": {
+        "needsUserConfirmation": true,
+        "note": "🤖 AI (gemini-3.5-flash) đã sinh bổ sung phương án/đáp án. Giảng viên vui lòng rà soát lại."
+      }
+    },
+    {
+      "id": "q_6",
+      "stem": "Chủng vi khuẩn Streptococcus pneumoniae có vỏ nhầy (chủng S) gây bệnh viêm phổi chết người ở chuột, trong khi chủng đột biến không có vỏ nhầy (chủng R) hoàn toàn vô hại. Khi tiêm chủng R vào cơ thể chuột, hệ thống miễn dịch dễ dàng tiêu diệt chúng. Bản chất cơ chế giúp vỏ nhầy bảo vệ chủng S khỏi sự tấn công của hệ miễn dịch là gì?",
+      "options": [
+        "Vỏ nhầy tiết ra các enzyme protease để chủ động phân hủy các kháng thể (IgG) do tế bào B của chuột tiết ra.",
+        "Vỏ nhầy tích điện dương mạnh, đẩy ngược các đại thực bào (vốn cũng tích điện dương) không cho chúng tiếp cận.",
+        "Thành phần polysaccharide của vỏ nhầy trơn trượt và che lấp các cấu trúc kháng nguyên bề mặt, ngăn cản sự bám dính của các protein bổ thể và quá trình thực bào.",
+        "Vỏ nhầy đóng vai trò như một màng bán thấm tuyệt đối, ngăn không cho các gốc oxy hóa độc hại (ROS) của đại thực bào khuếch tán vào trong."
+      ],
+      "correctAnswer": 2,
+      "hasImage": false,
+      "imageUrl": null,
+      "originalOptionCount": 4,
+      "flags": {
+        "needsUserConfirmation": true,
+        "note": "🤖 AI (gemini-3.5-flash) đã sinh bổ sung phương án/đáp án. Giảng viên vui lòng rà soát lại."
+      }
+    },
+    {
+      "id": "q_7",
+      "stem": "Màng ngoài của vi khuẩn Gram âm được gắn chặt và cố định định vị với lớp peptidoglycan mỏng phía dưới. Nếu cấu trúc neo này bị mất chức năng, màng ngoài sẽ phồng lên và tách bong ra khỏi tế bào (hiện tượng blebbing). Thành phần nào chịu trách nhiệm chính cho sự neo giữ này?",
+      "options": [
+        "Lipoprotein Braun (Lpp) liên kết cộng hóa trị giữa peptidoglycan và màng ngoài.",
+        "Phức hợp Lipid A chìm sâu vào lớp peptidoglycan.",
+        "Các phân tử acid lipoteichoic xuyên qua màng ngoài.",
+        "Hệ thống protein vòng Z (FtsZ) cố định từ phía ngoài."
+      ],
+      "correctAnswer": 0,
+      "hasImage": false,
+      "imageUrl": null,
+      "originalOptionCount": 4,
+      "flags": {
+        "needsUserConfirmation": true,
+        "note": "🤖 AI (gemini-3.5-flash) đã sinh bổ sung phương án/đáp án. Giảng viên vui lòng rà soát lại."
+      }
+    },
+    {
+      "id": "q_8",
+      "stem": "Chất Brefeldin A là một chất độc lập chết tế bào thông qua việc ức chế sự hình thành và vận chuyển các túi phân tiết từ bộ máy Golgi. Nếu xử lý mô phân sinh rễ hành bằng chất này ở giai đoạn kỳ cuối nguyên phân, hiện tượng gì sẽ xảy ra?",
+      "options": [
+        "Các NST không thể dãn xoắn và màng nhân không thể tái hình thành.",
+        "Tế bào chất phân chia quá sớm tạo ra các tế bào con không chứa nhân.",
+        "Quá trình hình thành vách ngăn bị đình trệ, tạo ra tế bào song nhân (hai nhân).",
+        "Thoi vô sắc không thể tiêu biến làm các NST bị kéo ngược lại trung tâm."
+      ],
+      "correctAnswer": 2,
+      "hasImage": false,
+      "imageUrl": null,
+      "originalOptionCount": 4,
+      "flags": {
+        "needsUserConfirmation": true,
+        "note": "🤖 AI (gemini-3.5-flash) đã sinh bổ sung phương án/đáp án. Giảng viên vui lòng rà soát lại."
+      }
+    },
+    {
+      "id": "q_9",
+      "stem": "Trong các nhận định sau về MPF, nhận định nào đúng nhất?",
+      "options": [
+        "MPF chỉ có mặt khi tế bào bước vào nguyên phân.",
+        "MPF được tạo thành khi Cyclin B liên kết với CDK1; hoạt tính của MPF phụ thuộc vào cả sự tích lũy Cyclin B và trạng thái hoạt hóa của CDK1.",
+        "MPF được hoạt hóa nhờ APC/C.",
+        "MPF trực tiếp nhân đôi DNA trước nguyên phân."
+      ],
+      "correctAnswer": 1,
+      "hasImage": false,
+      "imageUrl": null,
+      "originalOptionCount": 4,
+      "flags": {
+        "needsUserConfirmation": true,
+        "note": "🤖 AI (gemini-3.5-flash) đã sinh bổ sung phương án/đáp án. Giảng viên vui lòng rà soát lại."
+      }
+    },
+    {
+      "id": "q_10",
+      "stem": "Một cặp NST tương đồng không phân ly ở giảm phân I, trong khi các cặp khác phân ly bình thường. Kết quả tạo ra các giao tử sẽ là:",
+      "options": [
+        "Tất cả giao tử đều bình thường.",
+        "Một giao tử bình thường và ba giao tử lệch bội.",
+        "Hai giao tử bình thường và hai giao tử lệch bội.",
+        "Tất cả giao tử đều lệch bội."
+      ],
+      "correctAnswer": 3,
+      "hasImage": false,
+      "imageUrl": null,
+      "originalOptionCount": 4,
+      "flags": {
+        "needsUserConfirmation": true,
+        "note": "🤖 AI (gemini-3.5-flash) đã sinh bổ sung phương án/đáp án. Giảng viên vui lòng rà soát lại."
+      }
+    },
+    {
+      "id": "q_11",
+      "stem": "Một nhà nghiên cứu thêm một chất ức chế enzyme Separase vào môi trường nuôi cấy tế bào đang nguyên phân. Tế bào sẽ bị kẹt ở giai đoạn nào?",
+      "options": [
+        "Kỳ đầu",
+        "Kỳ giữa (các chromatid chị em không thể tách nhau)",
+        "Kỳ cuối",
+        "Pha S"
+      ],
+      "correctAnswer": 1,
+      "hasImage": false,
+      "imageUrl": null,
+      "originalOptionCount": 4,
+      "flags": {
+        "needsUserConfirmation": true,
+        "note": "🤖 AI (gemini-3.5-flash) đã sinh bổ sung phương án/đáp án. Giảng viên vui lòng rà soát lại."
+      }
+    },
+    {
+      "id": "q_12",
+      "stem": "Điểm khác biệt cốt lõi về mặt cơ chế phân tử giúp giữ hai chromatid chị em không bị tách nhau ra ở kì sau I của giảm phân nhưng lại tách nhau ra ở kì sau II là gì?",
+      "options": [
+        "Ở giảm phân I, protein Shugoshin (Sgo1) bảo vệ cohesin ở vùng tâm động khỏi bị phân hủy bởi separase; đến giảm phân II, Sgo1 bị bất hoạt khiến cohesin tâm động bị phân hủy.",
+        "Ở giảm phân I, không có enzyme separase hoạt động; enzyme này chỉ được tổng hợp mới từ ribosome trước khi tế bào bước vào giảm phân II.",
+        "Ở giảm phân I, kinetochore của hai chromatid chị em hướng về hai cực đối diện (amphitelic attachment); ở giảm phân II chúng hướng về cùng một cực (syntelic attachment).",
+        "Lực căng sinh ra bởi vi ống ở giảm phân I yếu hơn giảm phân II, không đủ để làm đứt gãy liên kết cohesin ở vùng cánh nhiễm sắc thể."
+      ],
+      "correctAnswer": 0,
+      "hasImage": false,
+      "imageUrl": null,
+      "originalOptionCount": 4,
+      "flags": {
+        "needsUserConfirmation": false,
+        "note": "✅ Giữ nguyên từ bản gốc, AI không tác động."
+      }
+    },
+    {
+      "id": "q_13",
+      "stem": "Một học sinh tiến hành nhuộm Gram một hỗn hợp gồm vi khuẩn Gram dương (Staphylococcus aureus) và Gram âm (Escherichia coli). Tuy nhiên, do nhầm lẫn, học sinh này đã kéo dài thời gian xử lý bằng cồn 95% (decolorization) lên gấp 5 lần so với quy trình chuẩn trước khi nhuộm bổ sung bằng Safranin. Kết quả quan sát dưới kính hiển vi quang học sẽ là gì?",
+      "options": [
+        "Cả hai loài vi khuẩn đều có màu tím đậm.",
+        "Cả hai loài vi khuẩn đều có màu đỏ/hồng.",
+        "S. aureus có màu tím đậm và E. coli có màu đỏ/hồng.",
+        "S. aureus có màu đỏ/hồng và E. coli có màu tím đậm."
+      ],
+      "correctAnswer": 1,
+      "hasImage": false,
+      "imageUrl": null,
+      "originalOptionCount": 4,
+      "flags": {
+        "needsUserConfirmation": true,
+        "note": "🤖 AI (gemini-3.5-flash) đã sinh bổ sung phương án/đáp án. Giảng viên vui lòng rà soát lại."
+      }
+    },
+    {
+      "id": "q_14",
+      "stem": "Hai chủng vi khuẩn Micrococcus luteus (Gram dương) và Escherichia coli (Gram âm) được xử lý đồng thời với enzyme Lysozyme trong dung dịch đệm đẳng trương. Sau đó, người ta bổ sung chất tẩy rửa SDS (Sodium Dodecyl Sulfate - chất phá hủy màng sinh chất và làm biến tính protein) vào cả hai mẫu nuôi cấy. Hiện tượng nào sau đây phản ánh chính xác sự thay đổi trạng thái của hai mẫu?",
+      "options": [
+        "Cả hai mẫu đều bị ly giải hoàn toàn do SDS phá hủy màng sinh chất và màng ngoài của tế bào.",
+        "Chỉ có mẫu M. luteus bị ly giải, còn E. coli không bị ảnh hưởng do lớp màng ngoài bảo vệ.",
+        "Chỉ có mẫu E. coli bị ly giải do SDS phân giải lớp màng ngoài chứa LPS.",
+        "Cả hai mẫu đều không bị ly giải do dung dịch đệm đẳng trương bảo vệ."
+      ],
+      "correctAnswer": 0,
+      "hasImage": false,
+      "imageUrl": null,
+      "originalOptionCount": 4,
+      "flags": {
+        "needsUserConfirmation": true,
+        "note": "🤖 AI (gemini-3.5-flash) đã sinh bổ sung phương án/đáp án. Giảng viên vui lòng rà soát lại."
+      }
+    },
+    {
+      "id": "q_15",
+      "stem": "Một nhà sinh học phân lập được một chủng vi khuẩn từ đáy hồ nước sâu có ánh sáng yếu. Khi nuôi cấy chủng này trong môi trường tối, được bổ sung khí CO2, khoáng NH4+, và O2, vi khuẩn không sinh trưởng. Tuy nhiên, khi chiếu ánh sáng yếu (bước sóng > 700 nm) dưới điều kiện kị khí nghiêm ngặt và bổ sung succinate (một chất hữu cơ) làm nguồn carbon độc nhất, vi khuẩn sinh trưởng rất mạnh nhưng không giải phóng Oxy. Chủng vi khuẩn này thuộc nhóm dinh dưỡng nào và sử dụng sắc tố quang hợp nào?",
+      "options": [
+        "Quang tự dưỡng; sử dụng Chlorophyll a.",
+        "Quang dị dưỡng; sử dụng Bacteriochlorophyll.",
+        "Hóa tự dưỡng; sử dụng Bacteriochlorophyll.",
+        "Quang tự dưỡng; sử dụng Phycobilin."
+      ],
+      "correctAnswer": 1,
+      "hasImage": false,
+      "imageUrl": null,
+      "originalOptionCount": 4,
+      "flags": {
+        "needsUserConfirmation": true,
+        "note": "🤖 AI (gemini-3.5-flash) đã sinh bổ sung phương án/đáp án. Giảng viên vui lòng rà soát lại."
+      }
+    },
+    {
+      "id": "q_16",
+      "stem": "Khi phân lập một loài vi khuẩn mới từ trầm tích đáy hồ, các nhà khoa học nhận thấy nó mọc tốt nhất trong môi trường chứa thạch sâu ở một dải hẹp cách bề mặt khoảng 1 cm. Khi kiểm tra các enzym bảo vệ, vi khuẩn này cho phản ứng dương tính yếu với superoxide dismutase (SOD) và âm tính với catalase nhưng lại có enzym peroxidase. Vi khuẩn này thuộc nhóm sinh lý nào?",
+      "options": [
+        "Kị khí tùy tiện (Facultative anaerobe).",
+        "Hiếu khí bắt buộc (Strict aerobe).",
+        "Dung nạp kị khí (Aerotolerant anaerobe).",
+        "Vi hiếu khí (Microaerophile)."
+      ],
+      "correctAnswer": 3,
+      "hasImage": false,
+      "imageUrl": null,
+      "originalOptionCount": 4,
+      "flags": {
+        "needsUserConfirmation": true,
+        "note": "🤖 AI (gemini-3.5-flash) đã sinh bổ sung phương án/đáp án. Giảng viên vui lòng rà soát lại."
+      }
+    },
+    {
+      "id": "q_17",
+      "stem": "Một loài vi khuẩn ưa nhiệt nhân tạo được chuyển từ môi trường nuôi cấy ở 60oC sang môi trường mới ở 35oC. Nhằm duy trì tính lỏng tối ưu của màng sinh chất ở nhiệt độ thấp hơn, hệ thống enzym của vi khuẩn này sẽ thực hiện biến đổi cấu trúc lipid màng như thế nào?",
+      "options": [
+        "Tăng tỷ lệ các acid béo chuỗi dài và bão hòa (no) để màng chặt chẽ hơn.",
+        "Tăng tỷ lệ các acid béo có liên kết đôi dạng trans nhằm tăng khoảng trống giữa các đuôi kị nước.",
+        "Tăng tỷ lệ acid béo không bão hòa (chứa liên kết đôi dạng cis) và rút ngắn chiều dài chuỗi carbon của acid béo.",
+        "Thay thế hoàn toàn các liên kết ester bằng liên kết ether giữa glycerol và chuỗi hydrocarbon để màng không bị đông đặc."
+      ],
+      "correctAnswer": 2,
+      "hasImage": false,
+      "imageUrl": null,
+      "originalOptionCount": 4,
+      "flags": {
+        "needsUserConfirmation": true,
+        "note": "🤖 AI (gemini-3.5-flash) đã sinh bổ sung phương án/đáp án. Giảng viên vui lòng rà soát lại."
+      }
+    },
+    {
+      "id": "q_18",
+      "stem": "Penicillin là kháng sinh diệt khuẩn bằng cách liên kết và ức chế enzym transpeptidase (PBP), ngăn chặn sự hình thành các liên kết chéo peptide trong thành peptidoglycan. Nếu ta bổ sung Penicillin vào 4 bình nuôi cấy vi khuẩn Bacillus subtilis đang ở 4 pha sinh trưởng khác nhau, bình nào sẽ ghi nhận tốc độ chết của vi khuẩn diễn ra nhanh nhất?",
+      "options": [
+        "Bình A: Đang ở pha tiềm phát (Lag phase).",
+        "Bình B: Đang ở giữa pha lũy thừa (Log phase).",
+        "Bình C: Đang ở pha cân bằng (Stationary phase).",
+        "Bình D: Đang ở pha suy vong (Death phase)."
+      ],
+      "correctAnswer": 1,
+      "hasImage": false,
+      "imageUrl": null,
+      "originalOptionCount": 4,
+      "flags": {
+        "needsUserConfirmation": true,
+        "note": "🤖 AI (gemini-3.5-flash) đã sinh bổ sung phương án/đáp án. Giảng viên vui lòng rà soát lại."
+      }
+    },
+    {
+      "id": "q_19",
+      "stem": "Để xác định cơ chế di chuyển của nhiễm sắc thể (NST) về các cực tế bào trong kỳ sau, Gary Borisy đã sử dụng tia laser để đánh dấu (làm mất huỳnh quang) một vùng trên vi ống kinetochore (vi ống tâm động). Kết quả thí nghiệm cho thấy khoảng cách giữa dấu laser và các NST ngắn lại, trong khi khoảng cách giữa dấu laser và cực tế bào không đổi. Kết luận nào sau đây được rút ra?",
+      "options": [
+        "NST được kéo về cực nhờ sự co ngắn của vi ống tại vị trí cực tế bào.",
+        "Thoi phân chia co lại đồng đều ở cả hai đầu để kéo NST về cực.",
+        "Các vi ống không tâm động trượt lên nhau tạo lực đẩy NST về phía cực.",
+        "NST di chuyển nhờ các protein động cơ tại tâm động \"đi bộ\" dọc theo vi ống và vi ống phân giải ngay tại đầu tâm động đó."
+      ],
+      "correctAnswer": 3,
+      "hasImage": false,
+      "imageUrl": null,
+      "originalOptionCount": 4,
+      "flags": {
+        "needsUserConfirmation": true,
+        "note": "🤖 AI (gemini-3.5-flash) đã sinh bổ sung phương án/đáp án. Giảng viên vui lòng rà soát lại."
+      }
+    },
+    {
+      "id": "q_20",
+      "stem": "Một đột biến làm protein Shugoshin mất chức năng trong giảm phân I. Hậu quả trực tiếp có khả năng xảy ra nhất là:",
+      "options": [
+        "Tâm động tách sớm làm các cromatit chị em phân ly ngay trong giảm phân I.",
+        "Các NST tương đồng không thể tiếp hợp.",
+        "ADN không được nhân đôi trước giảm phân.",
+        "Không xảy ra trao đổi chéo."
+      ],
+      "correctAnswer": 0,
+      "hasImage": false,
+      "imageUrl": null,
+      "originalOptionCount": 4,
+      "flags": {
+        "needsUserConfirmation": true,
+        "note": "🤖 AI (gemini-3.5-flash) đã sinh bổ sung phương án/đáp án. Giảng viên vui lòng rà soát lại."
+      }
+    },
+    {
+      "id": "q_21",
+      "stem": "Khi xử lý đỉnh sinh trưởng rễ hành bằng Colchicine (chất ức chế sự hình thành thoi phân bào), hoạt động của Điểm kiểm soát lắp ráp thoi (Spindle Assembly Checkpoint - SAC) và trạng thái của tế bào sẽ biến đổi như thế nào?",
+      "options": [
+        "SAC bị bất hoạt, tế bào lập tức chuyển sang kỳ sau nhưng các NST không di chuyển.",
+        "SAC liên tục được kích hoạt, tế bào bị kẹt ở trạng thái kỳ giữa với các NST hình chữ X nằm tản mát.",
+        "SAC kích hoạt phức hệ APC/C để phân hủy securin, làm các chromatid tách nhau sớm ở kỳ đầu.",
+        "SAC bị ức chế, tế bào hoàn thành phân chia tế bào chất nhưng không phân chia nhân."
+      ],
+      "correctAnswer": 1,
+      "hasImage": false,
+      "imageUrl": null,
+      "originalOptionCount": 4,
+      "flags": {
+        "needsUserConfirmation": true,
+        "note": "🤖 AI (gemini-3.5-flash) đã sinh bổ sung phương án/đáp án. Giảng viên vui lòng rà soát lại."
+      }
+    },
+    {
+      "id": "q_22",
+      "stem": "Trong một nghiên cứu thực nghiệm, các nhà khoa học xử lý tế bào động vật đang ở kì giữa của nguyên phân bằng ProTAME – một chất ức chế đặc hiệu đối với phức hệ APC/C (Anaphase-Promoting Complex/Cyclosome). Sự kiện phân tử nào sau đây sẽ xảy ra trực tiếp trong tế bào?",
+      "options": [
+        "Enzyme separase không được giải phóng; các nhiễm sắc thể chị em không thể tách nhau ra ở kì sau.",
+        "Protein cohesin liên kết giữa hai chromatid chị em bị phân hủy quá sớm do thiếu sự kìm hãm của APC/C, dẫn đến đột biến lệch bội hàng loạt.",
+        "Thể động (kinetochore) mất khả năng bám dính vào vi ống của thoi vô sắc, làm kích hoạt điểm kiểm soát lắp ráp thoi phân bào (SAC).",
+        "Cyclin B bị phân hủy liên tục làm giảm hoạt tính của Cdk1, khiến tế bào lập tức thoát khỏi nguyên phân (mitotic exit) mà không cần phân chia nhân."
+      ],
+      "correctAnswer": 0,
+      "hasImage": false,
+      "imageUrl": null,
+      "originalOptionCount": 4,
+      "flags": {
+        "needsUserConfirmation": false,
+        "note": "✅ Giữ nguyên từ bản gốc, AI không tác động."
+      }
+    },
+    {
+      "id": "q_23",
+      "stem": "Một dòng tế bào sinh dục của một loài lưỡng bội (2n = 8) được nuôi cấy trong môi trường có thymidine đánh dấu phóng xạ ở pha S của chu kỳ tế bào trước khi bước vào giảm phân I. Tế bào này hoàn thành giảm phân I và giảm phân II bình thường trong môi trường không chứa chất phóng xạ. Phát biểu nào sau đây là đúng về các tế bào con (giao tử) tạo ra?",
+      "options": [
+        "Có 4 tế bào con, tất cả các NST trong mọi tế bào đều chứa sợi DNA mạch kép có một mạch phóng xạ.",
+        "Có 4 tế bào con, trong đó 2 tế bào chứa toàn bộ NST phóng xạ, 2 tế bào không chứa NST phóng xạ.",
+        "Có 4 tế bào con, mỗi tế bào đều có chính xác 4 NST đơn, và mỗi NST đơn này đều có một mạch DNA chứa phóng xạ.",
+        "Có 4 tế bào con, số lượng NST chứa phóng xạ trong mỗi tế bào có thể biến thiên ngẫu nhiên từ 0 đến 4 do sự phân ly độc lập."
+      ],
+      "correctAnswer": 2,
+      "hasImage": false,
+      "imageUrl": null,
+      "originalOptionCount": 4,
+      "flags": {
+        "needsUserConfirmation": true,
+        "note": "🤖 AI (gemini-3.5-flash) đã sinh bổ sung phương án/đáp án. Giảng viên vui lòng rà soát lại."
+      }
+    },
+    {
+      "id": "q_24",
+      "stem": "Hai ống nghiệm chứa quần thể vi khuẩn Bacillus subtilis đang ở hai trạng thái sinh lý khác nhau: Ống 1 chứa vi khuẩn ở pha Log (đang phân chia mạnh) và Ống 2 chứa vi khuẩn ở pha Cân bằng (ngừng phân chia). Người ta bổ sung enzyme Lysozyme vào Ống 1 và kháng sinh Penicillin vào Ống 2, cả hai ống đều được duy trì trong môi trường đẳng trương (dung dịch Sucrose 20%). Sau 2 giờ, chuyển toàn bộ tế bào ở hai ống vào hai cốc nước cất (môi trường nhược trương). Hiện tượng nào sau đây sẽ xảy ra?",
+      "options": [
+        "Tế bào ở cả hai ống đều lập tức bị ly giải (osmotic lysis) và vỡ ra.",
+        "Chỉ có tế bào ở Ống 1 bị ly giải, tế bào ở Ống 2 vẫn nguyên vẹn.",
+        "Chỉ có tế bào ở Ống 2 bị ly giải, tế bào ở Ống 1 vẫn nguyên vẹn.",
+        "Tế bào ở cả hai ống đều không bị ly giải nhờ màng sinh chất được bảo vệ bởi Sucrose."
+      ],
+      "correctAnswer": 1,
+      "hasImage": false,
+      "imageUrl": null,
+      "originalOptionCount": 4,
+      "flags": {
+        "needsUserConfirmation": true,
+        "note": "🤖 AI (gemini-3.5-flash) đã sinh bổ sung phương án/đáp án. Giảng viên vui lòng rà soát lại."
+      }
+    },
+    {
+      "id": "q_25",
+      "stem": "Một chủng vi khuẩn Gram âm được tìm thấy trong vùng ngập mặn ven biển hoang dã. Qua phân tích sinh hóa, người ta phát hiện ra chủng này sở hữu đồng thời các gene mã hóa cho chuỗi truyền electron hiếu khí ái lực cao, hệ thống khử nitrate hóa (Denitrification), phức hệ enzyme Nitrogenase và hệ thống thu nhận ánh sáng qua Rhodopsin proton-pump. Dựa vào các đặc tính sinh hóa này, hãy dự đoán hành vi sinh thái-sinh trưởng tối ưu nhất của chủng vi khuẩn này khi môi trường trải qua chu kỳ: Thủy triều lên (ngập nước kị khí, giàu nitrate từ mùn bã hữu cơ, ban ngày đầy ánh sáng) và Thủy triều rút (cạn nước hiếu khí, nghèo nitrate, ban đêm tối).",
+      "options": [
+        "Khi thủy triều lên, vi khuẩn sẽ quang tự dưỡng bằng cách sử dụng Rhodopsin để cố định CO2 và giải phóng Oxy để tự bảo vệ Nitrogenase.",
+        "Khi thủy triều lên ban ngày, vi khuẩn sử dụng ánh sáng qua bơm Rhodopsin để tạo ATP độc lập, dùng năng lượng này duy trì việc cố định N2 đồng thời sử dụng nitrate làm chất nhận electron hô hấp kị khí để sinh trưởng dòng carbon; khi thủy triều rút ban đêm, nó chuyển hẳn sang hóa dị dưỡng hiếu khí.",
+        "Vi khuẩn sẽ luôn luôn bị ức chế hoàn toàn khi thủy triều lên vì sự hiện diện của nitrate hoạt động như một chất ức chế dị lập thể không cạnh tranh đối với tất cả các bơm Rhodopsin.",
+        "Khi thủy triều rút ban đêm, do môi trường giàu oxy, vi khuẩn sẽ kích hoạt tối đa phức hệ Nitrogenase vì lúc này lượng ATP sinh ra từ hô hấp hiếu khí là dồi dào nhất."
+      ],
+      "correctAnswer": 1,
+      "hasImage": false,
+      "imageUrl": null,
+      "originalOptionCount": 4,
+      "flags": {
+        "needsUserConfirmation": true,
+        "note": "🤖 AI (gemini-3.5-flash) đã sinh bổ sung phương án/đáp án. Giảng viên vui lòng rà soát lại."
+      }
+    }
+  ]
+}
