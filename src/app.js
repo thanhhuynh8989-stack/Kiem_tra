@@ -12,6 +12,7 @@ import { handleLoadLecturerDashboard } from './modules/lecturerDashboard.js';
 import { handleLoadStudentManagement } from './modules/studentManagement.js';
 import { handleExamFileUpload, renderDefaultUploadScreen } from './modules/aiExamParser.js';
 import { loadExamList, handleEditExam, deleteExam } from './modules/examManagement.js';
+import './modules/gradebookManagement.js';
 
 // Biến toàn cục theo dõi Tab đang mở
 window.currentActiveTab = 'tab-exams';
