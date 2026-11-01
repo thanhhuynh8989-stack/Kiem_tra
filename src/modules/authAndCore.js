@@ -147,7 +147,7 @@ export function showViolationModal(count, onConfirm) {
 }
 
 // =========================================================================
-// 4. THEO DÕI VI PHẠM QUY CHẾ THI (BẮT CHIA ĐÔI MÀN HÌNH TRÊN ZALO WEBVIEW)
+// 4. THEO DÕI VI PHẠM QUY CHẾ THI (VIOLATION TRACKER ENGINE v5.0 - HASFOCUS ENGINE)
 // =========================================================================
 window.violationCount = 0;
 window.isViolationTrackingActive = false;
@@ -158,9 +158,11 @@ let blurHandler = null;
 let focusHandler = null;
 let pageHideHandler = null;
 
-let blurTimer = null; // Timer đếm ngược 5 giây ân hạn
+let blurTimer = null;           // Timer chính 5s ân hạn
+let countdownInterval = null;   // Interval cập nhật UI banner (5s..4s..3s..2s..1s)
+let focusCheckInterval = null;  // Interval kiểm tra document.hasFocus() ngầm cho Mobile Split-Screen & PC
 let isProcessingViolation = false;
-const GRACE_PERIOD_MS = 5000; // 5 Giây ân hạn
+const GRACE_PERIOD_MS = 5000;   // 5 Giây ân hạn
 
 /**
  * 4a. KIỂM TRA MÔI TRƯỜNG ZALO WEBVIEW
@@ -201,7 +203,103 @@ export function renderZaloBlockerScreen() {
 }
 
 /**
- * 4c. BẮT ĐẦU THEO DÕI VI PHẠM
+ * 4c. HIỂN THỊ / ẨN THÔNG BÁO CẢNH BÁO ÂN HẠN 5 GIÂY (FLOATING BANNER)
+ */
+function showGracePeriodBanner(secondsRemaining) {
+  let banner = document.getElementById('gracePeriodWarningBanner');
+  if (!banner) {
+    banner = document.createElement('div');
+    banner.id = 'gracePeriodWarningBanner';
+    banner.style.cssText = `
+      position: fixed;
+      top: 16px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 999999;
+      background: #fef08a;
+      border: 2px solid #eab308;
+      color: #854d0e;
+      padding: 12px 20px;
+      border-radius: 10px;
+      box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+      font-size: 14px;
+      font-weight: 600;
+      text-align: center;
+      max-width: 90%;
+      width: 520px;
+    `;
+    document.body.appendChild(banner);
+  }
+
+  banner.innerHTML = `
+    <div style="display:flex; align-items:center; justify-content:center; gap:10px;">
+      <span style="font-size:20px;">⚠️</span>
+      <div style="text-align:left;">
+        <div style="color:#a16207; font-weight:700; font-size:15px;">PHÁT HIỆN RỜI CỬA SỔ BÀI THI!</div>
+        <div style="font-size:13px; font-weight:500; margin-top:2px;">
+          Vui lòng <strong>chạm/click ngay vào màn hình bài thi</strong> để tiếp tục!
+        </div>
+      </div>
+      <div style="background:#eab308; color:#fff; font-size:18px; font-weight:800; padding:6px 12px; border-radius:50px; min-width:42px; text-align:center; margin-left:auto;">
+        ${secondsRemaining}s
+      </div>
+    </div>
+  `;
+  banner.style.display = 'block';
+}
+
+function hideGracePeriodBanner() {
+  const banner = document.getElementById('gracePeriodWarningBanner');
+  if (banner) {
+    banner.style.display = 'none';
+  }
+}
+
+/**
+ * 4d. XÓA BỘ ĐẾM ÂN HẠN & BANNER
+ */
+function clearGracePeriodTimers() {
+  if (blurTimer) {
+    clearTimeout(blurTimer);
+    blurTimer = null;
+  }
+  if (countdownInterval) {
+    clearInterval(countdownInterval);
+    countdownInterval = null;
+  }
+}
+
+/**
+ * 4e. KÍCH HOẠT ĐẾM NGƯỢC ÂN HẠN 5S (DÙNG CHO CẢ BLUR VÀ HASFOCUS = FALSE)
+ */
+function startGracePeriodCountdown(reason = 'Mất tiêu điểm cửa sổ làm bài quá 5 giây!') {
+  if (blurTimer || !window.isViolationTrackingActive || window.isInternalDialogActive || document.hidden) return;
+
+  let secondsLeft = 5;
+  showGracePeriodBanner(secondsLeft);
+
+  countdownInterval = setInterval(() => {
+    secondsLeft -= 1;
+    if (secondsLeft > 0) {
+      showGracePeriodBanner(secondsLeft);
+    } else {
+      clearInterval(countdownInterval);
+      countdownInterval = null;
+    }
+  }, 1000);
+
+  blurTimer = setTimeout(() => {
+    clearGracePeriodTimers();
+    hideGracePeriodBanner();
+
+    if (window.isViolationTrackingActive && !window.isInternalDialogActive) {
+      triggerViolationNotification(reason);
+    }
+  }, GRACE_PERIOD_MS);
+}
+
+/**
+ * 4f. BẮT ĐẦU THEO DÕI VI PHẠM
  */
 export function startViolationTracking(initialCount = 0) {
   // Nếu là Zalo WebView -> Chặn làm bài ngay lập tức
@@ -222,38 +320,29 @@ export function startViolationTracking(initialCount = 0) {
     if (!window.isViolationTrackingActive || window.isInternalDialogActive) return;
 
     if (document.hidden) {
-      // Hủy timer ân hạn blur nếu đang chạy
-      if (blurTimer) { clearTimeout(blurTimer); blurTimer = null; }
+      clearGracePeriodTimers();
+      hideGracePeriodBanner();
       triggerViolationNotification('Chuyển sang Tab khác hoặc thu nhỏ trình duyệt!');
     }
   };
 
-  // TH 2: MẤT FOCUS CỬA SỔ (BẬT ĐẾM NGƯỢC ÂN HẠN 5 GIÂY)
+  // TH 2: BLUR CỬA SỔ TRUYỀN THỐNG
   blurHandler = function () {
     if (!window.isViolationTrackingActive || window.isInternalDialogActive || document.hidden) return;
-
-    // Tránh bật đếm trùng lặp nếu đang đếm
-    if (!blurTimer) {
-      blurTimer = setTimeout(() => {
-        blurTimer = null;
-        if (window.isViolationTrackingActive && !window.isInternalDialogActive) {
-          triggerViolationNotification('Mất tiêu điểm cửa sổ làm bài quá 5 giây!');
-        }
-      }, GRACE_PERIOD_MS);
-    }
+    startGracePeriodCountdown('Mất tiêu điểm cửa sổ làm bài quá 5 giây!');
   };
 
-  // KHI NGƯỜI DÙNG QUAY LẠI CỬA SỔ (HỦY ÂN HẠN NẾU < 5S)
+  // KHI TƯƠNG TÁC QUAY LẠI CỬA SỔ (HỦY ÂN HẠN NẾU < 5S)
   focusHandler = function () {
-    if (blurTimer) {
-      clearTimeout(blurTimer);
-      blurTimer = null;
-    }
+    clearGracePeriodTimers();
+    hideGracePeriodBanner();
   };
 
   // TH 3: RỜI TRANG BẰNG ĐIỀU HƯỚNG BÊN NGOÀI
   pageHideHandler = function () {
     if (!window.isViolationTrackingActive || window.isInternalDialogActive) return;
+    clearGracePeriodTimers();
+    hideGracePeriodBanner();
     triggerViolationNotification('Đóng ứng dụng hoặc điều hướng rời khỏi trang thi!');
   };
 
@@ -261,10 +350,26 @@ export function startViolationTracking(initialCount = 0) {
   window.addEventListener('blur', blurHandler);
   window.addEventListener('focus', focusHandler);
   window.addEventListener('pagehide', pageHideHandler);
+
+  // TH 4: PHƯƠNG ÁN 1 - DÙNG DOCUMENT.HASFOCUS() POLLING DÀNH RIÊNG CHO MOBILE SPLIT-SCREEN & PC
+  focusCheckInterval = setInterval(() => {
+    if (!window.isViolationTrackingActive || window.isInternalDialogActive || document.hidden) return;
+
+    // Nếu document mất focus (SV chạm sang ứng dụng thứ 2 khi chia đôi màn hình)
+    if (!document.hasFocus()) {
+      startGracePeriodCountdown('Mất tiêu điểm tương tác bài thi (Chia đôi màn hình/Cửa sổ phụ) quá 5 giây!');
+    } else {
+      // Nếu SV chạm tương tác lại vào trang thi -> Hủy đếm ân hạn và ẩn banner lập tức
+      if (blurTimer) {
+        clearGracePeriodTimers();
+        hideGracePeriodBanner();
+      }
+    }
+  }, 600);
 }
 
 /**
- * 4d. KÍCH HOẠT THÔNG BÁO VÀ TỰ ĐỘNG NỘP BÀI KHI ĐỦ 3 LẦN
+ * 4g. KÍCH HOẠT THÔNG BÁO VÀ TỰ ĐỘNG NỘP BÀI KHI ĐỦ 3 LẦN
  */
 function triggerViolationNotification(reason = 'Vi phạm quy chế thi') {
   if (isProcessingViolation) return;
@@ -295,16 +400,19 @@ function triggerViolationNotification(reason = 'Vi phạm quy chế thi') {
 }
 
 /**
- * 4e. TẮT BỘ THEO DÕI VI PHẠM KHI NỘP BÀI
+ * 4h. TẮT BỘ THEO DÕI VI PHẠM KHI NỘP BÀI
  */
 export function stopViolationTracking() {
   window.isViolationTrackingActive = false;
   window.isInternalDialogActive = false;
   isProcessingViolation = false;
 
-  if (blurTimer) {
-    clearTimeout(blurTimer);
-    blurTimer = null;
+  clearGracePeriodTimers();
+  hideGracePeriodBanner();
+
+  if (focusCheckInterval) {
+    clearInterval(focusCheckInterval);
+    focusCheckInterval = null;
   }
 
   if (visibilityHandler) {
