@@ -47,10 +47,10 @@ export function renderStudentManagementUI(students = [], container) {
         <div id="selectedFileName" style="margin-top:10px; font-size:13px; color:#0284c7; font-weight:600;"></div>
       </div>
 
-      <!-- BẢNG DỮ LIỆU SINH VIÊN -->
+      <!-- BẢNG DỮ LIỆU SINH VIÊN VÀ NÚT TẢI LẠI -->
       <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px; border-bottom:1px solid #f1f5f9; padding-bottom:12px;">
         <h3 style="margin:0; font-size:18px; color:#0f172a;">👥 Danh Sách Sinh Viên Quản Lý (${students.length})</h3>
-        <button type="button" onclick="handleLoadStudentManagement()" style="background:#f1f5f9; color:#334155; border:1px solid #cbd5e1; padding:6px 12px; border-radius:6px; cursor:pointer; font-size:13px;">
+        <button type="button" onclick="handleLoadStudentManagement()" style="background:#f1f5f9; color:#334155; border:1px solid #cbd5e1; padding:8px 14px; border-radius:6px; cursor:pointer; font-size:13px; font-weight:600;">
           🔄 Tải lại
         </button>
       </div>
@@ -66,7 +66,7 @@ export function renderStudentManagementUI(students = [], container) {
 }
 
 /**
- * Render Bảng Chi Tiết Sinh Viên (Ẩn 100% Mật Khẩu)
+ * Render Bảng Chi Tiết Sinh Viên (Ẩn 100% Mật Khẩu thành ••••••)
  */
 function renderStudentTable(students = []) {
   return `
@@ -90,7 +90,6 @@ function renderStudentTable(students = []) {
               <td style="padding:10px; font-weight:600; color:#2563eb;">${escapeHtml(st.studentId || '')}</td>
               <td style="padding:10px; color:#0f172a; font-weight:600;">${escapeHtml(st.fullName || '')}</td>
               <td style="padding:10px; color:#475569; font-weight:600;">${escapeHtml(st.className || 'N/A')}</td>
-              <!-- ẨN 100% MẬT KHẨU THÀNH SYMBOL -->
               <td style="padding:10px; text-align:center; color:#64748b; font-weight:bold; letter-spacing:2px;">••••••</td>
               <td style="padding:10px; color:#64748b;">${escapeHtml(st.email || '--')}</td>
               <td style="padding:10px; text-align:center;">
@@ -117,7 +116,8 @@ function renderStudentTable(students = []) {
  * 1. Nạp danh sách sinh viên từ Server
  */
 export async function handleLoadStudentManagement() {
-  const container = document.getElementById('studentManagementContainer') || document.getElementById('mainContentArea');
+  const container = document.getElementById('studentManagementContainer') || 
+                    document.getElementById('mainContentArea');
   if (!container) return;
 
   if (window.currentActiveTab && window.currentActiveTab !== 'tab-students') return;
