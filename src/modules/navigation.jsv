@@ -1,0 +1,70 @@
+import { handleLoadStudentManagement } from './studentManagement.js';
+import { handleLoadExamManagement } from './examManagement.js';
+import { handleInitExamCreationUI } from './examCreation.js';
+
+/**
+ * HÀM CHUYỂN TAB VÀ ĐỒNG BỘ NẠP DỮ LIỆU CÁC GIAO DIỆN CHÍNH
+ */
+export function switchTab(tabId) {
+  if (!tabId) return;
+
+  // 1. Cập nhật trạng thái tab active toàn cục
+  window.currentActiveTab = tabId;
+
+  // 2. Cập nhật CSS Active trên Navigation Bar
+  const navButtons = document.querySelectorAll('.nav-tab-btn, [data-tab]');
+  navButtons.forEach(btn => {
+    const target = btn.getAttribute('data-tab') || btn.getAttribute('onclick');
+    if (target && target.includes(tabId)) {
+      btn.classList.add('active');
+      btn.style.background = '#2563eb';
+      btn.style.color = '#ffffff';
+    } else {
+      btn.classList.remove('active');
+      btn.style.background = 'transparent';
+      btn.style.color = '#475569';
+    }
+  });
+
+  // 3. Ẩn/Hiện các Container giao diện tương ứng
+  const tabContainers = {
+    'tab-exams': document.getElementById('examManagementContainer'),
+    'tab-students': document.getElementById('studentManagementContainer'),
+    'tab-create-exam': document.getElementById('examCreationContainer'),
+    'tab-student-exams': document.getElementById('studentExamContainer')
+  };
+
+  Object.keys(tabContainers).forEach(key => {
+    if (tabContainers[key]) {
+      tabContainers[key].style.display = (key === tabId) ? 'block' : 'none';
+    }
+  });
+
+  // 4. KÍCH HOẠT LOADER TỰ ĐỘNG KHI CHUYỂN TAB
+  switch (tabId) {
+    case 'tab-exams':
+      if (typeof handleLoadExamManagement === 'function') handleLoadExamManagement();
+      break;
+    case 'tab-students':
+      if (typeof handleLoadStudentManagement === 'function') handleLoadStudentManagement();
+      break;
+    case 'tab-create-exam':
+      if (typeof handleInitExamCreationUI === 'function') handleInitExamCreationUI();
+      break;
+    case 'tab-student-exams':
+      if (typeof window.handleLoadStudentDashboard === 'function') window.handleLoadStudentDashboard();
+      break;
+  }
+}
+
+/**
+ * NÚT TẢI LẠI TRANG HIỆN TẠI (RELOAD CURRENT TAB)
+ */
+export function reloadCurrentTab() {
+  const activeTab = window.currentActiveTab || 'tab-exams';
+  switchTab(activeTab);
+}
+
+// BIND TO WINDOW
+window.switchTab = switchTab;
+window.reloadCurrentTab = reloadCurrentTab;
