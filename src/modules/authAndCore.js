@@ -153,116 +153,158 @@ window.violationCount = 0;
 window.isViolationTrackingActive = false;
 window.isInternalDialogActive = false;
 
-let leftTimestamp = 0;
 let visibilityHandler = null;
 let blurHandler = null;
+let focusHandler = null;
 let pageHideHandler = null;
-let resizeHandler = null;
-let splitCheckInterval = null; // 👈 VÒNG LẶP KIỂM TRA NGẦM CHO ZALO WEBVIEW
-let isProcessingViolation = false;
 
+let blurTimer = null; // Timer đếm ngược 5 giây ân hạn
+let isProcessingViolation = false;
+const GRACE_PERIOD_MS = 5000; // 5 Giây ân hạn
+
+/**
+ * 4a. KIỂM TRA MÔI TRƯỜNG ZALO WEBVIEW
+ */
+export function isZaloWebView() {
+  const ua = navigator.userAgent || navigator.vendor || window.opera;
+  return /Zalo/i.test(ua);
+}
+
+/**
+ * 4b. HIỂN THỊ MÀN HÌNH BẮT BỘC MỞ TRÌNH DUYỆT NGOÀI
+ */
+export function renderZaloBlockerScreen() {
+  const mainContent = document.getElementById('mainContentArea');
+  if (!mainContent) return;
+
+  mainContent.innerHTML = `
+    <div style="max-width:480px; margin:40px auto; padding:24px; background:#fff; border-radius:12px; border:2px solid #ef4444; text-align:center; box-shadow:0 10px 25px rgba(0,0,0,0.1);">
+      <div style="font-size:48px; margin-bottom:12px;">⚠️</div>
+      <h3 style="color:#991b1b; margin-bottom:12px; font-size:18px;">Yêu Cầu Mở Bằng Trình Duyệt</h3>
+      <p style="font-size:14px; color:#334155; line-height:1.6; margin-bottom:16px;">
+        Để đảm bảo tính minh bạch và tính năng chống gian lận hoạt động chính xác, bài thi <strong>không thể làm trực tiếp bên trong ứng dụng Zalo</strong>.
+      </p>
+      
+      <div style="background:#f8fafc; padding:14px; border-radius:8px; border:1px dashed #cbd5e1; text-align:left; font-size:13px; color:#475569; margin-bottom:20px;">
+        <strong>📌 Hướng dẫn mở bằng trình duyệt:</strong>
+        <ol style="margin-left:18px; margin-top:8px; line-height:1.6;">
+          <li>Bấm vào biểu tượng <strong>3 dấu chấm (⋮)</strong> hoặc <strong>(•••)</strong> ở góc trên bên phải màn hình.</li>
+          <li>Chọn <strong>"Mở bằng trình duyệt"</strong> (Chrome trên Android hoặc Safari trên iPhone).</li>
+        </ol>
+      </div>
+
+      <button type="button" onclick="location.reload()" style="background:#2563eb; color:#fff; border:none; padding:10px 20px; border-radius:6px; font-weight:600; cursor:pointer; font-size:14px;">
+        🔄 Thử Tải Lại Trang
+      </button>
+    </div>
+  `;
+}
+
+/**
+ * 4c. BẮT ĐẦU THEO DÕI VI PHẠM
+ */
 export function startViolationTracking(initialCount = 0) {
-  // 1. HỦY TẤT CẢ LISTENER CŨ TRƯỚC KHI KÍCH HOẠT
+  // Nếu là Zalo WebView -> Chặn làm bài ngay lập tức
+  if (isZaloWebView()) {
+    renderZaloBlockerScreen();
+    return;
+  }
+
   stopViolationTracking();
 
-  // 2. KHỞI TẠO BIẾN CỜ
   window.violationCount = Number(initialCount) || 0;
   window.isViolationTrackingActive = true;
   window.isInternalDialogActive = false;
-  leftTimestamp = 0;
   isProcessingViolation = false;
 
-  const handleViolationTrigger = () => {
-    if (!window.isViolationTrackingActive || window.isInternalDialogActive || isProcessingViolation) return;
-    
-    isProcessingViolation = true;
-    triggerViolationNotification();
-    setTimeout(() => { isProcessingViolation = false; }, 800);
-  };
-
-  // HÀM KIỂM TRA TỶ LỆ MÀN HÌNH VẬT LÝ (TỐI ƯU DÀNH RIÊNG CHO ZALO / MOBILE WEBVIEW)
-  const checkSplitScreenRatio = () => {
-    if (!window.isViolationTrackingActive || window.isInternalDialogActive) return;
-
-    // Bỏ qua nếu sinh viên đang nhập liệu (Bàn phím ảo tự nảy lên)
-    const activeEl = document.activeElement;
-    const isTyping = activeEl && (activeEl.tagName === 'INPUT' || activeEl.tagName === 'TEXTAREA' || activeEl.isContentEditable);
-    if (isTyping) return;
-
-    // Lấy chiều cao/rộng thực tế từ Visual Viewport hoặc inner Dimensions
-    const currentHeight = window.visualViewport ? window.visualViewport.height : window.innerHeight;
-    const currentWidth = window.visualViewport ? window.visualViewport.width : window.innerWidth;
-    
-    const totalScreenHeight = screen.height || screen.availHeight || currentHeight;
-    const totalScreenWidth = screen.width || screen.availWidth || currentWidth;
-
-    // Tính tỷ lệ phần trăm vùng hiển thị so với màn hình vật lý thiết bị
-    const heightRatio = currentHeight / totalScreenHeight;
-    const widthRatio = currentWidth / totalScreenWidth;
-
-    // Zalo Webview bình thường chiếm từ 75% - 95% màn hình.
-    // Khi chia đôi ứng dụng (Split-screen), heightRatio sụt giảm xuống dưới 60% hoặc widthRatio < 70%.
-    if (heightRatio < 0.60 || widthRatio < 0.70) {
-      handleViolationTrigger();
-    }
-  };
-
-  // TH 1: CHUYỂN TAB HOẶC ẨN ỨNG DỤNG ZALO
+  // TH 1: CHUYỂN TAB / ẨN TRÌNH DUYỆT (PHẠT NGAY 0 SECONDS)
   visibilityHandler = function () {
     if (!window.isViolationTrackingActive || window.isInternalDialogActive) return;
 
     if (document.hidden) {
-      leftTimestamp = Date.now();
-      handleViolationTrigger();
-    } else if (leftTimestamp > 0) {
-      leftTimestamp = 0;
-      handleViolationTrigger();
+      // Hủy timer ân hạn blur nếu đang chạy
+      if (blurTimer) { clearTimeout(blurTimer); blurTimer = null; }
+      triggerViolationNotification('Chuyển sang Tab khác hoặc thu nhỏ trình duyệt!');
     }
   };
 
-  // TH 2: MẤT TIÊU ĐIỂM (BẤM SANG NỬA MÀN HÌNH BÊN CẠNH KHÁC)
+  // TH 2: MẤT FOCUS CỬA SỔ (BẬT ĐẾM NGƯỢC ÂN HẠN 5 GIÂY)
   blurHandler = function () {
-    if (!window.isViolationTrackingActive || window.isInternalDialogActive) return;
-    handleViolationTrigger();
+    if (!window.isViolationTrackingActive || window.isInternalDialogActive || document.hidden) return;
+
+    // Tránh bật đếm trùng lặp nếu đang đếm
+    if (!blurTimer) {
+      blurTimer = setTimeout(() => {
+        blurTimer = null;
+        if (window.isViolationTrackingActive && !window.isInternalDialogActive) {
+          triggerViolationNotification('Mất tiêu điểm cửa sổ làm bài quá 5 giây!');
+        }
+      }, GRACE_PERIOD_MS);
+    }
   };
 
-  // TH 3: ĐÓNG HOẶC CHUYỂN TRANG
+  // KHI NGƯỜI DÙNG QUAY LẠI CỬA SỔ (HỦY ÂN HẠN NẾU < 5S)
+  focusHandler = function () {
+    if (blurTimer) {
+      clearTimeout(blurTimer);
+      blurTimer = null;
+    }
+  };
+
+  // TH 3: RỜI TRANG BẰNG ĐIỀU HƯỚNG BÊN NGOÀI
   pageHideHandler = function () {
     if (!window.isViolationTrackingActive || window.isInternalDialogActive) return;
-    leftTimestamp = Date.now();
-    handleViolationTrigger();
+    triggerViolationNotification('Đóng ứng dụng hoặc điều hướng rời khỏi trang thi!');
   };
 
-  // TH 4: RESIZE SỰ KIỆN KHỞI CHẠY
-  resizeHandler = function () {
-    checkSplitScreenRatio();
-  };
-
-  // ĐĂNG KÝ CÁC SỰ KIỆN TRUYỀN THỐNG
   document.addEventListener('visibilitychange', visibilityHandler);
   window.addEventListener('blur', blurHandler);
+  window.addEventListener('focus', focusHandler);
   window.addEventListener('pagehide', pageHideHandler);
-  window.addEventListener('resize', resizeHandler);
-
-  // ĐĂNG KÝ BỔ SUNG CHO MOBILE WEBVIEW (ZALO / SAFARI / CHROME)
-  if (window.visualViewport) {
-    window.visualViewport.addEventListener('resize', resizeHandler);
-  }
-
-  // VÒNG LẶP QUÉT TỰ ĐỘNG MỖI 1.2 GIÂY (PHÒNG TRƯỜNG HỢP ZALO NUỐT SỰ KIỆN RESIZE)
-  splitCheckInterval = setInterval(checkSplitScreenRatio, 1200);
 }
 
+/**
+ * 4d. KÍCH HOẠT THÔNG BÁO VÀ TỰ ĐỘNG NỘP BÀI KHI ĐỦ 3 LẦN
+ */
+function triggerViolationNotification(reason = 'Vi phạm quy chế thi') {
+  if (isProcessingViolation) return;
+  isProcessingViolation = true;
+
+  window.violationCount = (window.violationCount || 0) + 1;
+  const count = window.violationCount;
+
+  window.isInternalDialogActive = true;
+
+  showViolationModal(count, reason, () => {
+    window.isInternalDialogActive = false;
+    isProcessingViolation = false;
+
+    if (count >= 3) {
+      stopViolationTracking();
+      if (typeof window.executeSubmitExam === 'function') {
+        window.executeSubmitExam(
+          window.currentActiveExamId || window.currentExamId,
+          window.currentActiveQuestionsForExam || window.currentExamQuestions,
+          window.currentActiveAnswersForExam || window.currentStudentAnswers,
+          `Tự động nộp bài do vi phạm 3 lần: ${reason}`,
+          true
+        );
+      }
+    }
+  });
+}
+
+/**
+ * 4e. TẮT BỘ THEO DÕI VI PHẠM KHI NỘP BÀI
+ */
 export function stopViolationTracking() {
   window.isViolationTrackingActive = false;
   window.isInternalDialogActive = false;
-  leftTimestamp = 0;
   isProcessingViolation = false;
 
-  // HỦY VÒNG LẶP KHI NỘP BÀI
-  if (splitCheckInterval) {
-    clearInterval(splitCheckInterval);
-    splitCheckInterval = null;
+  if (blurTimer) {
+    clearTimeout(blurTimer);
+    blurTimer = null;
   }
 
   if (visibilityHandler) {
@@ -273,16 +315,13 @@ export function stopViolationTracking() {
     window.removeEventListener('blur', blurHandler);
     blurHandler = null;
   }
+  if (focusHandler) {
+    window.removeEventListener('focus', focusHandler);
+    focusHandler = null;
+  }
   if (pageHideHandler) {
     window.removeEventListener('pagehide', pageHideHandler);
     pageHideHandler = null;
-  }
-  if (resizeHandler) {
-    window.removeEventListener('resize', resizeHandler);
-    if (window.visualViewport) {
-      window.visualViewport.removeEventListener('resize', resizeHandler);
-    }
-    resizeHandler = null;
   }
 }
 
