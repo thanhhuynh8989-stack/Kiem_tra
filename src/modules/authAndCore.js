@@ -1,5 +1,7 @@
 import { appsScriptService } from '../services/appsScriptService.js';
 
+import { saveExamDraftToLocal } from './offlineExamEngine.js';
+
 // =========================================================================
 // 1. QUẢN LÝ PHIÊN ĐĂNG NHẬP & SESSION TẬP TRUNG
 // =========================================================================
@@ -378,6 +380,16 @@ function triggerViolationNotification(reason = 'Vi phạm quy chế thi') {
   window.violationCount = (window.violationCount || 0) + 1;
   const count = window.violationCount;
 
+  // LẤY CÁC BIẾN NHẬN DẠNG BÀI THI & SINH VIÊN
+  const examId = window.currentActiveExamId || window.currentExamId;
+  const studentCode = window.currentStudentCode || window.currentUserCode || window.studentCode;
+  const answers = window.currentActiveAnswersForExam || window.currentStudentAnswers || {};
+
+  // 🔑 LƯU NGAY SỐ LẦN VI PHẠM MỚI VÀO BẢN NHÁP LOCAL STORAGE KÈM CHECKSUM
+  if (examId && studentCode && typeof saveExamDraftToLocal === 'function') {
+    saveExamDraftToLocal(examId, studentCode, answers, count);
+  }
+
   window.isInternalDialogActive = true;
 
   showViolationModal(count, reason, () => {
@@ -388,9 +400,9 @@ function triggerViolationNotification(reason = 'Vi phạm quy chế thi') {
       stopViolationTracking();
       if (typeof window.executeSubmitExam === 'function') {
         window.executeSubmitExam(
-          window.currentActiveExamId || window.currentExamId,
+          examId,
           window.currentActiveQuestionsForExam || window.currentExamQuestions,
-          window.currentActiveAnswersForExam || window.currentStudentAnswers,
+          answers,
           `Tự động nộp bài do vi phạm 3 lần: ${reason}`,
           true
         );
