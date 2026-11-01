@@ -5,8 +5,10 @@ import {
   handleLogin, 
   handleLogout, 
   showAppLoading, 
-  hideAppLoading 
+  hideAppLoading,
+  escapeHtml 
 } from './modules/authAndCore.js';
+
 import { handleLoadStudentDashboard } from './modules/studentExamTaking.js';
 import { handleLoadLecturerDashboard } from './modules/lecturerDashboard.js';
 import { handleLoadStudentManagement } from './modules/studentManagement.js';
@@ -25,7 +27,7 @@ window.currentActiveTab = 'tab-exams';
 export function switchTab(tabId) {
   if (!tabId) return;
 
-  // Chuẩn hóa tên tab (Đồng bộ giữa data-tab và mã tab cũ)
+  // Chuẩn hóa tên tab (Đồng bộ giữa data-tab và mã tab legacy)
   let targetTab = tabId;
   if (tabId === 'LECTURER_DASHBOARD') targetTab = 'tab-exams';
   if (tabId === 'STUDENT_MANAGEMENT') targetTab = 'tab-students';
@@ -51,7 +53,7 @@ export function switchTab(tabId) {
     }
   });
 
-  // B. CẬP NHẬT TRẠNG THÁI ACTIVE TRÊN NAVBAR NGAY LẬP TỨC
+  // B. CẬP NHẬT TRẠNG THÁI ACTIVE TRÊN NAVBAR
   document.querySelectorAll('nav button, [data-tab]').forEach(btn => {
     const btnTab = btn.getAttribute('data-tab');
     if (btnTab === targetTab || btn.id === getBtnIdByTab(targetTab)) {
@@ -77,7 +79,6 @@ export function switchTab(tabId) {
       handleLoadStudentManagement();
     }
   } else if (targetTab === 'tab-parser') {
-    // Render lại giao diện Upload nếu chưa có danh sách câu hỏi đang mở biên tập
     const questionsEditorList = document.getElementById('questionsEditorList');
     if (!questionsEditorList || !questionsEditorList.children.length) {
       if (typeof renderDefaultUploadScreen === 'function') {
@@ -100,7 +101,7 @@ function getBtnIdByTab(tabId) {
   return '';
 }
 
-// Tương thích ngược với các hàm gọi switchMainTab cũ
+// Tương thích ngược với hàm gọi cũ
 export function switchMainTab(tabName) {
   switchTab(tabName);
 }
@@ -164,7 +165,6 @@ export function initUserSessionUI() {
   const tabBtnEditor = document.getElementById('tabBtnEditor');
 
   if (!user) {
-    // Chưa đăng nhập
     if (loginCard) loginCard.style.display = 'block';
     if (appNavTabs) appNavTabs.style.display = 'none';
     if (userInfoDisplay) userInfoDisplay.innerText = 'Chưa đăng nhập';
@@ -172,7 +172,6 @@ export function initUserSessionUI() {
     return;
   }
 
-  // Đã đăng nhập
   if (loginCard) loginCard.style.display = 'none';
   if (appNavTabs) appNavTabs.style.display = 'flex';
   if (btnLogout) btnLogout.style.display = 'inline-block';
@@ -183,7 +182,6 @@ export function initUserSessionUI() {
     userInfoDisplay.innerHTML = `👤 <strong>${escapeHtml(name)}</strong> (${role})`;
   }
 
-  // Phân quyền hiển thị Menu
   if (role === 'STUDENT') {
     if (tabBtnStudent) tabBtnStudent.style.display = 'inline-block';
     if (tabBtnLecturer) tabBtnLecturer.style.display = 'none';
@@ -191,7 +189,6 @@ export function initUserSessionUI() {
     if (tabBtnEditor) tabBtnEditor.style.display = 'none';
     switchTab('tab-student-exams');
   } else {
-    // Quyền LECTURER hoặc ADMIN
     if (tabBtnStudent) tabBtnStudent.style.display = 'none';
     if (tabBtnLecturer) tabBtnLecturer.style.display = 'inline-block';
     if (tabBtnManagement) tabBtnManagement.style.display = 'inline-block';
@@ -219,7 +216,7 @@ window.submitLoginForm = submitLoginForm;
 window.handleLogout = handleLogout;
 window.triggerExamUpload = triggerExamUpload;
 
-// Khởi chạy khi tải xong trang
+// Khởi chạy hệ thống ngay sau khi load DOM
 document.addEventListener('DOMContentLoaded', () => {
   initUserSessionUI();
 });
