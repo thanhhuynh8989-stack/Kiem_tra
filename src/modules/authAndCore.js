@@ -162,7 +162,7 @@ let blurTimer = null;           // Timer chính 5s ân hạn
 let countdownInterval = null;   // Interval cập nhật UI banner (5s..4s..3s..2s..1s)
 let focusCheckInterval = null;  // Interval kiểm tra document.hasFocus() ngầm cho Mobile Split-Screen & PC
 let isProcessingViolation = false;
-const GRACE_PERIOD_MS = 5000;   // 5 Giây ân hạn
+const GRACE_PERIOD_MS = 3000;   // 5 Giây ân hạn
 
 /**
  * 4a. KIỂM TRA MÔI TRƯỜNG ZALO WEBVIEW
@@ -272,10 +272,10 @@ function clearGracePeriodTimers() {
 /**
  * 4e. KÍCH HOẠT ĐẾM NGƯỢC ÂN HẠN 5S (DÙNG CHO CẢ BLUR VÀ HASFOCUS = FALSE)
  */
-function startGracePeriodCountdown(reason = 'Mất tiêu điểm cửa sổ làm bài quá 5 giây!') {
+function startGracePeriodCountdown(reason = 'Mất tiêu điểm cửa sổ làm bài quá 3 giây!') {
   if (blurTimer || !window.isViolationTrackingActive || window.isInternalDialogActive || document.hidden) return;
 
-  let secondsLeft = 5;
+  let secondsLeft = 3;
   showGracePeriodBanner(secondsLeft);
 
   countdownInterval = setInterval(() => {
