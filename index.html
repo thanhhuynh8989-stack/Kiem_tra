@@ -48,7 +48,7 @@
     }
     header h1 { font-size: 18px; font-weight: 700; display: flex; align-items: center; gap: 8px; }
 
-    /* MENU TABS (Hỗ trợ cuộn ngang trên điện thoại) */
+    /* MENU TABS */
     .nav-tabs { 
       background: #1e293b; 
       display: flex; 
@@ -148,9 +148,25 @@
       box-shadow: 0 10px 25px rgba(0,0,0,0.2); 
     }
 
-    /* =========================================================================
-       THIẾT LẬP MEDIA QUERIES TỐI ƯU DÀNH RIÊNG CHO MÀN HÌNH ĐIỆN THOẠI
-       ========================================================================= */
+    /* GLOBAL LOADER DISPLAY */
+    #appGlobalLoader {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      background: rgba(15, 23, 42, 0.7);
+      color: #fff;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      z-index: 99999;
+      font-size: 16px;
+      font-weight: 600;
+      backdrop-filter: blur(3px);
+    }
+
     @media (max-width: 768px) {
       header {
         flex-direction: column;
@@ -178,16 +194,14 @@
         padding: 12px;
       }
 
-      /* Tối ưu các nút chọn đáp án thi trắc nghiệm trên điện thoại */
       .input-group input, .input-group select {
-        font-size: 16px; /* Chống tự động zoom-in trên iOS Safari */
+        font-size: 16px;
       }
 
       .modal-content {
         padding: 16px;
       }
 
-      /* Tự động chuyển bảng dữ liệu sang dạng cuộn ngang không vỡ khung */
       table {
         display: block;
         overflow-x: auto;
@@ -207,15 +221,15 @@
     </div>
   </header>
 
-  <!-- Thanh Menu Điều Hướng Tab -->
+  <!-- Thanh Menu Điều Hướng Tab (Bổ sung thuộc tính data-tab) -->
   <nav id="appNavTabs" class="nav-tabs" style="display: none;">
-    <button type="button" id="tabBtnStudent" class="nav-btn active" onclick="switchMainTab('STUDENT_EXAMS')">📝 Bài Thi Sinh Viên</button>
-    <button type="button" id="tabBtnLecturer" class="nav-btn" onclick="switchMainTab('LECTURER_DASHBOARD')">📚 Quản Lý Đề Thi</button>
-    <button type="button" id="tabBtnManagement" class="nav-btn" onclick="switchMainTab('STUDENT_MANAGEMENT')">👥 Quản Lý Sinh Viên</button>
-    <button type="button" id="tabBtnEditor" class="nav-btn" onclick="switchMainTab('EXAM_EDITOR')">🛠️ Bóc Tách / Tạo Đề Thi</button>
+    <button type="button" id="tabBtnStudent" data-tab="tab-student-exams" class="nav-btn active" onclick="switchTab('tab-student-exams')">📝 Bài Thi Sinh Viên</button>
+    <button type="button" id="tabBtnLecturer" data-tab="tab-exams" class="nav-btn" onclick="switchTab('tab-exams')">📚 Quản Lý Đề Thi</button>
+    <button type="button" id="tabBtnManagement" data-tab="tab-students" class="nav-btn" onclick="switchTab('tab-students')">👥 Quản Lý Sinh Viên</button>
+    <button type="button" id="tabBtnEditor" data-tab="tab-parser" class="nav-btn" onclick="switchTab('tab-parser')">🛠️ Bóc Tách / Tạo Đề Thi</button>
   </nav>
 
-  <!-- Màn Hình Chính -->
+  <!-- Màn Hình Chính SPA -->
   <main id="mainContentArea">
 
     <!-- 1. Form Đăng Nhập -->
@@ -245,6 +259,8 @@
     <div id="studentExamContainer" style="display: none;"></div>
     <div id="lecturerDashboardContainer" style="display: none;"></div>
     <div id="studentManagementContainer" style="display: none;"></div>
+    <div id="submissionsContainer" style="display: none;"></div>
+    
     <div id="examEditorContainer" style="display: none;">
       <div class="card">
         <h3 style="margin-bottom: 12px; font-size: 16px;">📤 Tải Lên File Đề Thi (DOCX / PDF / Ảnh)</h3>
