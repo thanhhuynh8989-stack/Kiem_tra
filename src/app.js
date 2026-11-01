@@ -9,12 +9,19 @@ import {
   escapeHtml 
 } from './modules/authAndCore.js';
 
-import { handleLoadStudentDashboard } from './modules/studentExamTaking.js';
+// BỔ SUNG KHAI BÁO ĐẦY ĐỦ CÁC HÀM XEM LẠI BÀI VÀ NỘP BÀI
+import { 
+  handleLoadStudentDashboard, 
+  handleReviewSubmittedExam, 
+  renderExamReviewUI,
+  executeSubmitExam
+} from './modules/studentExamTaking.js';
+
 import { handleLoadLecturerDashboard } from './modules/lecturerDashboard.js';
 import { handleLoadStudentManagement } from './modules/studentManagement.js';
 import { handleExamFileUpload, renderDefaultUploadScreen } from './modules/aiExamParser.js';
 import { loadExamList, handleEditExam, deleteExam } from './modules/examManagement.js';
-import './modules/gradebookManagement.js';
+import { handleViewExamSubmissions } from './modules/gradebookManagement.js';
 
 // Biến toàn cục theo dõi Tab đang mở
 window.currentActiveTab = 'tab-exams';
@@ -27,7 +34,7 @@ window.currentActiveTab = 'tab-exams';
 export function switchTab(tabId) {
   if (!tabId) return;
 
-  // Chuẩn hóa tên tab (Đồng bộ giữa data-tab và mã tab legacy)
+  // Chuẩn hóa tên tab (Đồng bộ giữa data-tab và mã tab cũ)
   let targetTab = tabId;
   if (tabId === 'LECTURER_DASHBOARD') targetTab = 'tab-exams';
   if (tabId === 'STUDENT_MANAGEMENT') targetTab = 'tab-students';
@@ -101,7 +108,6 @@ function getBtnIdByTab(tabId) {
   return '';
 }
 
-// Tương thích ngược với hàm gọi cũ
 export function switchMainTab(tabName) {
   switchTab(tabName);
 }
@@ -208,7 +214,9 @@ export function triggerExamUpload(inputElement) {
   }
 }
 
-// Global scope window bindings
+// =========================================================================
+// 7. BIND TOÀN BỘ CÁC HÀM XỬ LÝ SỰ KIỆN VÀO WINDOW OBJECT
+// =========================================================================
 window.switchTab = switchTab;
 window.switchMainTab = switchMainTab;
 window.reloadCurrentTab = reloadCurrentTab;
@@ -216,7 +224,12 @@ window.submitLoginForm = submitLoginForm;
 window.handleLogout = handleLogout;
 window.triggerExamUpload = triggerExamUpload;
 
-// Khởi chạy hệ thống ngay sau khi load DOM
+// Bind các hàm xem bài làm và nộp bài toàn cục
+window.handleReviewSubmittedExam = handleReviewSubmittedExam;
+window.renderExamReviewUI = renderExamReviewUI;
+window.executeSubmitExam = executeSubmitExam;
+window.handleViewExamSubmissions = handleViewExamSubmissions;
+
 document.addEventListener('DOMContentLoaded', () => {
   initUserSessionUI();
 });
