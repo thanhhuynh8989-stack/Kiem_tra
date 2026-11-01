@@ -201,6 +201,12 @@ export function exportSubmissionsToCSV(examId, submissions = []) {
   URL.revokeObjectURL(url);
 }
 
+// Window Bindings (Gán vào Window để HTML onclick gọi được)
+window.handleViewExamSubmissions = handleViewExamSubmissions;
+window.viewExamScores = handleViewExamSubmissions; // <--- THÊM DÒNG NÀY ĐỂ SỬA LỖI
+window.handleResetStudentSubmission = handleResetStudentSubmission;
+window.exportSubmissionsToCSV = exportSubmissionsToCSV;
+
 // Window Bindings
 window.handleViewExamSubmissions = handleViewExamSubmissions;
 window.handleResetStudentSubmission = handleResetStudentSubmission;
