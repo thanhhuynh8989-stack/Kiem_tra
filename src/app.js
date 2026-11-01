@@ -6,7 +6,8 @@ import {
   handleLogout, 
   showAppLoading, 
   hideAppLoading,
-  escapeHtml 
+  escapeHtml,
+  startViolationTracking
 } from './modules/authAndCore.js';
 
 // BỔ SUNG KHAI BÁO ĐẦY ĐỦ CÁC HÀM XEM LẠI BÀI VÀ NỘP BÀI
@@ -25,6 +26,80 @@ import { handleViewExamSubmissions } from './modules/gradebookManagement.js';
 
 // Biến toàn cục theo dõi Tab đang mở
 window.currentActiveTab = 'tab-exams';
+
+/**
+ * =========================================================================
+ * 0. TỰ ĐỘNG XỬ LÝ MẠNG KHÔI PHỤC KÈM THUẬT TOÁN JITTER (GIẢI TOẢ CÔNG SUẤT BACKEND)
+ * =========================================================================
+ */
+window.addEventListener('online', () => {
+  console.log("🟢 Kết nối Internet đã khôi phục. Đang xếp hàng nộp bài rải rác (Jitter)...");
+  
+  // Tạo độ trễ ngẫu nhiên Jitter từ 0 - 4 giây để kéo giãn các request nộp trùng thời điểm
+  const jitterDelay = Math.floor(Math.random() * 4000);
+  
+  setTimeout(() => {
+    if (window.isPendingSubmitOffline) {
+      if (typeof window.retrySubmitExam === 'function') {
+        window.retrySubmitExam();
+      } else if (typeof executeSubmitExam === 'function') {
+        executeSubmitExam();
+      }
+    }
+  }, jitterDelay);
+});
+
+window.addEventListener('offline', () => {
+  console.warn("⚠️ Mạng Internet bị ngắt. Bài làm vẫn được lưu an toàn 100% ở LocalStorage!");
+});
+
+/**
+ * =========================================================================
+ * KIỂM TRA KHÔI PHỤC PHIÊN THI THEO THỜI GIAN TUYỆT ĐỐI (ABSOLUTE TIME RECOVERY)
+ * =========================================================================
+ */
+export function checkAndRestoreStudentSession(examId, studentCode, durationMinutes, startTimeServerMs) {
+  const key = `exam_draft_${studentCode}_${examId}`;
+  const rawDraft = localStorage.getItem(key);
+  if (!rawDraft) return null;
+
+  try {
+    const draft = JSON.parse(rawDraft);
+    const endTimeMs = startTimeServerMs + (durationMinutes * 60 * 1000);
+    const nowMs = Date.now();
+
+    if (nowMs >= endTimeMs) {
+      alert('⏰ Thời gian làm bài của bạn đã kết thúc trong lúc thoát ứng dụng/rớt mạng. Hệ thống đang tự động nộp bài!');
+      
+      executeSubmitExam(
+        draft.examId || examId,
+        window.allQuestionsMap?.[examId] || window.currentActiveQuestionsForExam || [],
+        draft.answers || {},
+        `Tự động nộp bài do hết giờ (Khôi phục phiên làm bài)`,
+        true
+      );
+      return { isExpired: true };
+    } else {
+      const remainingSeconds = Math.floor((endTimeMs - nowMs) / 1000);
+      window.currentActiveAnswersForExam = draft.answers || {};
+      window.violationCount = draft.violationCount || 0;
+
+      if (typeof startViolationTracking === 'function') {
+        startViolationTracking(window.violationCount);
+      }
+
+      return {
+        isExpired: false,
+        remainingSeconds,
+        answers: draft.answers,
+        violationCount: draft.violationCount
+      };
+    }
+  } catch (err) {
+    console.error("❌ Lỗi đọc bản nháp phiên làm bài:", err);
+    return null;
+  }
+}
 
 /**
  * =========================================================================
@@ -224,11 +299,12 @@ window.submitLoginForm = submitLoginForm;
 window.handleLogout = handleLogout;
 window.triggerExamUpload = triggerExamUpload;
 
-// Bind các hàm xem bài làm và nộp bài toàn cục
+// Bind các hàm xem bài làm, khôi phục phiên và nộp bài toàn cục
 window.handleReviewSubmittedExam = handleReviewSubmittedExam;
 window.renderExamReviewUI = renderExamReviewUI;
 window.executeSubmitExam = executeSubmitExam;
 window.handleViewExamSubmissions = handleViewExamSubmissions;
+window.checkAndRestoreStudentSession = checkAndRestoreStudentSession;
 
 document.addEventListener('DOMContentLoaded', () => {
   initUserSessionUI();
