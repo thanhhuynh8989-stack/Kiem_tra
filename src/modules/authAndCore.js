@@ -147,7 +147,7 @@ export function showViolationModal(count, onConfirm) {
 }
 
 // =========================================================================
-// 4. THEO DÕI VI PHẠM QUY CHẾ THI & CHIA ĐÔI MÀN HÌNH (AUTH & CORE ENGINE)
+// 4. THEO DÕI VI PHẠM QUY CHẾ THI (BẮT CHIA ĐÔI MÀN HÌNH TRÊN ZALO WEBVIEW)
 // =========================================================================
 window.violationCount = 0;
 window.isViolationTrackingActive = false;
@@ -157,25 +157,20 @@ let leftTimestamp = 0;
 let visibilityHandler = null;
 let blurHandler = null;
 let pageHideHandler = null;
-let resizeHandler = null; // 👈 BỔ SUNG HANDLER BẮT CHIA ĐÔI MÀN HÌNH
+let resizeHandler = null;
+let splitCheckInterval = null; // 👈 VÒNG LẶP KIỂM TRA NGẦM CHO ZALO WEBVIEW
 let isProcessingViolation = false;
 
-let initialScreenWidth = window.innerWidth;
-let initialScreenHeight = window.innerHeight;
-
 export function startViolationTracking(initialCount = 0) {
-  // 1. HỦY TẤT CẢ LISTENER CŨ TRƯỚC KHI THIẾT LẬP MỚI
+  // 1. HỦY TẤT CẢ LISTENER CŨ TRƯỚC KHI KÍCH HOẠT
   stopViolationTracking();
 
-  // 2. KHỞI TẠO CÁC BIẾN THEO DÕI
+  // 2. KHỞI TẠO BIẾN CỜ
   window.violationCount = Number(initialCount) || 0;
   window.isViolationTrackingActive = true;
   window.isInternalDialogActive = false;
   leftTimestamp = 0;
   isProcessingViolation = false;
-
-  initialScreenWidth = window.innerWidth;
-  initialScreenHeight = window.innerHeight;
 
   const handleViolationTrigger = () => {
     if (!window.isViolationTrackingActive || window.isInternalDialogActive || isProcessingViolation) return;
@@ -185,7 +180,34 @@ export function startViolationTracking(initialCount = 0) {
     setTimeout(() => { isProcessingViolation = false; }, 800);
   };
 
-  // TH1: Chuyển Tab hoặc Ẩn Trình Duyệt
+  // HÀM KIỂM TRA TỶ LỆ MÀN HÌNH VẬT LÝ (TỐI ƯU DÀNH RIÊNG CHO ZALO / MOBILE WEBVIEW)
+  const checkSplitScreenRatio = () => {
+    if (!window.isViolationTrackingActive || window.isInternalDialogActive) return;
+
+    // Bỏ qua nếu sinh viên đang nhập liệu (Bàn phím ảo tự nảy lên)
+    const activeEl = document.activeElement;
+    const isTyping = activeEl && (activeEl.tagName === 'INPUT' || activeEl.tagName === 'TEXTAREA' || activeEl.isContentEditable);
+    if (isTyping) return;
+
+    // Lấy chiều cao/rộng thực tế từ Visual Viewport hoặc inner Dimensions
+    const currentHeight = window.visualViewport ? window.visualViewport.height : window.innerHeight;
+    const currentWidth = window.visualViewport ? window.visualViewport.width : window.innerWidth;
+    
+    const totalScreenHeight = screen.height || screen.availHeight || currentHeight;
+    const totalScreenWidth = screen.width || screen.availWidth || currentWidth;
+
+    // Tính tỷ lệ phần trăm vùng hiển thị so với màn hình vật lý thiết bị
+    const heightRatio = currentHeight / totalScreenHeight;
+    const widthRatio = currentWidth / totalScreenWidth;
+
+    // Zalo Webview bình thường chiếm từ 75% - 95% màn hình.
+    // Khi chia đôi ứng dụng (Split-screen), heightRatio sụt giảm xuống dưới 60% hoặc widthRatio < 70%.
+    if (heightRatio < 0.60 || widthRatio < 0.70) {
+      handleViolationTrigger();
+    }
+  };
+
+  // TH 1: CHUYỂN TAB HOẶC ẨN ỨNG DỤNG ZALO
   visibilityHandler = function () {
     if (!window.isViolationTrackingActive || window.isInternalDialogActive) return;
 
@@ -198,55 +220,37 @@ export function startViolationTracking(initialCount = 0) {
     }
   };
 
-  // TH2: Mất tiêu điểm (Click sang ứng dụng khác / cửa sổ song song khi chia đôi PC)
+  // TH 2: MẤT TIÊU ĐIỂM (BẤM SANG NỬA MÀN HÌNH BÊN CẠNH KHÁC)
   blurHandler = function () {
     if (!window.isViolationTrackingActive || window.isInternalDialogActive) return;
     handleViolationTrigger();
   };
 
-  // TH3: Thoát hoặc chuyển trang
+  // TH 3: ĐÓNG HOẶC CHUYỂN TRANG
   pageHideHandler = function () {
     if (!window.isViolationTrackingActive || window.isInternalDialogActive) return;
     leftTimestamp = Date.now();
     handleViolationTrigger();
   };
 
-  // TH4: Chia đôi màn hình trên Điện thoại hoặc Thu nhỏ trình duyệt trên PC
+  // TH 4: RESIZE SỰ KIỆN KHỞI CHẠY
   resizeHandler = function () {
-    if (!window.isViolationTrackingActive || window.isInternalDialogActive) return;
-
-    const currentWidth = window.innerWidth;
-    const currentHeight = window.innerHeight;
-
-    // Thu nhỏ chiều rộng > 30% (PC Chia đôi màn hình) hoặc giảm chiều cao > 35% (Mobile Chia đôi app)
-    const isWidthSplit = currentWidth < (screen.availWidth * 0.7);
-    const isHeightSplit = currentHeight < (initialScreenHeight * 0.65);
-
-    if (isWidthSplit || isHeightSplit) {
-      handleViolationTrigger();
-    }
+    checkSplitScreenRatio();
   };
 
+  // ĐĂNG KÝ CÁC SỰ KIỆN TRUYỀN THỐNG
   document.addEventListener('visibilitychange', visibilityHandler);
   window.addEventListener('blur', blurHandler);
   window.addEventListener('pagehide', pageHideHandler);
-  window.addEventListener('resize', resizeHandler); // 👈 ĐĂNG KÝ BẮT CHIA ĐÔI MÀN HÌNH
-}
+  window.addEventListener('resize', resizeHandler);
 
-function triggerViolationNotification() {
-  window.violationCount = (window.violationCount || 0) + 1;
-  const count = window.violationCount;
+  // ĐĂNG KÝ BỔ SUNG CHO MOBILE WEBVIEW (ZALO / SAFARI / CHROME)
+  if (window.visualViewport) {
+    window.visualViewport.addEventListener('resize', resizeHandler);
+  }
 
-  window.isInternalDialogActive = true;
-
-  showViolationModal(count, () => {
-    if (count >= 3) {
-      stopViolationTracking();
-      if (typeof window.executeSubmitExam === 'function') {
-        window.executeSubmitExam();
-      }
-    }
-  });
+  // VÒNG LẶP QUÉT TỰ ĐỘNG MỖI 1.2 GIÂY (PHÒNG TRƯỜNG HỢP ZALO NUỐT SỰ KIỆN RESIZE)
+  splitCheckInterval = setInterval(checkSplitScreenRatio, 1200);
 }
 
 export function stopViolationTracking() {
@@ -254,6 +258,12 @@ export function stopViolationTracking() {
   window.isInternalDialogActive = false;
   leftTimestamp = 0;
   isProcessingViolation = false;
+
+  // HỦY VÒNG LẶP KHI NỘP BÀI
+  if (splitCheckInterval) {
+    clearInterval(splitCheckInterval);
+    splitCheckInterval = null;
+  }
 
   if (visibilityHandler) {
     document.removeEventListener('visibilitychange', visibilityHandler);
@@ -268,7 +278,10 @@ export function stopViolationTracking() {
     pageHideHandler = null;
   }
   if (resizeHandler) {
-    window.removeEventListener('resize', resizeHandler); // 👈 HỦY LẮNG NGHE RESIZE
+    window.removeEventListener('resize', resizeHandler);
+    if (window.visualViewport) {
+      window.visualViewport.removeEventListener('resize', resizeHandler);
+    }
     resizeHandler = null;
   }
 }
