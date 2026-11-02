@@ -50,23 +50,23 @@
 
     /* MENU TABS */
     .nav-tabs { 
-      background: #1e293b; 
+      background: #ffffff; 
       display: flex; 
-      gap: 6px; 
-      padding: 8px 16px; 
-      border-bottom: 1px solid #334155; 
+      gap: 8px; 
+      padding: 10px 16px; 
+      border-bottom: 2px solid #e2e8f0; 
       overflow-x: auto; 
       white-space: nowrap;
       -webkit-overflow-scrolling: touch;
     }
     .nav-tabs::-webkit-scrollbar { height: 4px; }
-    .nav-tabs::-webkit-scrollbar-thumb { background: #475569; border-radius: 4px; }
+    .nav-tabs::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
 
     .nav-btn { 
       background: transparent; 
-      color: #94a3b8; 
+      color: #64748b; 
       border: none; 
-      padding: 8px 14px; 
+      padding: 8px 16px; 
       border-radius: 6px; 
       cursor: pointer; 
       font-size: 13px; 
@@ -74,8 +74,8 @@
       transition: all 0.2s;
       flex-shrink: 0;
     }
-    .nav-btn:hover { color: #fff; background: #334155; }
-    .nav-btn.active { background: var(--primary); color: #fff; }
+    .nav-btn:hover { color: #0f172a; background: #f1f5f9; }
+    .nav-btn.active { background: #eff6ff; color: var(--primary); border-bottom: 2px solid var(--primary); font-weight: 700; }
 
     main { max-width: 1200px; margin: 16px auto; padding: 0 12px; }
 
@@ -217,26 +217,26 @@
     <h1>🎓 Online Exam System <small style="font-size: 12px; color: #38bdf8; font-weight: 400;">© Huỳnh Ngọc Thành</small></h1>
     <div id="userHeaderProfile" style="font-size: 13px; display: flex; align-items: center; gap: 12px;">
       <span id="userInfoDisplay">Chưa đăng nhập</span>
-      <button id="btnLogout" type="button" onclick="handleLogout()" style="display:none; background: #dc2626; color: #fff; border: none; padding: 4px 10px; border-radius: 4px; cursor: pointer; font-size: 12px;">Đăng xuất</button>
+      <button id="btnLogout" type="button" onclick="window.handleLogout()" style="display:none; background: #dc2626; color: #fff; border: none; padding: 4px 10px; border-radius: 4px; cursor: pointer; font-size: 12px;">Đăng xuất</button>
     </div>
   </header>
 
-  <!-- Thanh Menu Điều Hướng Tab (Bổ sung thuộc tính data-tab) -->
-  <nav id="appNavTabs" style="display: none; gap: 8px; border-bottom: 2px solid #e2e8f0; padding-bottom: 8px; margin-bottom: 16px;">
-    <button id="tabBtnStudent" data-tab="tab-student-exams" style="display:none; padding:8px 16px; border:none; background:none; cursor:pointer;">📝 Bài Thi Sinh Viên</button>
-    <button id="tabBtnLecturer" data-tab="tab-exams" style="display:none; padding:8px 16px; border:none; background:none; cursor:pointer;">📊 Quản Lý Đề Thi</button>
-    <button id="tabBtnManagement" data-tab="tab-students" style="display:none; padding:8px 16px; border:none; background:none; cursor:pointer;">👨‍🎓 Quản Lý Sinh Viên</button>
-    <button id="tabBtnLecturerManagement" data-tab="tab-lecturers" style="display:none; padding:8px 16px; border:none; background:none; cursor:pointer;">👨‍🏫 Quản Lý Giảng Viên</button>
-    <button id="tabBtnEditor" data-tab="tab-parser" style="display:none; padding:8px 16px; border:none; background:none; cursor:pointer;">⚙️ Soạn Thảo Đề Thi</button>
+  <!-- Thanh Menu Điều Hướng Tab -->
+  <nav id="appNavTabs" class="nav-tabs" style="display: none;">
+    <button id="tabBtnStudent" class="nav-btn" data-tab="tab-student-exams" style="display:none;">📝 Bài Thi Sinh Viên</button>
+    <button id="tabBtnLecturer" class="nav-btn" data-tab="tab-exams" style="display:none;">📊 Quản Lý Đề Thi</button>
+    <button id="tabBtnManagement" class="nav-btn" data-tab="tab-students" style="display:none;">👨‍🎓 Quản Lý Sinh Viên</button>
+    <button id="tabBtnLecturerManagement" class="nav-btn" data-tab="tab-lecturers" style="display:none;">👨‍🏫 Quản Lý Giảng Viên</button>
+    <button id="tabBtnEditor" class="nav-btn" data-tab="tab-parser" style="display:none;">⚙️ Soạn Thảo Đề Thi</button>
   </nav>
 
-  <!-- Màn Hình Chính SPA -->
+  <!-- Màn Hình Chính SPA (Tất cả Containers con trực thuộc mainContentArea) -->
   <main id="mainContentArea">
 
     <!-- 1. Form Đăng Nhập -->
     <div id="loginCard" class="card auth-box">
       <h2 style="font-size: 18px; margin-bottom: 16px; text-align: center;">🔐 Đăng Nhập Hệ Thống</h2>
-      <form id="loginForm" onsubmit="event.preventDefault(); submitLoginForm();">
+      <form id="loginForm" onsubmit="event.preventDefault(); window.submitLoginForm();">
         <div class="input-group">
           <label for="inputUsername">Tên đăng nhập / Mã Sinh viên:</label>
           <input type="text" id="inputUsername" placeholder="Nhập tên tài khoản..." required>
@@ -244,12 +244,12 @@
         <div class="input-group">
           <label for="inputPassword">Mật khẩu:</label>
           <input type="password" id="inputPassword" placeholder="Nhập mật khẩu..." required>
-          <span class="pwd-toggle" onclick="togglePasswordVisibility('inputPassword', this)">👁️</span>
+          <span class="pwd-toggle" onclick="window.togglePasswordVisibility('inputPassword', this)">👁️</span>
         </div>
         
         <div style="display: flex; justify-content: space-between; align-items: center; font-size: 12px; margin-bottom: 16px;">
-          <a href="#" onclick="openForgotPasswordModal()" style="color: #2563eb; text-decoration: none;">Quên mật khẩu?</a>
-          <a href="#" onclick="openRegisterLecturerModal()" style="color: #16a34a; font-weight: 600; text-decoration: none;">📝 Đăng ký Giảng viên</a>
+          <a href="#" onclick="event.preventDefault(); window.openForgotPasswordModal();" style="color: #2563eb; text-decoration: none;">Quên mật khẩu?</a>
+          <a href="#" onclick="event.preventDefault(); window.openRegisterLecturerModal();" style="color: #16a34a; font-weight: 600; text-decoration: none;">📝 Đăng ký Giảng viên</a>
         </div>
 
         <button type="submit" class="btn-primary">Đăng Nhập</button>
@@ -260,14 +260,15 @@
     <div id="studentExamContainer" style="display: none;"></div>
     <div id="lecturerDashboardContainer" style="display: none;"></div>
     <div id="studentManagementContainer" style="display: none;"></div>
-    <div id="lecturerManagementContainer" style="display:none;"></div>
+    <div id="lecturerManagementContainer" style="display: none;"></div>
     <div id="submissionsContainer" style="display: none;"></div>
     
+    <!-- 3. Container Bóc Tách / Tạo Đề Thi (Bọc toàn bộ thành phần Bóc Tách vào đây) -->
     <div id="examEditorContainer" style="display: none;">
       <div class="card">
         <h3 style="margin-bottom: 12px; font-size: 16px;">📤 Tải Lên File Đề Thi (DOCX / PDF / Ảnh)</h3>
         <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 12px;">Hệ thống hỗ trợ tự động bóc tách câu hỏi, phương án và hiển thị công thức toán KaTeX qua Gemini AI.</p>
-        <input type="file" id="examFileInput" accept=".docx, .pdf, image/*" onchange="triggerExamUpload(this)" style="font-size: 13px;">
+        <input type="file" id="examFileInput" accept=".docx, .pdf, image/*" onchange="window.triggerExamUpload(this)" style="font-size: 13px;">
       </div>
       <div id="examEditorContent"></div>
     </div>
@@ -279,10 +280,10 @@
     <div class="modal-content">
       <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
         <h3 style="font-size:16px; color:#0f172a;">👨‍🏫 Đăng Ký Tài Khoản Giảng Viên</h3>
-        <span onclick="closeRegisterModal()" style="cursor:pointer; font-size:18px; color:#64748b;">✖</span>
+        <span onclick="window.closeRegisterModal()" style="cursor:pointer; font-size:18px; color:#64748b;">✖</span>
       </div>
 
-      <form onsubmit="event.preventDefault(); submitLecturerRegistration();">
+      <form onsubmit="event.preventDefault(); window.submitLecturerRegistration();">
         <div class="input-group">
           <label>Tên đăng nhập (User):</label>
           <input type="text" id="regUser" placeholder="Nhập tên đăng nhập (không trùng lặp)..." required>
@@ -290,7 +291,7 @@
         <div class="input-group">
           <label>Mật khẩu:</label>
           <input type="password" id="regPass" placeholder="Nhập mật khẩu..." required>
-          <span class="pwd-toggle" onclick="togglePasswordVisibility('regPass', this)">👁️</span>
+          <span class="pwd-toggle" onclick="window.togglePasswordVisibility('regPass', this)">👁️</span>
         </div>
         <div class="input-group">
           <label>Họ và Tên (Full name):</label>
@@ -304,7 +305,7 @@
           <label>Địa chỉ Email (Xác nhận OTP):</label>
           <div style="display:flex; gap:6px;">
             <input type="email" id="regEmail" placeholder="example@gmail.com" required style="flex:1;">
-            <button type="button" onclick="sendRegisterOTP()" style="background:#0284c7; color:#fff; border:none; padding:0 12px; border-radius:6px; font-size:12px; font-weight:600; cursor:pointer; white-space:nowrap;">Gửi OTP</button>
+            <button type="button" onclick="window.sendRegisterOTP()" style="background:#0284c7; color:#fff; border:none; padding:0 12px; border-radius:6px; font-size:12px; font-weight:600; cursor:pointer; white-space:nowrap;">Gửi OTP</button>
           </div>
         </div>
         <div class="input-group">
@@ -317,63 +318,62 @@
     </div>
   </div>
 
-  <!-- MODAL 2: QUÊN MẬT KHẨU -->
-  <div id="forgotModal" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 9999; justify-content: center; align-items: center; padding: 16px;">
-  <div style="background: #fff; border-radius: 10px; max-width: 420px; width: 100%; padding: 24px; box-shadow: 0 10px 25px rgba(0,0,0,0.2);">
-    
-    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
-      <h3 style="margin: 0; color: #0f172a; font-size: 18px;">🔑 Khôi Phục Mật Khẩu</h3>
-      <button type="button" onclick="window.closeForgotModal()" style="background: none; border: none; font-size: 20px; cursor: pointer; color: #64748b;">&times;</button>
-    </div>
-
-    <!-- BƯỚC 1: NHẬP TÊN ĐĂNG NHẬP HOẶC EMAIL -->
-    <div id="forgotStep1Area" style="display: block;">
-      <p style="font-size: 13px; color: #475569; margin-bottom: 12px; line-height: 1.4;">
-        Nhập <strong>Tên đăng nhận</strong> hoặc <strong>Địa chỉ Email</strong> liên kết với tài khoản của bạn. Mã xác nhận OTP sẽ được gửi về Email.
-      </p>
-      
-      <div style="margin-bottom: 16px;">
-        <label style="font-size: 12px; font-weight: 600; color: #334155; display: block; margin-bottom: 4px;">Tên đăng nhập hoặc Email *</label>
-        <input type="text" id="forgotInput" placeholder="Ví dụ: gv_nguyenvana hoặc email@domain.com" style="width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 13px; box-sizing: border-box;">
+  <!-- MODAL 2: QUÊN MẬT KHẨU (2 BƯỚC XÁC THỰC) -->
+  <div id="forgotModal" class="modal-overlay" style="display: none;">
+    <div class="modal-content" style="max-width: 420px;">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+        <h3 style="margin: 0; color: #0f172a; font-size: 18px;">🔑 Khôi Phục Mật Khẩu</h3>
+        <button type="button" onclick="window.closeForgotModal()" style="background: none; border: none; font-size: 20px; cursor: pointer; color: #64748b;">&times;</button>
       </div>
 
-      <button type="button" onclick="window.sendForgotOTP()" style="width: 100%; background: #2563eb; color: #fff; border: none; padding: 10px; border-radius: 6px; font-weight: 600; font-size: 14px; cursor: pointer;">
-        📩 Gửi Mã OTP Xác Thực
-      </button>
-    </div>
+      <!-- BƯỚC 1: NHẬP TÊN ĐĂNG NHẬP HOẶC EMAIL -->
+      <div id="forgotStep1Area" style="display: block;">
+        <p style="font-size: 13px; color: #475569; margin-bottom: 12px; line-height: 1.4;">
+          Nhập <strong>Tên đăng nhập</strong> hoặc <strong>Địa chỉ Email</strong> liên kết với tài khoản của bạn. Mã xác nhận OTP sẽ được gửi về Email.
+        </p>
+        
+        <div style="margin-bottom: 16px;">
+          <label style="font-size: 12px; font-weight: 600; color: #334155; display: block; margin-bottom: 4px;">Tên đăng nhập hoặc Email *</label>
+          <input type="text" id="forgotInput" placeholder="Ví dụ: gv_nguyenvana hoặc email@domain.com" style="width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 13px;">
+        </div>
 
-    <!-- BƯỚC 2: NHẬP OTP & ĐẶT MẬT KHẨU MỚI -->
-    <div id="forgotStep2Area" style="display: none;">
-      <!-- KHU VỰC HIỂN THỊ TÊN TÀI KHOẢN TRUY XUẤT TỪ EMAIL -->
-      <div id="forgotUsernameDisplay" style="display: none; background: #eff6ff; border: 1px solid #bfdbfe; color: #1e40af; padding: 10px 12px; border-radius: 6px; font-size: 13px; margin-bottom: 14px;"></div>
-
-      <div style="margin-bottom: 12px;">
-        <label style="font-size: 12px; font-weight: 600; color: #334155; display: block; margin-bottom: 4px;">Mã xác nhận OTP (6 chữ số) *</label>
-        <input type="text" id="forgotOTP" maxlength="6" placeholder="Nhập 6 số trong email" style="width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 14px; font-weight: 700; letter-spacing: 2px; text-align: center; box-sizing: border-box;">
-      </div>
-
-      <div style="margin-bottom: 16px;">
-        <label style="font-size: 12px; font-weight: 600; color: #334155; display: block; margin-bottom: 4px;">Mật khẩu mới *</label>
-        <input type="password" id="forgotNewPass" placeholder="Tối thiểu 6 ký tự" style="width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 13px; box-sizing: border-box;">
-      </div>
-
-      <div style="display: flex; gap: 8px;">
-        <button type="button" onclick="window.openForgotPasswordModal()" style="flex: 1; background: #f1f5f9; color: #475569; border: 1px solid #cbd5e1; padding: 10px; border-radius: 6px; font-weight: 600; font-size: 13px; cursor: pointer;">
-          ↩️ Quay lại
-        </button>
-        <button type="button" onclick="window.submitResetPassword()" style="flex: 2; background: #16a34a; color: #fff; border: none; padding: 10px; border-radius: 6px; font-weight: 600; font-size: 14px; cursor: pointer;">
-          ✅ Đặt Lại Mật Khẩu
+        <button type="button" onclick="window.sendForgotOTP()" style="width: 100%; background: #2563eb; color: #fff; border: none; padding: 10px; border-radius: 6px; font-weight: 600; font-size: 14px; cursor: pointer;">
+          📩 Gửi Mã OTP Xác Thực
         </button>
       </div>
-    </div>
 
+      <!-- BƯỚC 2: NHẬP OTP & ĐẶT MẬT KHẨU MỚI -->
+      <div id="forgotStep2Area" style="display: none;">
+        <!-- TỰ ĐỘNG HIỂN THỊ TÊN TÀI KHOẢN KHI NHẬP EMAIL -->
+        <div id="forgotUsernameDisplay" style="display: none; background: #eff6ff; border: 1px solid #bfdbfe; color: #1e40af; padding: 10px 12px; border-radius: 6px; font-size: 13px; margin-bottom: 14px;"></div>
+
+        <div style="margin-bottom: 12px;">
+          <label style="font-size: 12px; font-weight: 600; color: #334155; display: block; margin-bottom: 4px;">Mã xác nhận OTP (6 chữ số) *</label>
+          <input type="text" id="forgotOTP" maxlength="6" placeholder="Nhập 6 số trong email" style="width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 14px; font-weight: 700; letter-spacing: 2px; text-align: center;">
+        </div>
+
+        <div style="margin-bottom: 16px;">
+          <label style="font-size: 12px; font-weight: 600; color: #334155; display: block; margin-bottom: 4px;">Mật khẩu mới *</label>
+          <input type="password" id="forgotNewPass" placeholder="Tối thiểu 6 ký tự" style="width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 13px;">
+        </div>
+
+        <div style="display: flex; gap: 8px;">
+          <button type="button" onclick="window.openForgotPasswordModal()" style="flex: 1; background: #f1f5f9; color: #475569; border: 1px solid #cbd5e1; padding: 10px; border-radius: 6px; font-weight: 600; font-size: 13px; cursor: pointer;">
+            ↩️ Quay lại
+          </button>
+          <button type="button" onclick="window.submitResetPassword()" style="flex: 2; background: #16a34a; color: #fff; border: none; padding: 10px; border-radius: 6px; font-weight: 600; font-size: 14px; cursor: pointer;">
+            ✅ Đặt Lại Mật Khẩu
+          </button>
+        </div>
+      </div>
+
+    </div>
   </div>
-</div>
 
   <!-- Overlay Loading Toàn Cục -->
   <div id="appGlobalLoader" style="display: none;"></div>
 
-  <!-- Script Khởi Chạy Ứng Dụng -->
+  <!-- Script Khởi Chạy Ứng Dụng ES Module -->
   <script type="module" src="src/app.js"></script>
 
 </body>
