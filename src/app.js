@@ -23,6 +23,7 @@ import { handleLoadStudentManagement } from './modules/studentManagement.js';
 import { handleExamFileUpload, renderDefaultUploadScreen } from './modules/aiExamParser.js';
 import { loadExamList, handleEditExam, deleteExam } from './modules/examManagement.js';
 import { handleViewExamSubmissions } from './modules/gradebookManagement.js';
+import { handleLoadLecturerManagement } from './modules/lecturerManagement.js';
 
 // Biến toàn cục theo dõi Tab đang mở
 window.currentActiveTab = 'tab-exams';
@@ -109,18 +110,28 @@ export function checkAndRestoreStudentSession(examId, studentCode, durationMinut
 export function switchTab(tabId) {
   if (!tabId) return;
 
-  // Chuẩn hóa tên tab (Đồng bộ giữa data-tab và mã tab cũ)
   let targetTab = tabId;
   if (tabId === 'LECTURER_DASHBOARD') targetTab = 'tab-exams';
   if (tabId === 'STUDENT_MANAGEMENT') targetTab = 'tab-students';
+  if (tabId === 'LECTURER_MANAGEMENT') targetTab = 'tab-lecturers';
   if (tabId === 'EXAM_EDITOR') targetTab = 'tab-parser';
   if (tabId === 'STUDENT_EXAMS') targetTab = 'tab-student-exams';
+
+  // 🔑 KHỎA BẢO VỆ: Nếu cố tình chuyển sang Tab Quản lý Giảng viên mà không phải ADMIN
+  if (targetTab === 'tab-lecturers') {
+    const role = String(getLoggedInRole() || '').toUpperCase();
+    if (role !== 'ADMIN') {
+      alert('⚠️ Bạn không có quyền truy cập vào chức năng Quản Lý Giảng Viên!');
+      return;
+    }
+  }
 
   window.currentActiveTab = targetTab;
 
   const containers = {
     'tab-exams': document.getElementById('lecturerDashboardContainer') || document.getElementById('examManagementContainer'),
     'tab-students': document.getElementById('studentManagementContainer'),
+    'tab-lecturers': document.getElementById('lecturerManagementContainer'),
     'tab-parser': document.getElementById('examEditorContainer') || document.getElementById('examParserContainer'),
     'tab-student-exams': document.getElementById('studentExamContainer')
   };
@@ -128,7 +139,7 @@ export function switchTab(tabId) {
   const loginCard = document.getElementById('loginCard');
   if (loginCard) loginCard.style.display = 'none';
 
-  // A. CHUYỂN HIỂN THỊ DOM NGAY LẬP TỨC (0ms Delay)
+  // A. CHUYỂN HIỂN THỊ DOM NGAY LẬP TỨC
   Object.keys(containers).forEach(key => {
     if (containers[key]) {
       containers[key].style.display = (key === targetTab) ? 'block' : 'none';
@@ -149,35 +160,28 @@ export function switchTab(tabId) {
     }
   });
 
-  // C. TẢI DỮ LIỆU CHẠY NGẦM SAU KHI ĐÃ ĐỔI GIAO DIỆN
+  // C. TẢI DỮ LIỆU CHẠY NGẦM
   if (targetTab === 'tab-exams') {
-    if (typeof handleLoadLecturerDashboard === 'function') {
-      handleLoadLecturerDashboard();
-    } else if (typeof loadExamList === 'function') {
-      loadExamList();
-    }
+    if (typeof handleLoadLecturerDashboard === 'function') handleLoadLecturerDashboard();
   } else if (targetTab === 'tab-students') {
-    if (typeof handleLoadStudentManagement === 'function') {
-      handleLoadStudentManagement();
-    }
+    if (typeof handleLoadStudentManagement === 'function') handleLoadStudentManagement();
+  } else if (targetTab === 'tab-lecturers') {
+    if (typeof handleLoadLecturerManagement === 'function') handleLoadLecturerManagement();
   } else if (targetTab === 'tab-parser') {
     const questionsEditorList = document.getElementById('questionsEditorList');
     if (!questionsEditorList || !questionsEditorList.children.length) {
-      if (typeof renderDefaultUploadScreen === 'function') {
-        renderDefaultUploadScreen();
-      }
+      if (typeof renderDefaultUploadScreen === 'function') renderDefaultUploadScreen();
     }
   } else if (targetTab === 'tab-student-exams') {
-    if (typeof handleLoadStudentDashboard === 'function') {
-      handleLoadStudentDashboard();
-    }
+    if (typeof handleLoadStudentDashboard === 'function') handleLoadStudentDashboard();
   }
 }
 
-// Hàm hỗ trợ map ID nút Menu
+// Bổ sung map ID cho nút menu Quản lý Giảng viên trong hàm phụ trợ
 function getBtnIdByTab(tabId) {
   if (tabId === 'tab-exams') return 'tabBtnLecturer';
   if (tabId === 'tab-students') return 'tabBtnManagement';
+  if (tabId === 'tab-lecturers') return 'tabBtnLecturerManagement'; // 🔑 Map với ID nút trên Navbar
   if (tabId === 'tab-parser') return 'tabBtnEditor';
   if (tabId === 'tab-student-exams') return 'tabBtnStudent';
   return '';
@@ -240,10 +244,12 @@ export function initUserSessionUI() {
   const userInfoDisplay = document.getElementById('userInfoDisplay');
   const btnLogout = document.getElementById('btnLogout');
 
+  // Các nút trên Navbar
   const tabBtnStudent = document.getElementById('tabBtnStudent');
   const tabBtnLecturer = document.getElementById('tabBtnLecturer');
   const tabBtnManagement = document.getElementById('tabBtnManagement');
   const tabBtnEditor = document.getElementById('tabBtnEditor');
+  const tabBtnLecturerManagement = document.getElementById('tabBtnLecturerManagement'); // Nút Quản lý Giảng viên
 
   if (!user) {
     if (loginCard) loginCard.style.display = 'block';
@@ -257,23 +263,40 @@ export function initUserSessionUI() {
   if (appNavTabs) appNavTabs.style.display = 'flex';
   if (btnLogout) btnLogout.style.display = 'inline-block';
 
-  const role = getLoggedInRole();
+  const role = String(getLoggedInRole() || '').toUpperCase();
   const name = user.fullName || user.username || 'Người dùng';
   if (userInfoDisplay) {
     userInfoDisplay.innerHTML = `👤 <strong>${escapeHtml(name)}</strong> (${role})`;
   }
 
+  // -------------------------------------------------------------------------
+  // PHÂN LUỒNG HIỂN THỊ CÁC TAB NGHỆ NẠP DỰA TRÊN ROLE
+  // -------------------------------------------------------------------------
   if (role === 'STUDENT') {
+    // 1. SINH VIÊN: Chỉ hiện tab Làm bài thi
     if (tabBtnStudent) tabBtnStudent.style.display = 'inline-block';
     if (tabBtnLecturer) tabBtnLecturer.style.display = 'none';
     if (tabBtnManagement) tabBtnManagement.style.display = 'none';
     if (tabBtnEditor) tabBtnEditor.style.display = 'none';
+    if (tabBtnLecturerManagement) tabBtnLecturerManagement.style.display = 'none';
     switchTab('tab-student-exams');
-  } else {
+
+  } else if (role === 'ADMIN') {
+    // 2. ADMIN: Hiển thị ĐẦY ĐỦ tất cả các tab (bao gồm Quản lý Giảng viên)
     if (tabBtnStudent) tabBtnStudent.style.display = 'none';
     if (tabBtnLecturer) tabBtnLecturer.style.display = 'inline-block';
     if (tabBtnManagement) tabBtnManagement.style.display = 'inline-block';
     if (tabBtnEditor) tabBtnEditor.style.display = 'inline-block';
+    if (tabBtnLecturerManagement) tabBtnLecturerManagement.style.display = 'inline-block'; // 🔑 CHỈ ADMIN MỚI HIỂN THỊ
+    switchTab('tab-exams');
+
+  } else {
+    // 3. GIẢNG VIÊN (LECTURER): Ẩn tab Quản lý Giảng viên
+    if (tabBtnStudent) tabBtnStudent.style.display = 'none';
+    if (tabBtnLecturer) tabBtnLecturer.style.display = 'inline-block';
+    if (tabBtnManagement) tabBtnManagement.style.display = 'inline-block';
+    if (tabBtnEditor) tabBtnEditor.style.display = 'inline-block';
+    if (tabBtnLecturerManagement) tabBtnLecturerManagement.style.display = 'none'; // 🔑 GIẢNG VIÊN BỊ ẨN TAB NÀY
     switchTab('tab-exams');
   }
 }
