@@ -209,16 +209,6 @@ function getBtnIdByTab(tabId) {
   return '';
 }
 
-// Bổ sung map ID cho nút menu Quản lý Giảng viên trong hàm phụ trợ
-function getBtnIdByTab(tabId) {
-  if (tabId === 'tab-exams') return 'tabBtnLecturer';
-  if (tabId === 'tab-students') return 'tabBtnManagement';
-  if (tabId === 'tab-lecturers') return 'tabBtnLecturerManagement'; // 🔑 Map với ID nút trên Navbar
-  if (tabId === 'tab-parser') return 'tabBtnEditor';
-  if (tabId === 'tab-student-exams') return 'tabBtnStudent';
-  return '';
-}
-
 export function switchMainTab(tabName) {
   switchTab(tabName);
 }
