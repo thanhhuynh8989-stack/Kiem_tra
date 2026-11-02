@@ -4,37 +4,22 @@ import { appsScriptService } from '../services/appsScriptService.js';
 let rawLecturerList = [];
 
 /**
- * 1. NẠP DANH SÁCH GIẢNG VIÊN TỪ SERVER
+ * 1. HÀM TẠO SƯỜN GIAO DIỆN CHÍNH (DỰNG 1 LẦN DUY NHẤT)
  */
-export async function handleLoadLecturerManagement() {
+export function ensureLecturerManagementShell() {
   const container = document.getElementById('lecturerManagementContainer');
-  if (!container) return;
+  if (!container) return false;
 
-  container.innerHTML = '<p style="color:#2563eb; font-size:13px; padding:12px;">🔄 Đang nạp danh sách Giảng viên...</p>';
+  // Nếu đã có sườn bảng thì không dựng lại để tránh xóa Modal
+  if (document.getElementById('lecturerTableBody')) return true;
 
-  try {
-    const res = await appsScriptService.request('GET_LECTURERS', {});
-    rawLecturerList = res.lecturers || res.data || [];
-    renderLecturerManagementUI(rawLecturerList);
-  } catch (err) {
-    container.innerHTML = `<p style="color:#ef4444; font-size:13px; padding:12px;">⚠️ Lỗi nạp danh sách Giảng viên: ${escapeHtml(err.message)}</p>`;
-  }
-}
-
-/**
- * 2. RENDER GIAO DIỆN QUẢN LÝ GIẢNG VIÊN
- */
-export function renderLecturerManagementUI(lecturers = []) {
-  const container = document.getElementById('lecturerManagementContainer');
-  if (!container) return;
-
-  let html = `
+  container.innerHTML = `
     <div style="background:#fff; border-radius:10px; padding:16px; border:1px solid var(--border, #cbd5e1);">
       
       <!-- THANH CÔNG CỤ & NÚT THÊM GIẢNG VIÊN -->
       <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px; margin-bottom:16px; background:#f8fafc; padding:12px 16px; border-radius:8px; border:1px solid #e2e8f0;">
         <div style="display:flex; align-items:center; gap:10px;">
-          <h3 style="margin:0; font-size:16px; color:#0f172a;">👨‍🏫 Quản Lý Giảng Viên (${lecturers.length})</h3>
+          <h3 id="lecturerHeaderCount" style="margin:0; font-size:16px; color:#0f172a;">👨‍🏫 Quản Lý Giảng Viên (0)</h3>
           <input type="text" id="searchLecturerInput" oninput="window.handleSearchLecturer(this.value)" placeholder="🔍 Tìm tên, email, username..." style="padding:6px 12px; border:1px solid #cbd5e1; border-radius:6px; font-size:13px; width:220px;">
         </div>
 
@@ -57,7 +42,7 @@ export function renderLecturerManagementUI(lecturers = []) {
             </tr>
           </thead>
           <tbody id="lecturerTableBody">
-            ${renderLecturerRows(lecturers)}
+            <tr><td colspan="6" style="text-align:center; padding:20px; color:#2563eb;">🔄 Đang nạp danh sách Giảng viên...</td></tr>
           </tbody>
         </table>
       </div>
@@ -65,9 +50,12 @@ export function renderLecturerManagementUI(lecturers = []) {
     </div>
 
     <!-- MODAL THÊM GIẢNG VIÊN MỚI -->
-    <div id="addLecturerModal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.5); z-index:9999; justify-content:center; align-items:center; padding:16px;">
+    <div id="addLecturerModal" class="modal-overlay" style="display:none; position:fixed; inset:0; background:rgba(15,23,42,0.6); z-index:9999; justify-content:center; align-items:center; padding:16px;">
       <div style="background:#fff; border-radius:10px; max-width:450px; width:100%; padding:20px; box-shadow:0 10px 25px rgba(0,0,0,0.2);">
-        <h3 style="margin-top:0; color:#0f172a; font-size:16px;">➕ Thêm Giảng Viên Mới</h3>
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+          <h3 style="margin:0; color:#0f172a; font-size:16px;">➕ Thêm Giảng Viên Mới</h3>
+          <span onclick="window.closeAddLecturerModal()" style="cursor:pointer; font-size:18px; color:#64748b;">✖</span>
+        </div>
         
         <div style="display:flex; flex-direction:column; gap:12px; margin-top:14px;">
           <div>
@@ -99,17 +87,57 @@ export function renderLecturerManagementUI(lecturers = []) {
       </div>
     </div>
   `;
+  return true;
+}
 
-  container.innerHTML = html;
+/**
+ * 2. NẠP DANH SÁCH GIẢNG VIÊN TỪ SERVER
+ */
+export async function handleLoadLecturerManagement() {
+  ensureLecturerManagementShell();
+
+  const tbody = document.getElementById('lecturerTableBody');
+  if (tbody) {
+    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; padding:20px; color:#2563eb;">🔄 Đang nạp danh sách Giảng viên...</td></tr>';
+  }
+
+  try {
+    const res = await appsScriptService.request('GET_LECTURERS', {});
+    rawLecturerList = res.lecturers || res.data || [];
+    renderLecturerManagementUI(rawLecturerList);
+  } catch (err) {
+    if (tbody) {
+      tbody.innerHTML = `<tr><td colspan="6" style="text-align:center; padding:20px; color:#ef4444;">⚠️ Lỗi nạp danh sách Giảng viên: ${escapeHtml(err.message)}</td></tr>`;
+    }
+  }
+}
+
+/**
+ * 3. RENDER CÁC HÀNG BẢNG GIẢNG VIÊN
+ */
+export function renderLecturerManagementUI(lecturers = []) {
+  ensureLecturerManagementShell();
+
+  const tbody = document.getElementById('lecturerTableBody');
+  const countEl = document.getElementById('lecturerHeaderCount');
+
+  if (countEl) {
+    countEl.innerText = `👨‍🏫 Quản Lý Giảng Viên (${lecturers.length})`;
+  }
+
+  if (tbody) {
+    tbody.innerHTML = renderLecturerRows(lecturers);
+  }
 }
 
 function renderLecturerRows(lecturers) {
-  if (lecturers.length === 0) {
+  if (!lecturers || lecturers.length === 0) {
     return `<tr><td colspan="6" style="text-align:center; padding:20px; color:#64748b;">Chưa có tài khoản Giảng viên nào.</td></tr>`;
   }
 
   return lecturers.map(lec => {
     const username = escapeHtml(lec.username || lec.user || '');
+    const safeUser = username.replace(/'/g, "\\'");
     return `
       <tr style="border-bottom:1px solid #f1f5f9;">
         <td style="padding:10px 12px; font-weight:600; color:#0f172a;">${username}</td>
@@ -122,8 +150,8 @@ function renderLecturerRows(lecturers) {
           </span>
         </td>
         <td style="padding:10px 12px; text-align:center;">
-          <button type="button" onclick="window.handleResetLecturerPass('${username}')" style="background:#f59e0b; color:#fff; border:none; padding:4px 8px; border-radius:4px; font-size:12px; cursor:pointer; margin-right:4px;">🔑 Đổi pass</button>
-          <button type="button" onclick="window.handleDeleteLecturer('${username}')" style="background:#dc2626; color:#fff; border:none; padding:4px 8px; border-radius:4px; font-size:12px; cursor:pointer;">🗑️ Xóa</button>
+          <button type="button" onclick="window.handleResetLecturerPass('${safeUser}')" style="background:#f59e0b; color:#fff; border:none; padding:4px 8px; border-radius:4px; font-size:12px; cursor:pointer; margin-right:4px;">🔑 Đổi pass</button>
+          <button type="button" onclick="window.handleDeleteLecturer('${safeUser}')" style="background:#dc2626; color:#fff; border:none; padding:4px 8px; border-radius:4px; font-size:12px; cursor:pointer;">🗑️ Xóa</button>
         </td>
       </tr>
     `;
@@ -131,8 +159,11 @@ function renderLecturerRows(lecturers) {
 }
 
 // =========================================================================
-// 3. EVENT HANDLERS & MODAL CONTROL
+// 4. BIND VÀO WINDOW OBJECT ĐỂ SWITCH TAB CÓ THỂ GỌI TRỰC TIẾP
 // =========================================================================
+window.handleLoadLecturerManagement = handleLoadLecturerManagement;
+window.renderLecturerManagementUI = renderLecturerManagementUI;
+
 window.handleSearchLecturer = function(keyword) {
   const kw = String(keyword || '').toLowerCase().trim();
   const filtered = rawLecturerList.filter(l => 
@@ -152,6 +183,11 @@ window.openAddLecturerModal = function() {
 window.closeAddLecturerModal = function() {
   const modal = document.getElementById('addLecturerModal');
   if (modal) modal.style.display = 'none';
+
+  ['addLecturerUser', 'addLecturerName', 'addLecturerEmail', 'addLecturerPass', 'addLecturerDept'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.value = '';
+  });
 };
 
 window.handleCreateLecturerSubmit = async function() {
