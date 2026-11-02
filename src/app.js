@@ -110,6 +110,7 @@ export function checkAndRestoreStudentSession(examId, studentCode, durationMinut
 export function switchTab(tabId) {
   if (!tabId) return;
 
+  // 1. CHUẨN HÓA TÊN TAB (Đồng bộ giữa data-tab và mã tab hệ thống cũ)
   let targetTab = tabId;
   if (tabId === 'LECTURER_DASHBOARD') targetTab = 'tab-exams';
   if (tabId === 'STUDENT_MANAGEMENT') targetTab = 'tab-students';
@@ -117,17 +118,18 @@ export function switchTab(tabId) {
   if (tabId === 'EXAM_EDITOR') targetTab = 'tab-parser';
   if (tabId === 'STUDENT_EXAMS') targetTab = 'tab-student-exams';
 
-  // 🔑 KHỎA BẢO VỆ: Nếu cố tình chuyển sang Tab Quản lý Giảng viên mà không phải ADMIN
+  // 2. KHÓA BẢO VỆ: CHUẨN HÓA ROLE VÀ CHẶN TRUY CẬP KHÔNG PHẢI ADMIN VÀO TAB QUẢN LÝ GIẢNG VIÊN
   if (targetTab === 'tab-lecturers') {
-    const role = String(getLoggedInRole() || '').toUpperCase();
-    if (role !== 'ADMIN') {
-      alert('⚠️ Bạn không có quyền truy cập vào chức năng Quản Lý Giảng Viên!');
+    const currentRole = String(getLoggedInRole() || '').trim().toUpperCase();
+    if (currentRole !== 'ADMIN') {
+      alert(`⚠️ Bạn không có quyền truy cập vào chức năng Quản Lý Giảng Viên! (Vai trò hiện tại: ${currentRole || 'N/A'})`);
       return;
     }
   }
 
   window.currentActiveTab = targetTab;
 
+  // 3. KHAI BÁO CÁC CONTAINER TƯƠNG ỨNG VỚI TỪNG TAB GIAO DIỆN
   const containers = {
     'tab-exams': document.getElementById('lecturerDashboardContainer') || document.getElementById('examManagementContainer'),
     'tab-students': document.getElementById('studentManagementContainer'),
@@ -139,14 +141,14 @@ export function switchTab(tabId) {
   const loginCard = document.getElementById('loginCard');
   if (loginCard) loginCard.style.display = 'none';
 
-  // A. CHUYỂN HIỂN THỊ DOM NGAY LẬP TỨC
+  // A. CHUYỂN HIỂN THỊ DOM NGAY LẬP TỨC (0ms UI Lag)
   Object.keys(containers).forEach(key => {
     if (containers[key]) {
       containers[key].style.display = (key === targetTab) ? 'block' : 'none';
     }
   });
 
-  // B. CẬP NHẬT TRẠNG THÁI ACTIVE TRÊN NAVBAR
+  // B. CẬP NHẬT TRẠNG THÁI ACTIVE VÀ HIGHLIGHT TRÊN NAVBAR
   document.querySelectorAll('nav button, [data-tab]').forEach(btn => {
     const btnTab = btn.getAttribute('data-tab');
     if (btnTab === targetTab || btn.id === getBtnIdByTab(targetTab)) {
@@ -160,21 +162,51 @@ export function switchTab(tabId) {
     }
   });
 
-  // C. TẢI DỮ LIỆU CHẠY NGẦM
+  // C. TẢI DỮ LIỆU CHẠY NGẦM AN TOÀN THEO TỪNG TAB (HỖ TRỢ CẢ IMPORT LẪN GLOBAL WINDOW SCOPE)
   if (targetTab === 'tab-exams') {
-    if (typeof handleLoadLecturerDashboard === 'function') handleLoadLecturerDashboard();
+    if (typeof handleLoadLecturerDashboard === 'function') {
+      handleLoadLecturerDashboard();
+    } else if (typeof loadExamList === 'function') {
+      loadExamList();
+    }
   } else if (targetTab === 'tab-students') {
-    if (typeof handleLoadStudentManagement === 'function') handleLoadStudentManagement();
+    if (typeof handleLoadStudentManagement === 'function') {
+      handleLoadStudentManagement();
+    } else if (typeof window.handleLoadStudentManagement === 'function') {
+      window.handleLoadStudentManagement();
+    }
   } else if (targetTab === 'tab-lecturers') {
-    if (typeof handleLoadLecturerManagement === 'function') handleLoadLecturerManagement();
+    if (typeof handleLoadLecturerManagement === 'function') {
+      handleLoadLecturerManagement();
+    } else if (typeof window.handleLoadLecturerManagement === 'function') {
+      window.handleLoadLecturerManagement();
+    }
   } else if (targetTab === 'tab-parser') {
     const questionsEditorList = document.getElementById('questionsEditorList');
     if (!questionsEditorList || !questionsEditorList.children.length) {
-      if (typeof renderDefaultUploadScreen === 'function') renderDefaultUploadScreen();
+      if (typeof renderDefaultUploadScreen === 'function') {
+        renderDefaultUploadScreen();
+      }
     }
   } else if (targetTab === 'tab-student-exams') {
-    if (typeof handleLoadStudentDashboard === 'function') handleLoadStudentDashboard();
+    if (typeof handleLoadStudentDashboard === 'function') {
+      handleLoadStudentDashboard();
+    } else if (typeof window.handleLoadStudentDashboard === 'function') {
+      window.handleLoadStudentDashboard();
+    }
   }
+}
+
+/**
+ * HÀM HỖ TRỢ MAP ID NÚT ĐIỀU HƯỚNG TRÊN NAVBAR
+ */
+function getBtnIdByTab(tabId) {
+  if (tabId === 'tab-exams') return 'tabBtnLecturer';
+  if (tabId === 'tab-students') return 'tabBtnManagement';
+  if (tabId === 'tab-lecturers') return 'tabBtnLecturerManagement';
+  if (tabId === 'tab-parser') return 'tabBtnEditor';
+  if (tabId === 'tab-student-exams') return 'tabBtnStudent';
+  return '';
 }
 
 // Bổ sung map ID cho nút menu Quản lý Giảng viên trong hàm phụ trợ
@@ -263,14 +295,16 @@ export function initUserSessionUI() {
   if (appNavTabs) appNavTabs.style.display = 'flex';
   if (btnLogout) btnLogout.style.display = 'inline-block';
 
-  const role = String(getLoggedInRole() || '').toUpperCase();
+  // 🔑 CHUẨN HÓA ROLE: Loại bỏ khoảng trắng thừa và chuyển về chữ viết hoa tuyệt đối
+  const role = String(getLoggedInRole() || '').trim().toUpperCase();
   const name = user.fullName || user.username || 'Người dùng';
+  
   if (userInfoDisplay) {
     userInfoDisplay.innerHTML = `👤 <strong>${escapeHtml(name)}</strong> (${role})`;
   }
 
   // -------------------------------------------------------------------------
-  // PHÂN LUỒNG HIỂN THỊ CÁC TAB NGHỆ NẠP DỰA TRÊN ROLE
+  // PHÂN LUỒNG HIỂN THỊ CÁC TAB NGHỆ NẠP DỰA TRÊN ROLE CHUẨN HÓA
   // -------------------------------------------------------------------------
   if (role === 'STUDENT') {
     // 1. SINH VIÊN: Chỉ hiện tab Làm bài thi
@@ -291,7 +325,7 @@ export function initUserSessionUI() {
     switchTab('tab-exams');
 
   } else {
-    // 3. GIẢNG VIÊN (LECTURER): Ẩn tab Quản lý Giảng viên
+    // 3. GIẢNG VIÊN (LECTURER / CÁC VAI TRÒ KHÁC): Ẩn tab Quản lý Giảng viên
     if (tabBtnStudent) tabBtnStudent.style.display = 'none';
     if (tabBtnLecturer) tabBtnLecturer.style.display = 'inline-block';
     if (tabBtnManagement) tabBtnManagement.style.display = 'inline-block';
