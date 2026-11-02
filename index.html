@@ -214,7 +214,7 @@
 
   <!-- Thanh Header Tiêu Đề Hệ Thống -->
   <header>
-    <h1>🎓 Online Exam System <small style="font-size: 12px; color: #38bdf8; font-weight: 400;">v3.0 Server-Side Grading</small></h1>
+    <h1>🎓 Online Exam System <small style="font-size: 12px; color: #38bdf8; font-weight: 400;">© Huỳnh Ngọc Thành</small></h1>
     <div id="userHeaderProfile" style="font-size: 13px; display: flex; align-items: center; gap: 12px;">
       <span id="userInfoDisplay">Chưa đăng nhập</span>
       <button id="btnLogout" type="button" onclick="handleLogout()" style="display:none; background: #dc2626; color: #fff; border: none; padding: 4px 10px; border-radius: 4px; cursor: pointer; font-size: 12px;">Đăng xuất</button>
@@ -223,10 +223,10 @@
 
   <!-- Thanh Menu Điều Hướng Tab (Bổ sung thuộc tính data-tab) -->
   <nav id="appNavTabs" class="nav-tabs" style="display: none;">
-    <button type="button" id="tabBtnStudent" data-tab="tab-student-exams" class="nav-btn active" onclick="switchTab('tab-student-exams')">📝 Bài Thi Sinh Viên</button>
+    <button type="button" id="tabBtnStudent" data-tab="tab-student-exams" class="nav-btn active" onclick="switchTab('tab-student-exams')">📝 Danh sách Bài thi</button>
     <button type="button" id="tabBtnLecturer" data-tab="tab-exams" class="nav-btn" onclick="switchTab('tab-exams')">📚 Quản Lý Đề Thi</button>
     <button type="button" id="tabBtnManagement" data-tab="tab-students" class="nav-btn" onclick="switchTab('tab-students')">👥 Quản Lý Sinh Viên</button>
-    <button type="button" id="tabBtnEditor" data-tab="tab-parser" class="nav-btn" onclick="switchTab('tab-parser')">🛠️ Bóc Tách / Tạo Đề Thi</button>
+    <button type="button" id="tabBtnEditor" data-tab="tab-parser" class="nav-btn" onclick="switchTab('tab-parser')">🛠️ Tạo Đề Thi</button>
   </nav>
 
   <!-- Màn Hình Chính SPA -->
