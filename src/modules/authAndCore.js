@@ -556,24 +556,49 @@ export async function submitLecturerRegistration() {
 }
 
 // =========================================================================
-// 8. XỬ LÝ QUÊN MẬT KHẨU VÀ OTP
+// 8. XỬ LÝ QUÊN MẬT KHẨU VÀ OTP (TỰ ĐỘNG TRUY XUẤT TÊN TÀI KHOẢN TỪ EMAIL)
 // =========================================================================
+let verifiedForgotUsername = '';
+
 export function openForgotPasswordModal() {
   const modal = document.getElementById('forgotModal');
-  if (modal) modal.style.display = 'flex';
+  if (!modal) return;
+
+  // Reset lại trạng thái các input & xóa username lưu tạm
+  verifiedForgotUsername = '';
+  
+  const forgotInput = document.getElementById('forgotInput');
+  const forgotOTP = document.getElementById('forgotOTP');
+  const forgotNewPass = document.getElementById('forgotNewPass');
+  const usernameDisplay = document.getElementById('forgotUsernameDisplay');
+  const step1Area = document.getElementById('forgotStep1Area');
+  const step2Area = document.getElementById('forgotStep2Area');
+
+  if (forgotInput) forgotInput.value = '';
+  if (forgotOTP) forgotOTP.value = '';
+  if (forgotNewPass) forgotNewPass.value = '';
+
+  // Đưa UI về Bước 1 (Nhập Tên đăng nhập / Email)
+  if (step1Area) step1Area.style.display = 'block';
+  if (step2Area) step2Area.style.display = 'none';
+  if (usernameDisplay) {
+    usernameDisplay.innerText = '';
+    usernameDisplay.style.display = 'none';
+  }
+
+  modal.style.display = 'flex';
 }
 
 export function closeForgotModal() {
   const modal = document.getElementById('forgotModal');
   if (modal) modal.style.display = 'none';
+  verifiedForgotUsername = '';
 }
-
-let verifiedForgotUsername = '';
 
 export async function sendForgotOTP() {
   const accountOrEmail = document.getElementById('forgotInput')?.value.trim();
   if (!accountOrEmail) {
-    alert('Vui lòng nhập Tên đăng nhập hoặc Email!');
+    alert('⚠️ Vui lòng nhập Tên đăng nhập hoặc Email!');
     return;
   }
 
@@ -581,11 +606,40 @@ export async function sendForgotOTP() {
   try {
     const res = await appsScriptService.request('SEND_OTP_FORGOT', { accountOrEmail });
     hideAppLoading();
+
+    if (res.status === 'error') {
+      alert(`❌ ${res.message}`);
+      return;
+    }
+
+    // 🔑 TỰ ĐỘNG GHI NHẬN TÊN TÀI KHOẢN TỪ SERVER TRẢ VỀ (ĐẶC BIỆT KHI SV/GV NHẬP EMAIL)
     verifiedForgotUsername = res.username || accountOrEmail;
-    alert(res.message);
+
+    alert(res.message || 'Mã OTP đã được gửi thành công!');
+
+    // Tự động chuyển giao diện sang Bước 2 (Nhập OTP & Mật khẩu mới)
+    const step1Area = document.getElementById('forgotStep1Area');
+    const step2Area = document.getElementById('forgotStep2Area');
+    const usernameDisplay = document.getElementById('forgotUsernameDisplay');
+    const usernameInput = document.getElementById('forgotUsernameInput');
+
+    if (usernameDisplay) {
+      usernameDisplay.innerHTML = `👤 Tài khoản xác nhận: <strong>${escapeHtml(verifiedForgotUsername)}</strong>`;
+      usernameDisplay.style.display = 'block';
+    }
+
+    if (usernameInput) {
+      usernameInput.value = verifiedForgotUsername;
+    }
+
+    if (step1Area && step2Area) {
+      step1Area.style.display = 'none';
+      step2Area.style.display = 'block';
+    }
+
   } catch (err) {
     hideAppLoading();
-    alert(`Lỗi: ${err.message}`);
+    alert(`❌ Lỗi: ${err.message}`);
   }
 }
 
@@ -594,7 +648,22 @@ export async function submitResetPassword() {
   const newPassword = document.getElementById('forgotNewPass')?.value.trim();
 
   if (!verifiedForgotUsername) {
-    alert('Vui lòng gửi mã OTP trước!');
+    alert('⚠️ Chưa xác định được tài khoản. Vui lòng gửi mã OTP trước!');
+    return;
+  }
+
+  if (!otp) {
+    alert('⚠️ Vui lòng nhập mã OTP!');
+    return;
+  }
+
+  if (!newPassword) {
+    alert('⚠️ Vui lòng nhập mật khẩu mới!');
+    return;
+  }
+
+  if (newPassword.length < 6) {
+    alert('⚠️ Mật khẩu mới phải có ít nhất 6 ký tự!');
     return;
   }
 
@@ -606,11 +675,24 @@ export async function submitResetPassword() {
       newPassword: newPassword
     });
     hideAppLoading();
-    alert(res.message);
+
+    if (res.status === 'error') {
+      alert(`❌ ${res.message}`);
+      return;
+    }
+
+    alert(res.message || '✅ Đặt lại mật khẩu thành công!');
     closeForgotModal();
+
+    // Tự động điền lại tên tài khoản & mật khẩu mới vào Form đăng nhập
+    const loginUser = document.getElementById('inputUsername');
+    const loginPass = document.getElementById('inputPassword');
+    if (loginUser) loginUser.value = verifiedForgotUsername;
+    if (loginPass) loginPass.value = newPassword;
+
   } catch (err) {
     hideAppLoading();
-    alert(`Lỗi: ${err.message}`);
+    alert(`❌ Lỗi: ${err.message}`);
   }
 }
 
