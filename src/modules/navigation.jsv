@@ -1,104 +1,120 @@
-import { handleLoadStudentManagement } from './studentManagement.js';
-import { handleLoadExamManagement } from './examManagement.js';
-import { handleInitExamCreationUI } from './examCreation.js';
-import { handleLoadLecturerManagement } from './lecturerManagement.js';
-import { getLoggedInRole } from './authAndCore.js';
+import { handleLoadStudentManagement } from './modules/studentManagement.js';
+import { handleLoadExamManagement } from './modules/examManagement.js';
+import { handleInitExamCreationUI } from './modules/examCreation.js';
+import { handleLoadLecturerManagement } from './modules/lecturerManagement.js';
+import { getLoggedInRole } from './modules/authAndCore.js';
 
-/**
- * HÀM CHUYỂN TAB VÀ ĐỒNG BỘ NẠP DỮ LIỆU CÁC GIAO DIỆN CHÍNH
- */
 export function switchTab(tabId) {
-  if (!tabId) return;
+  console.group(`🔍 [DEBUG switchTab] Bắt đầu chuyển tới Tab: "${tabId}"`);
+  
+  if (!tabId) {
+    console.warn('⚠️ [switchTab] tabId bị rỗng!');
+    console.groupEnd();
+    return;
+  }
 
-  // Chuẩn hóa tên tab
   let targetTab = tabId;
   if (tabId === 'LECTURER_MANAGEMENT') targetTab = 'tab-lecturers';
   if (tabId === 'STUDENT_MANAGEMENT') targetTab = 'tab-students';
   if (tabId === 'EXAM_MANAGEMENT') targetTab = 'tab-exams';
 
-  // CHẶN BẢO VỆ CHO TAB QUẢN LÝ GIẢNG VIÊN
+  console.log('📌 [switchTab] Target Tab sau khi chuẩn hóa:', targetTab);
+
+  const role = String(typeof getLoggedInRole === 'function' ? getLoggedInRole() : sessionStorage.getItem('userRole') || '').trim().toUpperCase();
+  console.log('👤 [switchTab] Role hiện tại của User:', role);
+
   if (targetTab === 'tab-lecturers') {
-    const role = String(typeof getLoggedInRole === 'function' ? getLoggedInRole() : sessionStorage.getItem('userRole') || '').trim().toUpperCase();
     if (role !== 'ADMIN') {
-      alert(`⚠️ Bạn không có quyền truy cập Quản Lý Giảng Viên! (Vai trò hiện tại: ${role || 'Chưa đăng nhập'})`);
+      console.warn(`⛔ [switchTab] Chặn truy cập! Role [${role}] không có quyền ADMIN.`);
+      alert(`⚠️ Bạn không có quyền truy cập Quản Lý Giảng Viên! (Role: ${role || 'N/A'})`);
+      console.groupEnd();
       return;
     }
   }
 
   window.currentActiveTab = targetTab;
 
-  // CẬP NHẬT TRẠNG THÁI ACTIVE TRÊN NAVBAR
-  const navButtons = document.querySelectorAll('.nav-tab-btn, .nav-btn, [data-tab]');
-  navButtons.forEach(btn => {
-    const btnTab = btn.getAttribute('data-tab');
-    const onclickAttr = btn.getAttribute('onclick') || '';
-    
-    if (btnTab === targetTab || onclickAttr.includes(targetTab)) {
-      btn.classList.add('active');
-      btn.style.background = '#eff6ff';
-      btn.style.color = '#2563eb';
-      btn.style.fontWeight = 'bold';
-    } else {
-      btn.classList.remove('active');
-      btn.style.background = 'transparent';
-      btn.style.color = '#475569';
-      btn.style.fontWeight = 'normal';
-    }
-  });
+  // 1. Ẩn TOÀN BỘ các container con trong <main> để chống tràn UI
+  const mainArea = document.getElementById('mainContentArea') || document.querySelector('main');
+  if (mainArea) {
+    console.log(`🧹 [switchTab] Đang ẩn toàn bộ ${mainArea.children.length} phần tử con trong <main>`);
+    Array.from(mainArea.children).forEach(child => {
+      if (child.id !== 'loginCard') {
+        child.style.display = 'none';
+      }
+    });
+  } else {
+    console.error('❌ [switchTab] KHÔNG TÌM THẤY <main id="mainContentArea">!');
+  }
 
-  // QUẢN LÝ HIỂN THỊ CONTAINERS
-  const tabContainers = {
-    'tab-exams': document.getElementById('examManagementContainer') || document.getElementById('lecturerDashboardContainer'),
+  // 2. Tìm Container tương ứng và hiển thị
+  const targetContainerMap = {
+    'tab-exams': document.getElementById('lecturerDashboardContainer') || document.getElementById('examManagementContainer'),
     'tab-students': document.getElementById('studentManagementContainer'),
     'tab-lecturers': document.getElementById('lecturerManagementContainer'),
-    'tab-create-exam': document.getElementById('examCreationContainer') || document.getElementById('examEditorContainer'),
+    'tab-parser': document.getElementById('examEditorContainer') || document.getElementById('examParserContainer'),
     'tab-student-exams': document.getElementById('studentExamContainer')
   };
 
-  Object.keys(tabContainers).forEach(key => {
-    if (tabContainers[key]) {
-      tabContainers[key].style.display = (key === targetTab) ? 'block' : 'none';
+  const activeContainer = targetContainerMap[targetTab];
+  console.log('📦 [switchTab] Target Container DOM:', activeContainer);
+
+  if (activeContainer) {
+    activeContainer.style.display = 'block';
+    console.log(`✅ [switchTab] Đã bật display: block cho #${activeContainer.id}`);
+  } else {
+    console.error(`❌ [switchTab] KHÔNG TÌM THẤY CONTAINER DOM cho tab: ${targetTab}`);
+  }
+
+  // 3. Highlight nút trên Navbar
+  const navButtons = document.querySelectorAll('.nav-tab-btn, .nav-btn, [data-tab]');
+  navButtons.forEach(btn => {
+    const btnTab = btn.getAttribute('data-tab');
+    if (btnTab === targetTab) {
+      btn.classList.add('active');
+    } else {
+      btn.classList.remove('active');
     }
   });
 
-  // TẢI DỮ LIỆU TƯƠNG ỨNG
+  // 4. Gọi hàm nạp dữ liệu chạy ngầm
+  console.log('🚀 [switchTab] Đang kích hoạt hàm nạp dữ liệu tương ứng...');
   switch (targetTab) {
-    case 'tab-exams':
-      if (typeof handleLoadExamManagement === 'function') handleLoadExamManagement();
-      break;
-
-    case 'tab-students':
-      if (typeof handleLoadStudentManagement === 'function') handleLoadStudentManagement();
-      break;
-
     case 'tab-lecturers':
       if (typeof handleLoadLecturerManagement === 'function') {
+        console.log('👉 [switchTab] Gọi handleLoadLecturerManagement() từ Import module thành công');
         handleLoadLecturerManagement();
       } else if (typeof window.handleLoadLecturerManagement === 'function') {
+        console.log('👉 [switchTab] Gọi window.handleLoadLecturerManagement() từ Window scope thành công');
         window.handleLoadLecturerManagement();
+      } else {
+        console.error('❌ [switchTab] LỖI: Hàm handleLoadLecturerManagement KHÔNG TỒN TẠI!');
       }
       break;
 
-    case 'tab-create-exam':
+    case 'tab-exams':
+      if (typeof handleLoadExamManagement === 'function') handleLoadExamManagement();
+      break;
+    case 'tab-students':
+      if (typeof handleLoadStudentManagement === 'function') handleLoadStudentManagement();
+      break;
+    case 'tab-parser':
       if (typeof handleInitExamCreationUI === 'function') handleInitExamCreationUI();
       break;
-
     case 'tab-student-exams':
       if (typeof window.handleLoadStudentDashboard === 'function') window.handleLoadStudentDashboard();
       break;
   }
+
+  console.groupEnd();
 }
 
-export function reloadCurrentTab() {
-  const activeTab = window.currentActiveTab || 'tab-exams';
-  switchTab(activeTab);
-}
-
-// BẮT SỰ KIỆN CLICK TOÀN CỤC CHO CÁC NÚT CÓ DATA-TAB
+// Bắt sự kiện Click toàn cục
 document.addEventListener('click', (e) => {
   const targetBtn = e.target.closest('[data-tab]');
   if (targetBtn) {
     const tabId = targetBtn.getAttribute('data-tab');
+    console.log('🖱️ [EventListener] Click nút tab:', tabId);
     if (tabId) {
       e.preventDefault();
       switchTab(tabId);
@@ -106,6 +122,4 @@ document.addEventListener('click', (e) => {
   }
 });
 
-// BIND VÀO WINDOW
 window.switchTab = switchTab;
-window.reloadCurrentTab = reloadCurrentTab;
