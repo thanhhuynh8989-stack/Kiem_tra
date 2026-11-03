@@ -1,13 +1,13 @@
-import { 
-  getLoggedInUser, 
-  getLoggedInUsername, 
-  getLoggedInRole, 
-  handleLogin, 
-  handleLogout, 
-  showAppLoading, 
-  hideAppLoading,
+// =========================================================================
+// FILE: src/app.js
+// =========================================================================
+
+import {
+  getLoggedInUser,
+  getLoggedInRole,
+  handleLogin,
+  handleLogout,
   escapeHtml,
-  startViolationTracking,
   openForgotPasswordModal,
   closeForgotModal,
   sendForgotOTP,
@@ -19,10 +19,9 @@ import {
   togglePasswordVisibility
 } from './modules/authAndCore.js';
 
-// BỔ SUNG KHAI BÁO ĐẦY ĐỦ CÁC HÀM XEM LẠI BÀI VÀ NỘP BÀI
-import { 
-  handleLoadStudentDashboard, 
-  handleReviewSubmittedExam, 
+import {
+  handleLoadStudentDashboard,
+  handleReviewSubmittedExam,
   renderExamReviewUI,
   executeSubmitExam
 } from './modules/studentExamTaking.js';
@@ -34,20 +33,14 @@ import { loadExamList, handleEditExam, deleteExam } from './modules/examManageme
 import { handleViewExamSubmissions } from './modules/gradebookManagement.js';
 import { handleLoadLecturerManagement } from './modules/lecturerManagement.js';
 
-// Biến toàn cục theo dõi Tab đang mở
 window.currentActiveTab = 'tab-exams';
 
 /**
- * =========================================================================
- * 0. TỰ ĐỘNG XỬ LÝ MẠNG KHÔI PHỤC KÈM THUẬT TOÁN JITTER (GIẢI TOẢ CÔNG SUẤT BACKEND)
- * =========================================================================
+ * 0. TỰ ĐỘNG KHÔI PHỤC KẾT NỐI MẠNG KÈM JITTER
  */
 window.addEventListener('online', () => {
-  console.log("🟢 Kết nối Internet đã khôi phục. Đang xếp hàng nộp bài rải rác (Jitter)...");
-  
-  // Tạo độ trễ ngẫu nhiên Jitter từ 0 - 4 giây để kéo giãn các request nộp trùng thời điểm
+  console.log('🌐 Kết nối Internet đã khôi phục. Đang xếp hàng nộp bài rải rác (Jitter)...');
   const jitterDelay = Math.floor(Math.random() * 4000);
-  
   setTimeout(() => {
     if (window.isPendingSubmitOffline) {
       if (typeof window.retrySubmitExam === 'function') {
@@ -60,13 +53,11 @@ window.addEventListener('online', () => {
 });
 
 window.addEventListener('offline', () => {
-  console.warn("⚠️ Mạng Internet bị ngắt. Bài làm vẫn được lưu an toàn 100% ở LocalStorage!");
+  console.warn('⚠️ Mạng Internet bị ngắt. Bài làm vẫn được lưu an toàn ở LocalStorage!');
 });
 
 /**
- * =========================================================================
- * KIỂM TRA KHÔI PHỤC PHIÊN THI THEO THỜI GIAN TUYỆT ĐỐI (ABSOLUTE TIME RECOVERY)
- * =========================================================================
+ * KHÔI PHỤC PHIÊN THI THEO THỜI GIAN TUYỆT ĐỐI (ABSOLUTE TIME RECOVERY)
  */
 export function checkAndRestoreStudentSession(examId, studentCode, durationMinutes, startTimeServerMs) {
   const key = `exam_draft_${studentCode}_${examId}`;
@@ -80,12 +71,11 @@ export function checkAndRestoreStudentSession(examId, studentCode, durationMinut
 
     if (nowMs >= endTimeMs) {
       alert('⏰ Thời gian làm bài của bạn đã kết thúc trong lúc thoát ứng dụng/rớt mạng. Hệ thống đang tự động nộp bài!');
-      
       executeSubmitExam(
         draft.examId || examId,
         window.allQuestionsMap?.[examId] || window.currentActiveQuestionsForExam || [],
         draft.answers || {},
-        `Tự động nộp bài do hết giờ (Khôi phục phiên làm bài)`,
+        'Tự động nộp bài do hết giờ (Khôi phục phiên làm bài)',
         true
       );
       return { isExpired: true };
@@ -93,11 +83,6 @@ export function checkAndRestoreStudentSession(examId, studentCode, durationMinut
       const remainingSeconds = Math.floor((endTimeMs - nowMs) / 1000);
       window.currentActiveAnswersForExam = draft.answers || {};
       window.violationCount = draft.violationCount || 0;
-
-      if (typeof startViolationTracking === 'function') {
-        startViolationTracking(window.violationCount);
-      }
-
       return {
         isExpired: false,
         remainingSeconds,
@@ -106,20 +91,17 @@ export function checkAndRestoreStudentSession(examId, studentCode, durationMinut
       };
     }
   } catch (err) {
-    console.error("❌ Lỗi đọc bản nháp phiên làm bài:", err);
+    console.error('❌ Lỗi đọc bản nháp phiên làm bài:', err);
     return null;
   }
 }
 
 /**
- * =========================================================================
  * 1. HÀM CHUYỂN TAB TỨC THÌ (0ms UI LAG - BẬT DOM NGAY, NẠP DỮ LIỆU NGẦM)
- * =========================================================================
  */
 export function switchTab(tabId) {
   if (!tabId) return;
 
-  // 1. CHUẨN HÓA TÊN TAB (Đồng bộ giữa data-tab và mã tab hệ thống cũ)
   let targetTab = tabId;
   if (tabId === 'LECTURER_DASHBOARD') targetTab = 'tab-exams';
   if (tabId === 'STUDENT_MANAGEMENT') targetTab = 'tab-students';
@@ -127,18 +109,16 @@ export function switchTab(tabId) {
   if (tabId === 'EXAM_EDITOR') targetTab = 'tab-parser';
   if (tabId === 'STUDENT_EXAMS') targetTab = 'tab-student-exams';
 
-  // 2. KHÓA BẢO VỆ: CHUẨN HÓA ROLE VÀ CHẶN TRUY CẬP KHÔNG PHẢI ADMIN VÀO TAB QUẢN LÝ GIẢNG VIÊN
   if (targetTab === 'tab-lecturers') {
     const currentRole = String(getLoggedInRole() || '').trim().toUpperCase();
     if (currentRole !== 'ADMIN') {
-      alert(`⚠️ Bạn không có quyền truy cập vào chức năng Quản Lý Giảng Viên! (Vai trò hiện tại: ${currentRole || 'N/A'})`);
+      alert(`⚠️ Bạn không có quyền truy cập vào chức năng Quản Lý Giảng Viên! (Role: ${currentRole || 'N/A'})`);
       return;
     }
   }
 
   window.currentActiveTab = targetTab;
 
-  // 3. KHAI BÁO CÁC CONTAINER TƯƠNG ỨNG VỚI TỪNG TAB GIAO DIỆN
   const containers = {
     'tab-exams': document.getElementById('lecturerDashboardContainer') || document.getElementById('examManagementContainer'),
     'tab-students': document.getElementById('studentManagementContainer'),
@@ -150,65 +130,51 @@ export function switchTab(tabId) {
   const loginCard = document.getElementById('loginCard');
   if (loginCard) loginCard.style.display = 'none';
 
-  // A. CHUYỂN HIỂN THỊ DOM NGAY LẬP TỨC (0ms UI Lag)
-  Object.keys(containers).forEach(key => {
-    if (containers[key]) {
-      containers[key].style.display = (key === targetTab) ? 'block' : 'none';
-    }
-  });
+  // Dọn dẹp DOM các tab khác để tránh đè giao diện
+  const mainArea = document.getElementById('mainContentArea') || document.querySelector('main');
+  if (mainArea) {
+    Array.from(mainArea.children).forEach(child => {
+      if (child.id !== 'loginCard') {
+        child.style.display = 'none';
+      }
+    });
+  }
 
-  // B. CẬP NHẬT TRẠNG THÁI ACTIVE VÀ HIGHLIGHT TRÊN NAVBAR
+  const activeContainer = containers[targetTab];
+  if (activeContainer) {
+    activeContainer.style.display = 'block';
+  }
+
+  // Active Navbar Button Highlight
   document.querySelectorAll('nav button, [data-tab]').forEach(btn => {
     const btnTab = btn.getAttribute('data-tab');
     if (btnTab === targetTab || btn.id === getBtnIdByTab(targetTab)) {
       btn.classList.add('active');
       btn.style.fontWeight = 'bold';
-      btn.style.borderBottom = '2px solid #2563eb';
     } else {
       btn.classList.remove('active');
       btn.style.fontWeight = 'normal';
-      btn.style.borderBottom = 'none';
     }
   });
 
-  // C. TẢI DỮ LIỆU CHẠY NGẦM AN TOÀN THEO TỪNG TAB (HỖ TRỢ CẢ IMPORT LẪN GLOBAL WINDOW SCOPE)
+  // Nạp dữ liệu chạy ngầm tương ứng từng tab
   if (targetTab === 'tab-exams') {
-    if (typeof handleLoadLecturerDashboard === 'function') {
-      handleLoadLecturerDashboard();
-    } else if (typeof loadExamList === 'function') {
-      loadExamList();
-    }
+    if (typeof handleLoadLecturerDashboard === 'function') handleLoadLecturerDashboard();
+    else if (typeof loadExamList === 'function') loadExamList();
   } else if (targetTab === 'tab-students') {
-    if (typeof handleLoadStudentManagement === 'function') {
-      handleLoadStudentManagement();
-    } else if (typeof window.handleLoadStudentManagement === 'function') {
-      window.handleLoadStudentManagement();
-    }
+    if (typeof handleLoadStudentManagement === 'function') handleLoadStudentManagement();
   } else if (targetTab === 'tab-lecturers') {
-    if (typeof handleLoadLecturerManagement === 'function') {
-      handleLoadLecturerManagement();
-    } else if (typeof window.handleLoadLecturerManagement === 'function') {
-      window.handleLoadLecturerManagement();
-    }
+    if (typeof handleLoadLecturerManagement === 'function') handleLoadLecturerManagement();
   } else if (targetTab === 'tab-parser') {
     const questionsEditorList = document.getElementById('questionsEditorList');
     if (!questionsEditorList || !questionsEditorList.children.length) {
-      if (typeof renderDefaultUploadScreen === 'function') {
-        renderDefaultUploadScreen();
-      }
+      if (typeof renderDefaultUploadScreen === 'function') renderDefaultUploadScreen();
     }
   } else if (targetTab === 'tab-student-exams') {
-    if (typeof handleLoadStudentDashboard === 'function') {
-      handleLoadStudentDashboard();
-    } else if (typeof window.handleLoadStudentDashboard === 'function') {
-      window.handleLoadStudentDashboard();
-    }
+    if (typeof handleLoadStudentDashboard === 'function') handleLoadStudentDashboard();
   }
 }
 
-/**
- * HÀM HỖ TRỢ MAP ID NÚT ĐIỀU HƯỚNG TRÊN NAVBAR
- */
 function getBtnIdByTab(tabId) {
   if (tabId === 'tab-exams') return 'tabBtnLecturer';
   if (tabId === 'tab-students') return 'tabBtnManagement';
@@ -222,21 +188,11 @@ export function switchMainTab(tabName) {
   switchTab(tabName);
 }
 
-/**
- * =========================================================================
- * 2. HÀM TẢI LẠI TRANG HIỆN TẠI (UNIVERSAL TAB RELOADER)
- * =========================================================================
- */
 export function reloadCurrentTab() {
   const activeTab = window.currentActiveTab || 'tab-exams';
   switchTab(activeTab);
 }
 
-/**
- * =========================================================================
- * 3. LẮNG NGHE SỰ KIỆN CLICK TAB VỚI EVENT DELEGATION
- * =========================================================================
- */
 document.addEventListener('click', (event) => {
   const tabBtn = event.target.closest('[data-tab]');
   if (tabBtn) {
@@ -246,35 +202,25 @@ document.addEventListener('click', (event) => {
 });
 
 /**
- * =========================================================================
- * 4. XỬ LÝ SỰ KIỆN ĐĂNG NHẬP FORM
- * =========================================================================
+ * 2. XỬ LÝ ĐĂNG NHẬP FORM & USER SESSION UI
  */
 export async function submitLoginForm() {
   const usernameInput = document.getElementById('inputUsername');
   const passwordInput = document.getElementById('inputPassword');
-
   const username = usernameInput ? usernameInput.value.trim() : '';
   const password = passwordInput ? passwordInput.value.trim() : '';
-
   const success = await handleLogin(username, password);
   if (success) {
     initUserSessionUI();
   }
 }
 
-/**
- * =========================================================================
- * 5. CẬP NHẬT GIAO DIỆN THEO PHIÊN ĐĂNG NHẬP (USER SESSION UI)
- * =========================================================================
- */
 export function initUserSessionUI() {
   const user = getLoggedInUser();
   const loginCard = document.getElementById('loginCard');
   const appNavTabs = document.getElementById('appNavTabs');
   const userInfoDisplay = document.getElementById('userInfoDisplay');
   const btnLogout = document.getElementById('btnLogout');
-
   const tabBtnStudent = document.getElementById('tabBtnStudent');
   const tabBtnLecturer = document.getElementById('tabBtnLecturer');
   const tabBtnManagement = document.getElementById('tabBtnManagement');
@@ -295,9 +241,9 @@ export function initUserSessionUI() {
 
   const role = String(getLoggedInRole() || '').trim().toUpperCase();
   const name = user.fullName || user.username || 'Người dùng';
-  
+
   if (userInfoDisplay) {
-    userInfoDisplay.innerHTML = `👤 <strong>${escapeHtml(name)}</strong> (${role})`;
+    userInfoDisplay.innerHTML = `<strong>${escapeHtml(name)}</strong> (${role})`;
   }
 
   if (role === 'STUDENT') {
@@ -307,7 +253,6 @@ export function initUserSessionUI() {
     if (tabBtnEditor) tabBtnEditor.style.display = 'none';
     if (tabBtnLecturerManagement) tabBtnLecturerManagement.style.display = 'none';
     switchTab('tab-student-exams');
-
   } else if (role === 'ADMIN') {
     if (tabBtnStudent) tabBtnStudent.style.display = 'none';
     if (tabBtnLecturer) tabBtnLecturer.style.display = 'inline-block';
@@ -315,7 +260,6 @@ export function initUserSessionUI() {
     if (tabBtnEditor) tabBtnEditor.style.display = 'inline-block';
     if (tabBtnLecturerManagement) tabBtnLecturerManagement.style.display = 'inline-block';
     switchTab('tab-exams');
-
   } else {
     if (tabBtnStudent) tabBtnStudent.style.display = 'none';
     if (tabBtnLecturer) tabBtnLecturer.style.display = 'inline-block';
@@ -326,20 +270,13 @@ export function initUserSessionUI() {
   }
 }
 
-/**
- * =========================================================================
- * 6. KÍCH HOẠT TẢI FILE ĐỀ THI BÓC TÁCH
- * =========================================================================
- */
 export function triggerExamUpload(inputElement) {
   if (inputElement && inputElement.files && inputElement.files[0]) {
     handleExamFileUpload(inputElement.files[0]);
   }
 }
 
-// =========================================================================
-// 7. BIND TOÀN BỘ CÁC HÀM XỬ LÝ SỰ KIỆN VÀO WINDOW OBJECT
-// =========================================================================
+// BIND TO WINDOW
 window.switchTab = switchTab;
 window.switchMainTab = switchMainTab;
 window.reloadCurrentTab = reloadCurrentTab;
@@ -347,7 +284,6 @@ window.submitLoginForm = submitLoginForm;
 window.handleLogout = handleLogout;
 window.triggerExamUpload = triggerExamUpload;
 
-// Bind các hàm khôi phục mật khẩu & Đăng ký giảng viên Modal
 window.togglePasswordVisibility = togglePasswordVisibility;
 window.openForgotPasswordModal = openForgotPasswordModal;
 window.closeForgotModal = closeForgotModal;
@@ -358,14 +294,12 @@ window.closeRegisterModal = closeRegisterModal;
 window.sendRegisterOTP = sendRegisterOTP;
 window.submitLecturerRegistration = submitLecturerRegistration;
 
-// Bind các hàm xem bài làm, khôi phục phiên và nộp bài toàn cục
 window.handleReviewSubmittedExam = handleReviewSubmittedExam;
 window.renderExamReviewUI = renderExamReviewUI;
 window.executeSubmitExam = executeSubmitExam;
 window.handleViewExamSubmissions = handleViewExamSubmissions;
 window.checkAndRestoreStudentSession = checkAndRestoreStudentSession;
 
-// Bind các hàm module Quản lý giảng viên & Đề thi
 window.handleLoadLecturerManagement = handleLoadLecturerManagement;
 window.handleLoadStudentManagement = handleLoadStudentManagement;
 window.handleLoadLecturerDashboard = handleLoadLecturerDashboard;
