@@ -13,13 +13,17 @@ export function switchTab(tabId) {
     return;
   }
 
+  // 1. CHUẨN HÓA TÊN TAB (Hỗ trợ cả mã cũ lẫn mã data-tab mới)
   let targetTab = tabId;
   if (tabId === 'LECTURER_MANAGEMENT') targetTab = 'tab-lecturers';
   if (tabId === 'STUDENT_MANAGEMENT') targetTab = 'tab-students';
-  if (tabId === 'EXAM_MANAGEMENT') targetTab = 'tab-exams';
+  if (tabId === 'EXAM_MANAGEMENT' || tabId === 'LECTURER_DASHBOARD') targetTab = 'tab-exams';
+  if (tabId === 'EXAM_EDITOR') targetTab = 'tab-parser';
+  if (tabId === 'STUDENT_EXAMS') targetTab = 'tab-student-exams';
 
   console.log('📌 [switchTab] Target Tab sau khi chuẩn hóa:', targetTab);
 
+  // 2. KHÓA BẢO VỆ CHO TAB QUẢN LÝ GIẢNG VIÊN
   const role = String(typeof getLoggedInRole === 'function' ? getLoggedInRole() : sessionStorage.getItem('userRole') || '').trim().toUpperCase();
   console.log('👤 [switchTab] Role hiện tại của User:', role);
 
@@ -34,10 +38,10 @@ export function switchTab(tabId) {
 
   window.currentActiveTab = targetTab;
 
-  // 1. Ẩn TOÀN BỘ các container con trong <main> để chống tràn UI
+  // 3. ẨN TẤT CẢ PHẦN TỬ CON TRONG <MAIN> ĐỂ DIỆT TRIỆT ĐỂ LỖI CHỒNG DOM TAB CŨ
   const mainArea = document.getElementById('mainContentArea') || document.querySelector('main');
   if (mainArea) {
-    console.log(`🧹 [switchTab] Đang ẩn toàn bộ ${mainArea.children.length} phần tử con trong <main>`);
+    console.log(`🧹 [switchTab] Đang dọn dẹp và ẩn ${mainArea.children.length} phần tử con trong <main>`);
     Array.from(mainArea.children).forEach(child => {
       if (child.id !== 'loginCard') {
         child.style.display = 'none';
@@ -47,38 +51,8 @@ export function switchTab(tabId) {
     console.error('❌ [switchTab] KHÔNG TÌM THẤY <main id="mainContentArea">!');
   }
 
-  // 2. Tìm Container tương ứng và hiển thị
-  const targetContainerMap = {
-    'tab-exams': document.getElementById('lecturerDashboardContainer') || document.getElementById('examManagementContainer'),
-    'tab-students': document.getElementById('studentManagementContainer'),
-    'tab-lecturers': document.getElementById('lecturerManagementContainer'),
-    'tab-parser': document.getElementById('examEditorContainer') || document.getElementById('examParserContainer'),
-    'tab-student-exams': document.getElementById('studentExamContainer')
-  };
-
-  const activeContainer = targetContainerMap[targetTab];
-  console.log('📦 [switchTab] Target Container DOM:', activeContainer);
-
-  if (activeContainer) {
-    activeContainer.style.display = 'block';
-    console.log(`✅ [switchTab] Đã bật display: block cho #${activeContainer.id}`);
-  } else {
-    console.error(`❌ [switchTab] KHÔNG TÌM THẤY CONTAINER DOM cho tab: ${targetTab}`);
-  }
-
-  // 3. Highlight nút trên Navbar
-  const navButtons = document.querySelectorAll('.nav-tab-btn, .nav-btn, [data-tab]');
-  navButtons.forEach(btn => {
-    const btnTab = btn.getAttribute('data-tab');
-    if (btnTab === targetTab) {
-      btn.classList.add('active');
-    } else {
-      btn.classList.remove('active');
-    }
-  });
-
-  // 4. Gọi hàm nạp dữ liệu chạy ngầm
-  console.log('🚀 [switchTab] Đang kích hoạt hàm nạp dữ liệu tương ứng...');
+  // 4. KÍCH HOẠT HÀM NẠP DỮ LIỆU TƯƠNG ỨNG (TỰ TẠO SHELL VÀ CONTAINER NẾU DOM THIẾU)
+  console.log('🚀 [switchTab] Đang kích hoạt hàm nạp dữ liệu...');
   switch (targetTab) {
     case 'tab-lecturers':
       if (typeof handleLoadLecturerManagement === 'function') {
@@ -93,23 +67,74 @@ export function switchTab(tabId) {
       break;
 
     case 'tab-exams':
-      if (typeof handleLoadExamManagement === 'function') handleLoadExamManagement();
+      if (typeof handleLoadExamManagement === 'function') {
+        handleLoadExamManagement();
+      } else if (typeof window.handleLoadLecturerDashboard === 'function') {
+        window.handleLoadLecturerDashboard();
+      }
       break;
+
     case 'tab-students':
-      if (typeof handleLoadStudentManagement === 'function') handleLoadStudentManagement();
+      if (typeof handleLoadStudentManagement === 'function') {
+        handleLoadStudentManagement();
+      } else if (typeof window.handleLoadStudentManagement === 'function') {
+        window.handleLoadStudentManagement();
+      }
       break;
+
     case 'tab-parser':
       if (typeof handleInitExamCreationUI === 'function') handleInitExamCreationUI();
       break;
+
     case 'tab-student-exams':
       if (typeof window.handleLoadStudentDashboard === 'function') window.handleLoadStudentDashboard();
       break;
   }
 
+  // 5. HIỂN THỊ CONTAINER TAB MỤC TIÊU
+  const targetContainerMap = {
+    'tab-exams': document.getElementById('lecturerDashboardContainer') || document.getElementById('examManagementContainer'),
+    'tab-students': document.getElementById('studentManagementContainer'),
+    'tab-lecturers': document.getElementById('lecturerManagementContainer'),
+    'tab-parser': document.getElementById('examEditorContainer') || document.getElementById('examParserContainer'),
+    'tab-student-exams': document.getElementById('studentExamContainer')
+  };
+
+  const activeContainer = targetContainerMap[targetTab];
+  console.log('📦 [switchTab] Target Container DOM:', activeContainer);
+
+  if (activeContainer) {
+    activeContainer.style.display = 'block';
+    console.log(`✅ [switchTab] Bật display: block cho #${activeContainer.id}`);
+  } else {
+    console.warn(`⚠️ [switchTab] Chưa tìm thấy Container DOM cho tab: ${targetTab}`);
+  }
+
+  // 6. HIGHLIGHT NÚT NAVBAR ĐANG ACTIVE
+  const navButtons = document.querySelectorAll('.nav-tab-btn, .nav-btn, nav button, [data-tab]');
+  navButtons.forEach(btn => {
+    const btnTab = btn.getAttribute('data-tab');
+    if (btnTab === targetTab) {
+      btn.classList.add('active');
+      btn.style.fontWeight = 'bold';
+    } else {
+      btn.classList.remove('active');
+      btn.style.fontWeight = 'normal';
+    }
+  });
+
   console.groupEnd();
 }
 
-// Bắt sự kiện Click toàn cục
+/**
+ * HÀM TẢI LẠI TAB HIỆN TẠI
+ */
+export function reloadCurrentTab() {
+  const activeTab = window.currentActiveTab || 'tab-exams';
+  switchTab(activeTab);
+}
+
+// BẮT SỰ KIỆN CLICK TAB TOÀN CỤC
 document.addEventListener('click', (e) => {
   const targetBtn = e.target.closest('[data-tab]');
   if (targetBtn) {
@@ -122,4 +147,6 @@ document.addEventListener('click', (e) => {
   }
 });
 
+// BIND CHÍNH THỨC VÀO WINDOW SCOPE
 window.switchTab = switchTab;
+window.reloadCurrentTab = reloadCurrentTab;
