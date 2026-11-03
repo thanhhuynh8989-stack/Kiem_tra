@@ -106,13 +106,22 @@ export async function submitLoginForm(event) {
 // =========================================================================
 // 3. THÔNG BÁO VI PHẠM BẰNG MODAL GIAO DIỆN (CHỐNG BỊ TRÌNH DUYỆT CHẶN)
 // =========================================================================
-export function showViolationModal(count, onConfirm) {
+// =========================================================================
+// 1. GIAO DIỆN MODAL CẢNH BÁO VI PHẠM (ĐÃ SỬA LỖI TRUYỀN THAM SỐ & CSS MOBILE)
+// =========================================================================
+export function showViolationModal(count, reason, onConfirm) {
+  // Chuẩn hóa tham số (Hỗ trợ gọi 2 hoặc 3 tham số linh hoạt)
+  if (typeof reason === 'function') {
+    onConfirm = reason;
+    reason = 'Vi phạm quy chế thi!';
+  }
+
   let modal = document.getElementById('violationModalOverlay');
   if (!modal) {
     modal = document.createElement('div');
     modal.id = 'violationModalOverlay';
     modal.style.cssText = `
-      position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+      position: fixed; inset: 0; width: 100%; height: 100%;
       background: rgba(15, 23, 42, 0.85); display: flex; justify-content: center;
       align-items: center; z-index: 999999; font-family: system-ui, -apple-system, sans-serif;
       backdrop-filter: blur(4px); padding: 16px; box-sizing: border-box;
@@ -127,19 +136,21 @@ export function showViolationModal(count, onConfirm) {
       <h3 style="margin: 0 0 8px 0; color: ${isFinal ? '#dc2626' : '#d97706'}; font-size: 18px; font-weight: 700;">
         ${isFinal ? 'VI PHẠM QUY CHẾ BÀI THI!' : `CẢNH BÁO VI PHẠM (Lần ${count}/3)`}
       </h3>
-      <p style="margin: 0 0 20px 0; color: #475569; font-size: 14px; line-height: 1.5;">
+      <p style="margin: 0 0 12px 0; color: #475569; font-size: 14px; line-height: 1.5;">
         ${isFinal 
           ? 'Bạn đã rời màn hình quá 3 lần. Hệ thống sẽ <strong>tự động nộp bài thi</strong> của bạn ngay bây giờ!' 
           : 'Hệ thống ghi nhận bạn vừa rời khỏi màn hình làm bài.<br><strong style="color:#dc2626;">Lưu ý: Rời màn hình quá 3 lần bài thi sẽ tự động nộp!</strong>'}
       </p>
-      <button id="violationModalBtn" style="background: ${isFinal ? '#dc2626' : '#2563eb'}; color: #fff; border: none; padding: 12px 24px; border-radius: 8px; font-weight: 700; font-size: 14px; cursor: pointer; width: 100%;">
+      ${reason ? `<div style="font-size: 12px; color: #64748b; background: #f1f5f9; padding: 6px 10px; border-radius: 6px; margin-bottom: 16px;">Lý do: ${escapeHtml(reason)}</div>` : ''}
+      <button id="violationModalBtn" type="button" style="background: ${isFinal ? '#dc2626' : '#2563eb'}; color: #fff; border: none; padding: 12px 24px; border-radius: 8px; font-weight: 700; font-size: 14px; cursor: pointer; width: 100%; -webkit-tap-highlight-color: transparent;">
         ${isFinal ? 'Tự Động Nộp Bài' : 'Tôi Đã Hiểu & Tiếp Tục Làm Bài'}
       </button>
     </div>
   `;
   modal.style.display = 'flex';
 
-  document.getElementById('violationModalBtn').onclick = function () {
+  const btn = document.getElementById('violationModalBtn');
+  btn.onclick = function () {
     modal.style.display = 'none';
     window.isInternalDialogActive = false;
     if (typeof onConfirm === 'function') {
@@ -149,7 +160,7 @@ export function showViolationModal(count, onConfirm) {
 }
 
 // =========================================================================
-// 4. THEO DÕI VI PHẠM QUY CHẾ THI (VIOLATION TRACKER ENGINE v5.0 - HASFOCUS ENGINE)
+// 2. BỘ THEO DÕI VI PHẠM TỐI ƯU CHO CẢ MOBILE VÀ DESKTOP
 // =========================================================================
 window.violationCount = 0;
 window.isViolationTrackingActive = false;
@@ -160,23 +171,17 @@ let blurHandler = null;
 let focusHandler = null;
 let pageHideHandler = null;
 
-let blurTimer = null;           // Timer chính 5s ân hạn
-let countdownInterval = null;   // Interval cập nhật UI banner (5s..4s..3s..2s..1s)
-let focusCheckInterval = null;  // Interval kiểm tra document.hasFocus() ngầm cho Mobile Split-Screen & PC
+let blurTimer = null;
+let countdownInterval = null;
+let focusCheckInterval = null;
 let isProcessingViolation = false;
-const GRACE_PERIOD_MS = 3000;   // 5 Giây ân hạn
+const GRACE_PERIOD_MS = 3000;
 
-/**
- * 4a. KIỂM TRA MÔI TRƯỜNG ZALO WEBVIEW
- */
 export function isZaloWebView() {
   const ua = navigator.userAgent || navigator.vendor || window.opera;
   return /Zalo/i.test(ua);
 }
 
-/**
- * 4b. HIỂN THỊ MÀN HÌNH BẮT BỘC MỞ TRÌNH DUYỆT NGOÀI
- */
 export function renderZaloBlockerScreen() {
   const mainContent = document.getElementById('mainContentArea');
   if (!mainContent) return;
@@ -204,31 +209,17 @@ export function renderZaloBlockerScreen() {
   `;
 }
 
-/**
- * 4c. HIỂN THỊ / ẨN THÔNG BÁO CẢNH BÁO ÂN HẠN 5 GIÂY (FLOATING BANNER)
- */
 function showGracePeriodBanner(secondsRemaining) {
   let banner = document.getElementById('gracePeriodWarningBanner');
   if (!banner) {
     banner = document.createElement('div');
     banner.id = 'gracePeriodWarningBanner';
     banner.style.cssText = `
-      position: fixed;
-      top: 16px;
-      left: 50%;
-      transform: translateX(-50%);
-      z-index: 999999;
-      background: #fef08a;
-      border: 2px solid #eab308;
-      color: #854d0e;
-      padding: 12px 20px;
-      border-radius: 10px;
-      box-shadow: 0 10px 25px rgba(0,0,0,0.2);
-      font-size: 14px;
-      font-weight: 600;
-      text-align: center;
-      max-width: 90%;
-      width: 520px;
+      position: fixed; top: 16px; left: 50%; transform: translateX(-50%);
+      z-index: 999999; background: #fef08a; border: 2px solid #eab308; color: #854d0e;
+      padding: 12px 20px; border-radius: 10px; box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+      font-size: 14px; font-weight: 600; text-align: center; max-width: 90%; width: 520px;
+      box-sizing: border-box;
     `;
     document.body.appendChild(banner);
   }
@@ -237,29 +228,24 @@ function showGracePeriodBanner(secondsRemaining) {
     <div style="display:flex; align-items:center; justify-content:center; gap:10px;">
       <span style="font-size:20px;">⚠️</span>
       <div style="text-align:left;">
-        <div style="color:#a16207; font-weight:700; font-size:15px;">PHÁT HIỆN RỜI CỬA SỔ BÀI THI!</div>
-        <div style="font-size:13px; font-weight:500; margin-top:2px;">
-          Vui lòng <strong>chạm/click ngay vào màn hình bài thi</strong> để tiếp tục!
+        <div style="color:#a16207; font-weight:700; font-size:14px;">PHÁT HIỆN RỜI CỬA SỔ BÀI THI!</div>
+        <div style="font-size:12px; font-weight:500; margin-top:2px;">
+          Vui lòng <strong>chạm vào màn hình bài thi</strong> để tiếp tục!
         </div>
       </div>
-      <div style="background:#eab308; color:#fff; font-size:18px; font-weight:800; padding:6px 12px; border-radius:50px; min-width:42px; text-align:center; margin-left:auto;">
+      <div style="background:#eab308; color:#fff; font-size:16px; font-weight:800; padding:4px 10px; border-radius:50px; min-width:36px; text-align:center; margin-left:auto;">
         ${secondsRemaining}s
       </div>
     </div>
   `;
-  banner.style.display = 'block';
+  banner.style.style.display = 'block';
 }
 
 function hideGracePeriodBanner() {
   const banner = document.getElementById('gracePeriodWarningBanner');
-  if (banner) {
-    banner.style.display = 'none';
-  }
+  if (banner) banner.style.display = 'none';
 }
 
-/**
- * 4d. XÓA BỘ ĐẾM ÂN HẠN & BANNER
- */
 function clearGracePeriodTimers() {
   if (blurTimer) {
     clearTimeout(blurTimer);
@@ -271,13 +257,10 @@ function clearGracePeriodTimers() {
   }
 }
 
-/**
- * 4e. KÍCH HOẠT ĐẾM NGƯỢC ÂN HẠN 5S (DÙNG CHO CẢ BLUR VÀ HASFOCUS = FALSE)
- */
 function startGracePeriodCountdown(reason = 'Mất tiêu điểm cửa sổ làm bài quá 3 giây!') {
   if (blurTimer || !window.isViolationTrackingActive || window.isInternalDialogActive || document.hidden) return;
 
-  let secondsLeft = 3;
+  let secondsLeft = Math.ceil(GRACE_PERIOD_MS / 1000);
   showGracePeriodBanner(secondsLeft);
 
   countdownInterval = setInterval(() => {
@@ -300,11 +283,7 @@ function startGracePeriodCountdown(reason = 'Mất tiêu điểm cửa sổ làm
   }, GRACE_PERIOD_MS);
 }
 
-/**
- * 4f. BẮT ĐẦU THEO DÕI VI PHẠM
- */
 export function startViolationTracking(initialCount = 0) {
-  // Nếu là Zalo WebView -> Chặn làm bài ngay lập tức
   if (isZaloWebView()) {
     renderZaloBlockerScreen();
     return;
@@ -317,35 +296,35 @@ export function startViolationTracking(initialCount = 0) {
   window.isInternalDialogActive = false;
   isProcessingViolation = false;
 
-  // TH 1: CHUYỂN TAB / ẨN TRÌNH DUYỆT (PHẠT NGAY 0 SECONDS)
+  // 1. CHUYỂN TAB HOẶC ĐÓNG BROWSER TRÊN MOBILE (PHẠT TỨC THÌ)
   visibilityHandler = function () {
     if (!window.isViolationTrackingActive || window.isInternalDialogActive) return;
 
     if (document.hidden) {
       clearGracePeriodTimers();
       hideGracePeriodBanner();
-      triggerViolationNotification('Chuyển sang Tab khác hoặc thu nhỏ trình duyệt!');
+      triggerViolationNotification('Chuyển tab hoặc thu nhỏ trình duyệt!');
     }
   };
 
-  // TH 2: BLUR CỬA SỔ TRUYỀN THỐNG
+  // 2. TẠM MẤT FOCUS CỬA SỔ
   blurHandler = function () {
     if (!window.isViolationTrackingActive || window.isInternalDialogActive || document.hidden) return;
-    startGracePeriodCountdown('Mất tiêu điểm cửa sổ làm bài quá 5 giây!');
+    startGracePeriodCountdown('Mất tiêu điểm màn hình bài thi quá 3 giây!');
   };
 
-  // KHI TƯƠNG TÁC QUAY LẠI CỬA SỔ (HỦY ÂN HẠN NẾU < 5S)
+  // 3. CHẠM QUAY LẠI MÀN HÌNH (HỦY ĐẾM NGƯỢC NẾU TRONG THỜI GIAN ÂN HẠN)
   focusHandler = function () {
     clearGracePeriodTimers();
     hideGracePeriodBanner();
   };
 
-  // TH 3: RỜI TRANG BẰNG ĐIỀU HƯỚNG BÊN NGOÀI
+  // 4. RỜI TRANG HOẶC CHUYỂN ỨNG DỤNG BẰNG CỬ CHỈ GESTURE MOBILE
   pageHideHandler = function () {
     if (!window.isViolationTrackingActive || window.isInternalDialogActive) return;
     clearGracePeriodTimers();
     hideGracePeriodBanner();
-    triggerViolationNotification('Đóng ứng dụng hoặc điều hướng rời khỏi trang thi!');
+    triggerViolationNotification('Rời khỏi ứng dụng làm bài thi!');
   };
 
   document.addEventListener('visibilitychange', visibilityHandler);
@@ -353,26 +332,21 @@ export function startViolationTracking(initialCount = 0) {
   window.addEventListener('focus', focusHandler);
   window.addEventListener('pagehide', pageHideHandler);
 
-  // TH 4: PHƯƠNG ÁN 1 - DÙNG DOCUMENT.HASFOCUS() POLLING DÀNH RIÊNG CHO MOBILE SPLIT-SCREEN & PC
+  // 5. POLLING CHECK CHO CHẾ ĐỘ CHIA ĐÔI MÀN HÌNH (SPLIT SCREEN)
   focusCheckInterval = setInterval(() => {
     if (!window.isViolationTrackingActive || window.isInternalDialogActive || document.hidden) return;
 
-    // Nếu document mất focus (SV chạm sang ứng dụng thứ 2 khi chia đôi màn hình)
     if (!document.hasFocus()) {
-      startGracePeriodCountdown('Mất tiêu điểm tương tác bài thi (Chia đôi màn hình/Cửa sổ phụ) quá 5 giây!');
+      startGracePeriodCountdown('Thao tác ngoài vùng bài thi (Chia đôi màn hình) quá 3 giây!');
     } else {
-      // Nếu SV chạm tương tác lại vào trang thi -> Hủy đếm ân hạn và ẩn banner lập tức
       if (blurTimer) {
         clearGracePeriodTimers();
         hideGracePeriodBanner();
       }
     }
-  }, 600);
+  }, 1000);
 }
 
-/**
- * 4g. KÍCH HOẠT THÔNG BÁO VÀ TỰ ĐỘNG NỘP BÀI KHI ĐỦ 3 LẦN
- */
 function triggerViolationNotification(reason = 'Vi phạm quy chế thi') {
   if (isProcessingViolation) return;
   isProcessingViolation = true;
@@ -380,18 +354,17 @@ function triggerViolationNotification(reason = 'Vi phạm quy chế thi') {
   window.violationCount = (window.violationCount || 0) + 1;
   const count = window.violationCount;
 
-  // LẤY CÁC BIẾN NHẬN DẠNG BÀI THI & SINH VIÊN
   const examId = window.currentActiveExamId || window.currentExamId;
   const studentCode = window.currentStudentCode || window.currentUserCode || window.studentCode;
   const answers = window.currentActiveAnswersForExam || window.currentStudentAnswers || {};
 
-  // 🔑 LƯU NGAY SỐ LẦN VI PHẠM MỚI VÀO BẢN NHÁP LOCAL STORAGE KÈM CHECKSUM
   if (examId && studentCode && typeof saveExamDraftToLocal === 'function') {
     saveExamDraftToLocal(examId, studentCode, answers, count);
   }
 
   window.isInternalDialogActive = true;
 
+  // 🔑 ĐÃ SỬA: TRUYỀN ĐÚNG 3 THAM SỐ (count, reason, callback)
   showViolationModal(count, reason, () => {
     window.isInternalDialogActive = false;
     isProcessingViolation = false;
@@ -411,9 +384,6 @@ function triggerViolationNotification(reason = 'Vi phạm quy chế thi') {
   });
 }
 
-/**
- * 4h. TẮT BỘ THEO DÕI VI PHẠM KHI NỘP BÀI
- */
 export function stopViolationTracking() {
   window.isViolationTrackingActive = false;
   window.isInternalDialogActive = false;
@@ -445,16 +415,13 @@ export function stopViolationTracking() {
   }
 }
 
-// =========================================================================
-// 5. TIỆN ÍCH HIỂN THỊ LOADING & CHỐNG XSS
-// =========================================================================
 export function showAppLoading(msg = '⏳ Đang xử lý...') {
   let loader = document.getElementById('appGlobalLoader');
   if (!loader) {
     loader = document.createElement('div');
     loader.id = 'appGlobalLoader';
     loader.style.cssText = `
-      position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+      position: fixed; inset: 0; width: 100%; height: 100%;
       background: rgba(15, 23, 42, 0.7); color: #fff; display: flex;
       flex-direction: column; justify-content: center; align-items: center;
       z-index: 99999; font-family: sans-serif; font-size: 15px; font-weight: 600;
