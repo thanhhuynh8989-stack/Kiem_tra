@@ -24,6 +24,7 @@ import { handleExamFileUpload, renderDefaultUploadScreen } from './modules/aiExa
 import { loadExamList, handleEditExam, deleteExam } from './modules/examManagement.js';
 import { handleViewExamSubmissions } from './modules/gradebookManagement.js';
 import { handleLoadLecturerManagement } from './modules/lecturerManagement.js';
+import { switchTab, reloadCurrentTab } from './navigation.js';
 
 // Biến toàn cục theo dõi Tab đang mở
 window.currentActiveTab = 'tab-exams';
@@ -266,12 +267,11 @@ export function initUserSessionUI() {
   const userInfoDisplay = document.getElementById('userInfoDisplay');
   const btnLogout = document.getElementById('btnLogout');
 
-  // Các nút trên Navbar
   const tabBtnStudent = document.getElementById('tabBtnStudent');
   const tabBtnLecturer = document.getElementById('tabBtnLecturer');
   const tabBtnManagement = document.getElementById('tabBtnManagement');
   const tabBtnEditor = document.getElementById('tabBtnEditor');
-  const tabBtnLecturerManagement = document.getElementById('tabBtnLecturerManagement'); // Nút Quản lý Giảng viên
+  const tabBtnLecturerManagement = document.getElementById('tabBtnLecturerManagement');
 
   if (!user) {
     if (loginCard) loginCard.style.display = 'block';
@@ -285,7 +285,6 @@ export function initUserSessionUI() {
   if (appNavTabs) appNavTabs.style.display = 'flex';
   if (btnLogout) btnLogout.style.display = 'inline-block';
 
-  // 🔑 CHUẨN HÓA ROLE: Loại bỏ khoảng trắng thừa và chuyển về chữ viết hoa tuyệt đối
   const role = String(getLoggedInRole() || '').trim().toUpperCase();
   const name = user.fullName || user.username || 'Người dùng';
   
@@ -293,11 +292,7 @@ export function initUserSessionUI() {
     userInfoDisplay.innerHTML = `👤 <strong>${escapeHtml(name)}</strong> (${role})`;
   }
 
-  // -------------------------------------------------------------------------
-  // PHÂN LUỒNG HIỂN THỊ CÁC TAB NGHỆ NẠP DỰA TRÊN ROLE CHUẨN HÓA
-  // -------------------------------------------------------------------------
   if (role === 'STUDENT') {
-    // 1. SINH VIÊN: Chỉ hiện tab Làm bài thi
     if (tabBtnStudent) tabBtnStudent.style.display = 'inline-block';
     if (tabBtnLecturer) tabBtnLecturer.style.display = 'none';
     if (tabBtnManagement) tabBtnManagement.style.display = 'none';
@@ -306,21 +301,19 @@ export function initUserSessionUI() {
     switchTab('tab-student-exams');
 
   } else if (role === 'ADMIN') {
-    // 2. ADMIN: Hiển thị ĐẦY ĐỦ tất cả các tab (bao gồm Quản lý Giảng viên)
     if (tabBtnStudent) tabBtnStudent.style.display = 'none';
     if (tabBtnLecturer) tabBtnLecturer.style.display = 'inline-block';
     if (tabBtnManagement) tabBtnManagement.style.display = 'inline-block';
     if (tabBtnEditor) tabBtnEditor.style.display = 'inline-block';
-    if (tabBtnLecturerManagement) tabBtnLecturerManagement.style.display = 'inline-block'; // 🔑 CHỈ ADMIN MỚI HIỂN THỊ
+    if (tabBtnLecturerManagement) tabBtnLecturerManagement.style.display = 'inline-block';
     switchTab('tab-exams');
 
   } else {
-    // 3. GIẢNG VIÊN (LECTURER / CÁC VAI TRÒ KHÁC): Ẩn tab Quản lý Giảng viên
     if (tabBtnStudent) tabBtnStudent.style.display = 'none';
     if (tabBtnLecturer) tabBtnLecturer.style.display = 'inline-block';
     if (tabBtnManagement) tabBtnManagement.style.display = 'inline-block';
     if (tabBtnEditor) tabBtnEditor.style.display = 'inline-block';
-    if (tabBtnLecturerManagement) tabBtnLecturerManagement.style.display = 'none'; // 🔑 GIẢNG VIÊN BỊ ẨN TAB NÀY
+    if (tabBtnLecturerManagement) tabBtnLecturerManagement.style.display = 'none';
     switchTab('tab-exams');
   }
 }
