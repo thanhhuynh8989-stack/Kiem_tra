@@ -4,28 +4,37 @@ import { appsScriptService } from '../services/appsScriptService.js';
 let rawLecturerList = [];
 
 /**
- * 1. HÀM TẠO SƯỜN GIAO DIỆN CHÍNH (TỰ ĐỘNG TẠO CONTAINER NẾU THIẾU TRONG HTML)
+ * 1. HÀM TẠO SƯỜN GIAO DIỆN CHÍNH (XỬ LÝ DỌN SẠCH DOM CŨ KHI TẠO MỚI)
  */
 export function ensureLecturerManagementShell() {
   let container = document.getElementById('lecturerManagementContainer');
 
-  // 🔑 CƠ CHẾ TỰ ĐỘNG KHÔI PHỤC: Tự tạo thẻ <div id="lecturerManagementContainer"> nếu DOM chưa có
-  if (!container) {
-    console.warn('⚠️ [LecturerMgmt] Không thấy #lecturerManagementContainer trong HTML, đang tự động khởi tạo vào <main>...');
-    container = document.createElement('div');
-    container.id = 'lecturerManagementContainer';
-    container.style.display = 'block';
+  const mainArea = document.getElementById('mainContentArea') || document.querySelector('main') || document.body;
 
-    const mainArea = document.getElementById('mainContentArea') || document.querySelector('main') || document.body;
-    mainArea.appendChild(container);
+  // 🔑 BƯỚC QUAN TRỌNG: Ẩn 100% tất cả các phần tử con khác trong <main> để chống chồng giao diện
+  if (mainArea) {
+    Array.from(mainArea.children).forEach(child => {
+      if (child.id !== 'loginCard' && child.id !== 'lecturerManagementContainer') {
+        child.style.display = 'none';
+      }
+    });
   }
 
-  // Nếu đã có sườn bảng thì không dựng lại để tránh mất Modal
+  // Tự động khởi tạo thẻ Container nếu DOM HTML chưa có
+  if (!container) {
+    console.warn('⚠️ [LecturerMgmt] Đang khởi tạo #lecturerManagementContainer vào <main>...');
+    container = document.createElement('div');
+    container.id = 'lecturerManagementContainer';
+    if (mainArea) mainArea.appendChild(container);
+  }
+
+  container.style.display = 'block';
+
+  // Nếu đã có sườn bảng thì giữ nguyên để tránh mất Modal
   if (document.getElementById('lecturerTableBody')) {
     return true;
   }
 
-  console.log('🎨 [LecturerMgmt] Đang tạo sườn HTML cho Quản lý Giảng viên...');
   container.innerHTML = `
     <div style="background:#fff; border-radius:10px; padding:16px; border:1px solid var(--border, #cbd5e1);">
       
@@ -107,7 +116,6 @@ export function ensureLecturerManagementShell() {
  * 2. NẠP DANH SÁCH GIẢNG VIÊN TỪ SERVER
  */
 export async function handleLoadLecturerManagement() {
-  console.group('📡 [LecturerMgmt] Thực thi handleLoadLecturerManagement()');
   ensureLecturerManagementShell();
 
   const tbody = document.getElementById('lecturerTableBody');
@@ -116,20 +124,14 @@ export async function handleLoadLecturerManagement() {
   }
 
   try {
-    console.log('📤 [LecturerMgmt] Gửi request GET_LECTURERS tới AppsScriptService...');
     const res = await appsScriptService.request('GET_LECTURERS', {});
-    console.log('📥 [LecturerMgmt] Phản hồi từ Server:', res);
-
     rawLecturerList = res.lecturers || res.data || [];
-    console.log(`✅ [LecturerMgmt] Nạp thành công ${rawLecturerList.length} giảng viên.`);
     renderLecturerManagementUI(rawLecturerList);
   } catch (err) {
-    console.error('❌ [LecturerMgmt] Lỗi khi nạp danh sách Giảng viên:', err);
     if (tbody) {
       tbody.innerHTML = `<tr><td colspan="6" style="text-align:center; padding:20px; color:#ef4444;">⚠️ Lỗi nạp danh sách Giảng viên: ${escapeHtml(err.message)}</td></tr>`;
     }
   }
-  console.groupEnd();
 }
 
 /**
