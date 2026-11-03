@@ -1,0 +1,549 @@
+{
+  "examId": "exam_kbh4lgmp",
+  "title": "SHĐC_Kiểm tra chương 1",
+  "durationMinutes": 30,
+  "createdBy": "thanh",
+  "createdAt": "2026-11-03T03:14:59.615Z",
+  "questions": [
+    {
+      "id": "q_1",
+      "stem": "Bào quan của tế bào được định vị trong ?",
+      "options": [
+        "Nhân con",
+        "Tế bào chất",
+        "Lục lạp",
+        "Ty thể"
+      ],
+      "correctAnswer": 1,
+      "hasImage": false,
+      "imageUrl": null,
+      "originalOptionCount": 4,
+      "flags": {
+        "needsUserConfirmation": true,
+        "note": "🤖 AI (gemini-3.5-flash) đã sinh bổ sung phương án/đáp án. Giảng viên vui lòng rà soát lại."
+      }
+    },
+    {
+      "id": "q_2",
+      "stem": "Đặc điểm khác biệt của tế bào nhân sơ (prokaryote) và tế bào nhân chuẩn (eukaryote) là:",
+      "options": [
+        "Protein",
+        "Nhân",
+        "Màng plasma",
+        "ADN"
+      ],
+      "correctAnswer": 1,
+      "hasImage": false,
+      "imageUrl": null,
+      "originalOptionCount": 4,
+      "flags": {
+        "needsUserConfirmation": true,
+        "note": "🤖 AI (gemini-3.5-flash) đã sinh bổ sung phương án/đáp án. Giảng viên vui lòng rà soát lại."
+      }
+    },
+    {
+      "id": "q_3",
+      "stem": "Ty thể KHÔNG có mặt ở ?",
+      "options": [
+        "Vi khuẩn",
+        "Thực vật",
+        "Nấm",
+        "Động vật có xương sống"
+      ],
+      "correctAnswer": 0,
+      "hasImage": false,
+      "imageUrl": null,
+      "originalOptionCount": 4,
+      "flags": {
+        "needsUserConfirmation": true,
+        "note": "🤖 AI (gemini-3.5-flash) đã sinh bổ sung phương án/đáp án. Giảng viên vui lòng rà soát lại."
+      }
+    },
+    {
+      "id": "q_4",
+      "stem": "Hợp chất nào sau đây KHÔNG có trong thành phần màng tế bào ?",
+      "options": [
+        "Phospholipids",
+        "Cholesterol",
+        "Glycolipid",
+        "Proline"
+      ],
+      "correctAnswer": 3,
+      "hasImage": false,
+      "imageUrl": null,
+      "originalOptionCount": 4,
+      "flags": {
+        "needsUserConfirmation": true,
+        "note": "🤖 AI (gemini-3.5-flash) đã sinh bổ sung phương án/đáp án. Giảng viên vui lòng rà soát lại."
+      }
+    },
+    {
+      "id": "q_5",
+      "stem": "Thực bào và ẩm bào là các thuật ngữ của hiện tượng được mô tả sau:",
+      "options": [
+        "Ăn các chất lơ lửng",
+        "Nhập bào",
+        "Động vật ăn cỏ",
+        "Bẫy mô"
+      ],
+      "correctAnswer": 1,
+      "hasImage": false,
+      "imageUrl": null,
+      "originalOptionCount": 4,
+      "flags": {
+        "needsUserConfirmation": true,
+        "note": "🤖 AI (gemini-3.5-flash) đã sinh bổ sung phương án/đáp án. Giảng viên vui lòng rà soát lại."
+      }
+    },
+    {
+      "id": "q_6",
+      "stem": "Phát biểu nào sau đây về lục lạp là KHÔNG đúng ?",
+      "options": [
+        "Lục lạp có một chồng các lớp màng trong và được bao bọc bởi lớp màng kép",
+        "Lục lạp có chứa ADN của riêng nó",
+        "Lục lạp được xem là bắt nguồn từ vi khuẩn",
+        "Lục lạp có mặt ở tất cả các tế bào nhân chuẩn"
+      ],
+      "correctAnswer": 3,
+      "hasImage": false,
+      "imageUrl": null,
+      "originalOptionCount": 4,
+      "flags": {
+        "needsUserConfirmation": true,
+        "note": "🤖 AI (gemini-3.5-flash) đã sinh bổ sung phương án/đáp án. Giảng viên vui lòng rà soát lại."
+      }
+    },
+    {
+      "id": "q_7",
+      "stem": "Vai trò chính của màng sinh chất:",
+      "options": [
+        "Chống lại áp suất thẩm thấu của môi trường bên ngoài.",
+        "Trao đổi chất, thông tin giữa tế bào và môi trường",
+        "Tạo khung vững, cứng cho tế bào",
+        "Bảo vệ, duy trì hình dạng tế bào"
+      ],
+      "correctAnswer": 1,
+      "hasImage": false,
+      "imageUrl": null,
+      "originalOptionCount": 4,
+      "flags": {
+        "needsUserConfirmation": true,
+        "note": "🤖 AI (gemini-3.5-flash) đã sinh bổ sung phương án/đáp án. Giảng viên vui lòng rà soát lại."
+      }
+    },
+    {
+      "id": "q_8",
+      "stem": "Thành phần chính cấu tạo nên thành tế bào vi khuẩn Gram dương ?",
+      "options": [
+        "Phospholipid kép",
+        "Peptidoglycan",
+        "Polysaccharide",
+        "Lipopolysaccharide"
+      ],
+      "correctAnswer": 1,
+      "hasImage": false,
+      "imageUrl": null,
+      "originalOptionCount": 4,
+      "flags": {
+        "needsUserConfirmation": true,
+        "note": "🤖 AI (gemini-3.5-flash) đã sinh bổ sung phương án/đáp án. Giảng viên vui lòng rà soát lại."
+      }
+    },
+    {
+      "id": "q_9",
+      "stem": "Thể nhân của tế bào Prokaryote KHÔNG có đặc điểm ?",
+      "options": [
+        "Chưa có màng nhân bao bọc thể nhân",
+        "ADN xoắn kép, dạng trần liên kết với protein.",
+        "Chỉ có một nhiễm sắc thể duy nhất",
+        "Là nơi chứa đựng thông tin di truyền"
+      ],
+      "correctAnswer": 1,
+      "hasImage": false,
+      "imageUrl": null,
+      "originalOptionCount": 4,
+      "flags": {
+        "needsUserConfirmation": true,
+        "note": "🤖 AI (gemini-3.5-flash) đã sinh bổ sung phương án/đáp án. Giảng viên vui lòng rà soát lại."
+      }
+    },
+    {
+      "id": "q_10",
+      "stem": "Ở tế bào Eukaryote, ribosome có mặt nhiều nhất tại:",
+      "options": [
+        "Màng nhân",
+        "Ty thể",
+        "Nhân con",
+        "Lưới nội chất có hạt"
+      ],
+      "correctAnswer": 3,
+      "hasImage": false,
+      "imageUrl": null,
+      "originalOptionCount": 4,
+      "flags": {
+        "needsUserConfirmation": true,
+        "note": "🤖 AI (gemini-3.5-flash) đã sinh bổ sung phương án/đáp án. Giảng viên vui lòng rà soát lại."
+      }
+    },
+    {
+      "id": "q_11",
+      "stem": "Thành phần cấu trúc của nhân tế bào Eukaryote bao gồm:",
+      "options": [
+        "Màng nhân, dịch nhân, nhiễm sắc thể, hạch nhân",
+        "Màng nhân, dịch nhân, hạch nhân, lỗ nhân",
+        "Lỗ nhân, nhiễm sắc thể, dịch nhân, màng nhân",
+        "Màng nhân, dịch nhân, nhiễm sắc thể, thể nhân"
+      ],
+      "correctAnswer": 0,
+      "hasImage": false,
+      "imageUrl": null,
+      "originalOptionCount": 4,
+      "flags": {
+        "needsUserConfirmation": true,
+        "note": "🤖 AI (gemini-3.5-flash) đã sinh bổ sung phương án/đáp án. Giảng viên vui lòng rà soát lại."
+      }
+    },
+    {
+      "id": "q_12",
+      "stem": "Màng trong của ty thể gấp nếp có ý nghĩa gì ?",
+      "options": [
+        "Giúp các protein dễ xuyên qua màng",
+        "Giúp vận chuyển được nhiều ATP",
+        "Giúp tăng tổng hợp NADH",
+        "Giúp tăng diện tích bề mặt ty thể"
+      ],
+      "correctAnswer": 3,
+      "hasImage": false,
+      "imageUrl": null,
+      "originalOptionCount": 4,
+      "flags": {
+        "needsUserConfirmation": true,
+        "note": "🤖 AI (gemini-3.5-flash) đã sinh bổ sung phương án/đáp án. Giảng viên vui lòng rà soát lại."
+      }
+    },
+    {
+      "id": "q_13",
+      "stem": "Ty thể xuất hiện với số lượng lớn trong các tế bào ?",
+      "options": [
+        "Hoạt động trao đổi chất mạnh",
+        "Đang phân chia",
+        "Hoạt động trao đổi chất yếu",
+        "Đang sinh sinh sản"
+      ],
+      "correctAnswer": 0,
+      "hasImage": false,
+      "imageUrl": null,
+      "originalOptionCount": 4,
+      "flags": {
+        "needsUserConfirmation": true,
+        "note": "🤖 AI (gemini-3.5-flash) đã sinh bổ sung phương án/đáp án. Giảng viên vui lòng rà soát lại."
+      }
+    },
+    {
+      "id": "q_14",
+      "stem": "Khuếch tán là gì ?",
+      "options": [
+        "Sự vận chuyển của chất rắn không tan trong nước",
+        "Sự chuyển động của phân tử từ nơi có nồng độ cao tới nơi có nồng độ thấp hơn",
+        "Vận chuyển phụ thuộc màng sinh chất",
+        "Sự chuyển động ngược gradient nồng độ"
+      ],
+      "correctAnswer": 1,
+      "hasImage": false,
+      "imageUrl": null,
+      "originalOptionCount": 4,
+      "flags": {
+        "needsUserConfirmation": true,
+        "note": "🤖 AI (gemini-3.5-flash) đã sinh bổ sung phương án/đáp án. Giảng viên vui lòng rà soát lại."
+      }
+    },
+    {
+      "id": "q_15",
+      "stem": "Màng sinh chất có tính bán thấm vì ?",
+      "options": [
+        "Chỉ một lớp phospholipid trên màng kép có tính thấm",
+        "Chỉ cho phép các chất đi qua một cách có chọn lọc",
+        "Chỉ cho các chất đi qua màng theo kênh dẫn truyền protein",
+        "Chỉ cho các chất đi qua màng nhờ sự tiêu hao năng lượng ATP"
+      ],
+      "correctAnswer": 1,
+      "hasImage": false,
+      "imageUrl": null,
+      "originalOptionCount": 4,
+      "flags": {
+        "needsUserConfirmation": true,
+        "note": "🤖 AI (gemini-3.5-flash) đã sinh bổ sung phương án/đáp án. Giảng viên vui lòng rà soát lại."
+      }
+    },
+    {
+      "id": "q_16",
+      "stem": "Môi trường nhược trương có tính chất ?",
+      "options": [
+        "Nồng độ chất tan cao hơn nồng độ chất tan trong tế bào",
+        "Nồng độ chất tan thấp hơn nồng độ chất tan trong tế bào.",
+        "Áp suất thẩm thấu bằng áp suất trong tế bào",
+        "Áp suất thẩm thấu nhỏ hơn áp suất trong tế bào"
+      ],
+      "correctAnswer": 1,
+      "hasImage": false,
+      "imageUrl": null,
+      "originalOptionCount": 4,
+      "flags": {
+        "needsUserConfirmation": true,
+        "note": "🤖 AI (gemini-3.5-flash) đã sinh bổ sung phương án/đáp án. Giảng viên vui lòng rà soát lại."
+      }
+    },
+    {
+      "id": "q_17",
+      "stem": "Kênh vận chuyển nào không nằm trên màng tế bào mà có mặt trên màng ty thể và lục lạp?",
+      "options": [
+        "Kênh Na+/K+",
+        "Kênh H+",
+        "Kênh Ca++",
+        "Kênh liên kết"
+      ],
+      "correctAnswer": 1,
+      "hasImage": false,
+      "imageUrl": null,
+      "originalOptionCount": 4,
+      "flags": {
+        "needsUserConfirmation": true,
+        "note": "🤖 AI (gemini-3.5-flash) đã sinh bổ sung phương án/đáp án. Giảng viên vui lòng rà soát lại."
+      }
+    },
+    {
+      "id": "q_18",
+      "stem": "Vận chuyển chủ động  các chất qua màng tế bào là hình thức vận chuyển:",
+      "options": [
+        "Theo chiều gradient nồng độ (từ nơi nồng độ cao tới nơi có nồng độ thấp hơn)",
+        "Theo 2 chiều",
+        "Đi ngược chiều gradient nồng độ (không phụ thuộc vào gradient)",
+        "Không cần năng lượng"
+      ],
+      "correctAnswer": 2,
+      "hasImage": false,
+      "imageUrl": null,
+      "originalOptionCount": 4,
+      "flags": {
+        "needsUserConfirmation": true,
+        "note": "🤖 AI (gemini-3.5-flash) đã sinh bổ sung phương án/đáp án. Giảng viên vui lòng rà soát lại."
+      }
+    },
+    {
+      "id": "q_19",
+      "stem": "Môi trường đẳng trương với tế bào hồng cầu người ?",
+      "options": [
+        "NaCl 9,0%",
+        "NaCl 0,9%",
+        "NaCl 0,7%",
+        "NaCl 1,0%"
+      ],
+      "correctAnswer": 1,
+      "hasImage": false,
+      "imageUrl": null,
+      "originalOptionCount": 4,
+      "flags": {
+        "needsUserConfirmation": true,
+        "note": "🤖 AI (gemini-3.5-flash) đã sinh bổ sung phương án/đáp án. Giảng viên vui lòng rà soát lại."
+      }
+    },
+    {
+      "id": "q_20",
+      "stem": "Vai trò của cholesterol trong cấu trúc màng sinh chất ?",
+      "options": [
+        "Kênh dẫn truyền phân tử",
+        "Cố định cơ học cho màng",
+        "Kênh vận chuyển các chất",
+        "Tạo khung cho màng"
+      ],
+      "correctAnswer": 1,
+      "hasImage": false,
+      "imageUrl": null,
+      "originalOptionCount": 4,
+      "flags": {
+        "needsUserConfirmation": true,
+        "note": "🤖 AI (gemini-3.5-flash) đã sinh bổ sung phương án/đáp án. Giảng viên vui lòng rà soát lại."
+      }
+    },
+    {
+      "id": "q_21",
+      "stem": "Ở tế bào Prokaryote, bao nhầy được cấu tạo từ:",
+      "options": [
+        "Polysaccharide",
+        "Phospholipid kép",
+        "Lipopolysaccharide",
+        "Peptidoglycan"
+      ],
+      "correctAnswer": 0,
+      "hasImage": false,
+      "imageUrl": null,
+      "originalOptionCount": 4,
+      "flags": {
+        "needsUserConfirmation": true,
+        "note": "🤖 AI (gemini-3.5-flash) đã sinh bổ sung phương án/đáp án. Giảng viên vui lòng rà soát lại."
+      }
+    },
+    {
+      "id": "q_22",
+      "stem": "Bào quan có vai trò chủ yếu trong quá trình giải độc ở tế bào gan là:",
+      "options": [
+        "Lưới nội chất",
+        "Lysosome",
+        "Lưới nội chất hạt",
+        "Lưới nội chất trơn"
+      ],
+      "correctAnswer": 3,
+      "hasImage": false,
+      "imageUrl": null,
+      "originalOptionCount": 4,
+      "flags": {
+        "needsUserConfirmation": true,
+        "note": "🤖 AI (gemini-3.5-flash) đã sinh bổ sung phương án/đáp án. Giảng viên vui lòng rà soát lại."
+      }
+    },
+    {
+      "id": "q_23",
+      "stem": "Bào quan nào chức năng chủ yếu là tham gia vào quá trình điều chỉnh sự chuyển hoá glucose và phân giải H2O2 thành H2O nhờ enzyme catalase:",
+      "options": [
+        "Peroxisome",
+        "Ty thể",
+        "Ribosome",
+        "Lysosome"
+      ],
+      "correctAnswer": 0,
+      "hasImage": false,
+      "imageUrl": null,
+      "originalOptionCount": 4,
+      "flags": {
+        "needsUserConfirmation": true,
+        "note": "🤖 AI (gemini-3.5-flash) đã sinh bổ sung phương án/đáp án. Giảng viên vui lòng rà soát lại."
+      }
+    },
+    {
+      "id": "q_24",
+      "stem": "Ribosome của vi khuẩn E.coli có hằng số lắng:",
+      "options": [
+        "50S",
+        "60S",
+        "70S",
+        "80S"
+      ],
+      "correctAnswer": 2,
+      "hasImage": false,
+      "imageUrl": null,
+      "originalOptionCount": 4,
+      "flags": {
+        "needsUserConfirmation": true,
+        "note": "🤖 AI (gemini-3.5-flash) đã sinh bổ sung phương án/đáp án. Giảng viên vui lòng rà soát lại."
+      }
+    },
+    {
+      "id": "q_25",
+      "stem": "Phân tử nào sau đây dễ được vận chuyển thụ động qua màng sinh chất ?",
+      "options": [
+        "Ion Ca2+",
+        "Glucose",
+        "Axit nucleic",
+        "Khí Oxy"
+      ],
+      "correctAnswer": 3,
+      "hasImage": false,
+      "imageUrl": null,
+      "originalOptionCount": 4,
+      "flags": {
+        "needsUserConfirmation": true,
+        "note": "🤖 AI (gemini-3.5-flash) đã sinh bổ sung phương án/đáp án. Giảng viên vui lòng rà soát lại."
+      }
+    },
+    {
+      "id": "q_26",
+      "stem": "Thực vật có …nhưng ở động vật thì không:",
+      "options": [
+        "Protein",
+        "Chất béo",
+        "Cellulose",
+        "Tinh bột"
+      ],
+      "correctAnswer": 2,
+      "hasImage": false,
+      "imageUrl": null,
+      "originalOptionCount": 4,
+      "flags": {
+        "needsUserConfirmation": true,
+        "note": "🤖 AI (gemini-3.5-flash) đã sinh bổ sung phương án/đáp án. Giảng viên vui lòng rà soát lại."
+      }
+    },
+    {
+      "id": "q_27",
+      "stem": "Nước di chuyển qua màng nguyên sinh chất của tế bào được gọi là:",
+      "options": [
+        "Vận chuyển chủ động",
+        "Sự khuếch tán",
+        "Vận chuyển thụ động",
+        "Sự thẩm thấu"
+      ],
+      "correctAnswer": 3,
+      "hasImage": false,
+      "imageUrl": null,
+      "originalOptionCount": 4,
+      "flags": {
+        "needsUserConfirmation": true,
+        "note": "🤖 AI (gemini-3.5-flash) đã sinh bổ sung phương án/đáp án. Giảng viên vui lòng rà soát lại."
+      }
+    },
+    {
+      "id": "q_28",
+      "stem": "Theo phương pháp nhuộm Gram, vi khuẩn Gram (+) sẽ bắt màu:",
+      "options": [
+        "Tím",
+        "Xanh tím",
+        "Đỏ tía",
+        "Hồng"
+      ],
+      "correctAnswer": 0,
+      "hasImage": false,
+      "imageUrl": null,
+      "originalOptionCount": 4,
+      "flags": {
+        "needsUserConfirmation": true,
+        "note": "🤖 AI (gemini-3.5-flash) đã sinh bổ sung phương án/đáp án. Giảng viên vui lòng rà soát lại."
+      }
+    },
+    {
+      "id": "q_29",
+      "stem": "Khả năng vận chuyển thụ động các chất qua màng không phụ thuộc yếu tố nào sau đây:",
+      "options": [
+        "Gradient nồng độ",
+        "Kích thước phân tử",
+        "Tính chất phân tử",
+        "Nguồn năng lượng"
+      ],
+      "correctAnswer": 3,
+      "hasImage": false,
+      "imageUrl": null,
+      "originalOptionCount": 4,
+      "flags": {
+        "needsUserConfirmation": true,
+        "note": "🤖 AI (gemini-3.5-flash) đã sinh bổ sung phương án/đáp án. Giảng viên vui lòng rà soát lại."
+      }
+    },
+    {
+      "id": "q_30",
+      "stem": "Nước di chuyển vào tế bào qua màng nguyên sinh chất khi đặt nó trong môi trường nào:",
+      "options": [
+        "Môi trường ưu trương",
+        "Môi trường đẳng trương",
+        "Môi trường nhược trương",
+        "Môi trường có dung môi hòa tan là ethanol tuyệt đối"
+      ],
+      "correctAnswer": 2,
+      "hasImage": false,
+      "imageUrl": null,
+      "originalOptionCount": 4,
+      "flags": {
+        "needsUserConfirmation": true,
+        "note": "🤖 AI (gemini-3.5-flash) đã sinh bổ sung phương án/đáp án. Giảng viên vui lòng rà soát lại."
+      }
+    }
+  ]
+}
