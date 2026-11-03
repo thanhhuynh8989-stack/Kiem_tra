@@ -1,6 +1,6 @@
 // =========================================================================
 // FILE: src/modules/antiCheatEngine.js
-// MODULE CHỐNG GIAN LẬN ĐỘC LẬP (PC FULLSCREEN + MOBILE VIEWPORT RESIZE)
+// MODULE CHỐNG GIAN LẬN ĐỘC LẬP (HARD BLUR + 15S MODAL TIMEOUT)
 // =========================================================================
 
 import { escapeHtml } from './authAndCore.js';
@@ -27,6 +27,7 @@ export class AntiCheatEngine {
     this.blurTimer = null;
     this.countdownInterval = null;
     this.focusCheckInterval = null;
+    this.modalTimer = null;
     this.handlers = {};
   }
 
@@ -45,6 +46,20 @@ export class AntiCheatEngine {
     if (tag !== 'INPUT' && tag !== 'TEXTAREA') {
       e.preventDefault();
       return false;
+    }
+  }
+
+  applyExamHardBlur() {
+    const examContainer = document.getElementById('studentExamContainer');
+    if (examContainer) {
+      examContainer.classList.add('exam-hard-blur');
+    }
+  }
+
+  removeExamHardBlur() {
+    const examContainer = document.getElementById('studentExamContainer');
+    if (examContainer) {
+      examContainer.classList.remove('exam-hard-blur');
     }
   }
 
@@ -142,6 +157,7 @@ export class AntiCheatEngine {
 
     let secondsLeft = Math.ceil(this.gracePeriodMs / 1000);
     this.showGraceBanner(secondsLeft);
+    this.applyExamHardBlur(); // Mờ nhẹ màn hình ngay thời gian ân hạn
 
     this.countdownInterval = setInterval(() => {
       secondsLeft -= 1;
@@ -193,7 +209,7 @@ export class AntiCheatEngine {
   }
 
   /**
-   * TẮT GIÁM SÁT & DỌN DẸP SUYÊN SUỐT
+   * TẮT GIÁM SÁT & DỌN DẸP
    */
   stop() {
     this.isActive = false;
@@ -203,6 +219,7 @@ export class AntiCheatEngine {
 
     this.clearTimers();
     this.hideGraceBanner();
+    this.removeExamHardBlur();
 
     if (this.handlers.preventSelect) {
       ['contextmenu', 'selectstart', 'copy', 'cut', 'paste', 'dragstart'].forEach(evt => {
@@ -230,8 +247,10 @@ export class AntiCheatEngine {
   clearTimers() {
     if (this.blurTimer) clearTimeout(this.blurTimer);
     if (this.countdownInterval) clearInterval(this.countdownInterval);
+    if (this.modalTimer) clearInterval(this.modalTimer);
     this.blurTimer = null;
     this.countdownInterval = null;
+    this.modalTimer = null;
   }
 
   requestPCFullscreen() {
@@ -275,6 +294,9 @@ export class AntiCheatEngine {
   hideGraceBanner() {
     const banner = document.getElementById('gracePeriodWarningBanner');
     if (banner) banner.style.display = 'none';
+    if (!this.isDialogActive) {
+      this.removeExamHardBlur(); // Gỡ mờ nếu không hiển thị Modal
+    }
   }
 
   showViolationModal(count, reason, onConfirm) {
@@ -284,16 +306,21 @@ export class AntiCheatEngine {
       modal.id = 'violationModalOverlay';
       modal.style.cssText = `
         position: fixed; inset: 0; width: 100%; height: 100%;
-        background: rgba(15, 23, 42, 0.88); display: flex; justify-content: center;
+        background: #0f172a; display: flex; justify-content: center;
         align-items: center; z-index: 999999; font-family: system-ui, -apple-system, sans-serif;
-        backdrop-filter: blur(4px); padding: 16px; box-sizing: border-box;
+        padding: 16px; box-sizing: border-box;
       `;
       document.body.appendChild(modal);
     }
 
+    // 🔑 BẬT MỜ ĐỤC TUYỆT ĐỐI KHUNG ĐỀ THI PÍA SAU
+    this.applyExamHardBlur();
+
     const isFinal = count >= this.maxViolations;
+    let modalTimeoutSec = 15; // 15s đếm ngược ép phản hồi chống ngâm Modal
+
     modal.innerHTML = `
-      <div style="background: #fff; border-radius: 12px; max-width: 420px; width: 100%; padding: 24px; text-align: center; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.3); border-top: 6px solid ${isFinal ? '#dc2626' : '#f59e0b'};">
+      <div style="background: #fff; border-radius: 12px; max-width: 420px; width: 100%; padding: 24px; text-align: center; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.5); border-top: 6px solid ${isFinal ? '#dc2626' : '#f59e0b'};">
         <div style="font-size: 48px; margin-bottom: 12px;">${isFinal ? '❌' : '⚠️'}</div>
         <h3 style="margin: 0 0 8px 0; color: ${isFinal ? '#dc2626' : '#d97706'}; font-size: 18px; font-weight: 700;">
           ${isFinal ? 'VI PHẠM QUY CHẾ BÀI THI!' : `CẢNH BÁO VI PHẠM (Lần ${count}/${this.maxViolations})`}
@@ -305,16 +332,34 @@ export class AntiCheatEngine {
         </p>
         ${reason ? `<div style="font-size: 12px; color: #64748b; background: #f1f5f9; padding: 6px 10px; border-radius: 6px; margin-bottom: 16px;">Chi tiết: ${escapeHtml(reason)}</div>` : ''}
         <button id="violationModalBtn" type="button" style="background: ${isFinal ? '#dc2626' : '#2563eb'}; color: #fff; border: none; padding: 12px 24px; border-radius: 8px; font-weight: 700; font-size: 14px; cursor: pointer; width: 100%; -webkit-tap-highlight-color: transparent;">
-          ${isFinal ? 'Tự Động Nộp Bài' : 'Tôi Đã Hiểu & Tiếp Tục Làm Bài'}
+          ${isFinal ? 'Tự Động Nộp Bài' : `Tôi Đã Hiểu & Tiếp Tục (${modalTimeoutSec}s)`}
         </button>
       </div>
     `;
     modal.style.display = 'flex';
 
-    document.getElementById('violationModalBtn').onclick = () => {
+    const btn = document.getElementById('violationModalBtn');
+
+    const closeModalAndResume = () => {
+      if (this.modalTimer) clearInterval(this.modalTimer);
       modal.style.display = 'none';
+      this.removeExamHardBlur(); // Gỡ che mờ để làm bài tiếp
       if (typeof onConfirm === 'function') onConfirm();
     };
+
+    if (!isFinal) {
+      this.modalTimer = setInterval(() => {
+        modalTimeoutSec -= 1;
+        if (modalTimeoutSec > 0) {
+          btn.innerText = `Tôi Đã Hiểu & Tiếp Tục (${modalTimeoutSec}s)`;
+        } else {
+          clearInterval(this.modalTimer);
+          closeModalAndResume(); // Tự động đóng và phạt lần tiếp theo nếu tái phạm
+        }
+      }, 1000);
+    }
+
+    btn.onclick = closeModalAndResume;
   }
 
   renderZaloBlockerScreen() {
