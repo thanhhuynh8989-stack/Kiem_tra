@@ -34,8 +34,10 @@ export function renderStudentManagementUI(students = [], container) {
         </p>
 
         <div style="display:flex; justify-content:center; align-items:center; gap:10px; flex-wrap:wrap;">
-          <button type="button" onclick="downloadStudentTemplateCSV()" style="background:#0d9488; color:#fff; border:none; padding:9px 16px; border-radius:6px; font-weight:600; font-size:13px; cursor:pointer;">
-            📥 Tải File Mẫu (.csv)
+          <button type="button" 
+                  onclick="window.downloadStudentTemplateXLSX()" 
+                  style="background:#10b981; color:#ffffff; border:none; padding:8px 16px; border-radius:6px; font-weight:600; font-size:13px; cursor:pointer; display:inline-flex; align-items:center; gap:6px;">
+            📥 Tải File Mẫu (.xlsx)
           </button>
           
           <input type="file" id="studentListFileInput" accept=".xlsx, .xls, .csv" style="display:none;" onchange="handleStudentFileSelected(event)">
