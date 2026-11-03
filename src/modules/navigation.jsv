@@ -1,7 +1,7 @@
 import { handleLoadStudentManagement } from './studentManagement.js';
 import { handleLoadExamManagement } from './examManagement.js';
 import { handleInitExamCreationUI } from './examCreation.js';
-import { handleLoadLecturerManagement } from './lecturerManagement.js'; // 🔑 1. Bổ sung import module Quản lý Giảng viên
+import { handleLoadLecturerManagement } from './lecturerManagement.js';
 import { getLoggedInRole } from './authAndCore.js';
 
 /**
@@ -10,13 +10,13 @@ import { getLoggedInRole } from './authAndCore.js';
 export function switchTab(tabId) {
   if (!tabId) return;
 
-  // Chuẩn hóa tên tab (đảm bảo đồng bộ giữa các mã tab cũ và mới)
+  // Chuẩn hóa tên tab
   let targetTab = tabId;
   if (tabId === 'LECTURER_MANAGEMENT') targetTab = 'tab-lecturers';
   if (tabId === 'STUDENT_MANAGEMENT') targetTab = 'tab-students';
   if (tabId === 'EXAM_MANAGEMENT') targetTab = 'tab-exams';
 
-  // 🔑 2. CHẶN VÀ KIỂM TRA QUYỀN ADMIN KHI MỞ TAB QUẢN LÝ GIẢNG VIÊN
+  // CHẶN BẢO VỆ CHO TAB QUẢN LÝ GIẢNG VIÊN
   if (targetTab === 'tab-lecturers') {
     const role = String(typeof getLoggedInRole === 'function' ? getLoggedInRole() : sessionStorage.getItem('userRole') || '').trim().toUpperCase();
     if (role !== 'ADMIN') {
@@ -25,10 +25,9 @@ export function switchTab(tabId) {
     }
   }
 
-  // 1. Cập nhật trạng thái tab active toàn cục
   window.currentActiveTab = targetTab;
 
-  // 2. Cập nhật CSS Active trên Navigation Bar
+  // CẬP NHẬT TRẠNG THÁI ACTIVE TRÊN NAVBAR
   const navButtons = document.querySelectorAll('.nav-tab-btn, .nav-btn, [data-tab]');
   navButtons.forEach(btn => {
     const btnTab = btn.getAttribute('data-tab');
@@ -36,20 +35,22 @@ export function switchTab(tabId) {
     
     if (btnTab === targetTab || onclickAttr.includes(targetTab)) {
       btn.classList.add('active');
-      btn.style.background = '#2563eb';
-      btn.style.color = '#ffffff';
+      btn.style.background = '#eff6ff';
+      btn.style.color = '#2563eb';
+      btn.style.fontWeight = 'bold';
     } else {
       btn.classList.remove('active');
       btn.style.background = 'transparent';
       btn.style.color = '#475569';
+      btn.style.fontWeight = 'normal';
     }
   });
 
-  // 🔑 3. BỔ SUNG 'tab-lecturers' VÀO KHU VỰC QUẢN LÝ CONTAINERS
+  // QUẢN LÝ HIỂN THỊ CONTAINERS
   const tabContainers = {
     'tab-exams': document.getElementById('examManagementContainer') || document.getElementById('lecturerDashboardContainer'),
     'tab-students': document.getElementById('studentManagementContainer'),
-    'tab-lecturers': document.getElementById('lecturerManagementContainer'), // 👈 ĐÃ BỔ SUNG CONTAINER NÀY
+    'tab-lecturers': document.getElementById('lecturerManagementContainer'),
     'tab-create-exam': document.getElementById('examCreationContainer') || document.getElementById('examEditorContainer'),
     'tab-student-exams': document.getElementById('studentExamContainer')
   };
@@ -60,7 +61,7 @@ export function switchTab(tabId) {
     }
   });
 
-  // 🔑 4. BỔ SUNG CASE 'tab-lecturers' VÀO LOADER TỰ ĐỘNG
+  // TẢI DỮ LIỆU TƯƠNG ỨNG
   switch (targetTab) {
     case 'tab-exams':
       if (typeof handleLoadExamManagement === 'function') handleLoadExamManagement();
@@ -70,7 +71,7 @@ export function switchTab(tabId) {
       if (typeof handleLoadStudentManagement === 'function') handleLoadStudentManagement();
       break;
 
-    case 'tab-lecturers': // 👈 ĐÃ BỔ SUNG XỬ LÝ CHO TAB GIẢNG VIÊN
+    case 'tab-lecturers':
       if (typeof handleLoadLecturerManagement === 'function') {
         handleLoadLecturerManagement();
       } else if (typeof window.handleLoadLecturerManagement === 'function') {
@@ -88,14 +89,23 @@ export function switchTab(tabId) {
   }
 }
 
-/**
- * NÚT TẢI LẠI TRANG HIỆN TẠI (RELOAD CURRENT TAB)
- */
 export function reloadCurrentTab() {
   const activeTab = window.currentActiveTab || 'tab-exams';
   switchTab(activeTab);
 }
 
-// BIND TO WINDOW
+// BẮT SỰ KIỆN CLICK TOÀN CỤC CHO CÁC NÚT CÓ DATA-TAB
+document.addEventListener('click', (e) => {
+  const targetBtn = e.target.closest('[data-tab]');
+  if (targetBtn) {
+    const tabId = targetBtn.getAttribute('data-tab');
+    if (tabId) {
+      e.preventDefault();
+      switchTab(tabId);
+    }
+  }
+});
+
+// BIND VÀO WINDOW
 window.switchTab = switchTab;
 window.reloadCurrentTab = reloadCurrentTab;
