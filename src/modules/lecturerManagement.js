@@ -8,11 +8,20 @@ let rawLecturerList = [];
  */
 export function ensureLecturerManagementShell() {
   const container = document.getElementById('lecturerManagementContainer');
-  if (!container) return false;
+  console.log('🛠️ [LecturerMgmt] Kiểm tra container #lecturerManagementContainer:', container);
+
+  if (!container) {
+    console.error('❌ [LecturerMgmt] KHÔNG TÌM THẤY <div id="lecturerManagementContainer"> TRONG HTML!');
+    return false;
+  }
 
   // Nếu đã có sườn bảng thì không dựng lại để tránh xóa Modal
-  if (document.getElementById('lecturerTableBody')) return true;
+  if (document.getElementById('lecturerTableBody')) {
+    console.log('ℹ️ [LecturerMgmt] Sườn giao diện đã có sẵn, giữ nguyên DOM.');
+    return true;
+  }
 
+  console.log('🎨 [LecturerMgmt] Đang tạo sườn HTML mới cho Quản lý Giảng viên...');
   container.innerHTML = `
     <div style="background:#fff; border-radius:10px; padding:16px; border:1px solid var(--border, #cbd5e1);">
       
@@ -94,6 +103,7 @@ export function ensureLecturerManagementShell() {
  * 2. NẠP DANH SÁCH GIẢNG VIÊN TỪ SERVER
  */
 export async function handleLoadLecturerManagement() {
+  console.group('📡 [LecturerMgmt] Thực thi handleLoadLecturerManagement()');
   ensureLecturerManagementShell();
 
   const tbody = document.getElementById('lecturerTableBody');
@@ -102,14 +112,20 @@ export async function handleLoadLecturerManagement() {
   }
 
   try {
+    console.log('📤 [LecturerMgmt] Gửi request GET_LECTURERS tới AppsScriptService...');
     const res = await appsScriptService.request('GET_LECTURERS', {});
+    console.log('📥 [LecturerMgmt] Phản hồi từ Server:', res);
+
     rawLecturerList = res.lecturers || res.data || [];
+    console.log(`✅ [LecturerMgmt] Nạp thành công ${rawLecturerList.length} giảng viên.`);
     renderLecturerManagementUI(rawLecturerList);
   } catch (err) {
+    console.error('❌ [LecturerMgmt] Lỗi khi nạp danh sách Giảng viên:', err);
     if (tbody) {
       tbody.innerHTML = `<tr><td colspan="6" style="text-align:center; padding:20px; color:#ef4444;">⚠️ Lỗi nạp danh sách Giảng viên: ${escapeHtml(err.message)}</td></tr>`;
     }
   }
+  console.groupEnd();
 }
 
 /**
@@ -166,6 +182,7 @@ window.renderLecturerManagementUI = renderLecturerManagementUI;
 
 window.handleSearchLecturer = function(keyword) {
   const kw = String(keyword || '').toLowerCase().trim();
+  console.log('🔍 [LecturerMgmt] Tìm kiếm với từ khóa:', kw);
   const filtered = rawLecturerList.filter(l => 
     String(l.username || '').toLowerCase().includes(kw) ||
     String(l.fullName || l.name || '').toLowerCase().includes(kw) ||
@@ -176,11 +193,13 @@ window.handleSearchLecturer = function(keyword) {
 };
 
 window.openAddLecturerModal = function() {
+  console.log('➕ [LecturerMgmt] Mở Modal Thêm Giảng viên');
   const modal = document.getElementById('addLecturerModal');
   if (modal) modal.style.display = 'flex';
 };
 
 window.closeAddLecturerModal = function() {
+  console.log('✖️ [LecturerMgmt] Đóng Modal Thêm Giảng viên');
   const modal = document.getElementById('addLecturerModal');
   if (modal) modal.style.display = 'none';
 
@@ -196,6 +215,8 @@ window.handleCreateLecturerSubmit = async function() {
   const email = document.getElementById('addLecturerEmail')?.value.trim();
   const password = document.getElementById('addLecturerPass')?.value.trim();
   const department = document.getElementById('addLecturerDept')?.value.trim();
+
+  console.log('💾 [LecturerMgmt] Thực hiện tạo mới giảng viên:', { username, fullName, email, department });
 
   if (!username || !fullName || !password) {
     alert('⚠️ Vui lòng nhập đầy đủ Username, Họ tên và Mật khẩu!');
@@ -219,11 +240,13 @@ window.handleCreateLecturerSubmit = async function() {
     handleLoadLecturerManagement();
   } catch (err) {
     hideAppLoading();
+    console.error('❌ [LecturerMgmt] Lỗi tạo tài khoản Giảng viên:', err);
     alert(`❌ Lỗi: ${err.message}`);
   }
 };
 
 window.handleResetLecturerPass = async function(username) {
+  console.log('🔑 [LecturerMgmt] Đổi mật khẩu giảng viên:', username);
   const newPass = prompt(`Nhập mật khẩu mới cho Giảng viên (${username}):`);
   if (!newPass || !newPass.trim()) return;
 
@@ -237,11 +260,13 @@ window.handleResetLecturerPass = async function(username) {
     alert(res.message || '✅ Đổi mật khẩu thành công!');
   } catch (err) {
     hideAppLoading();
+    console.error('❌ [LecturerMgmt] Lỗi đổi mật khẩu:', err);
     alert(`❌ Lỗi: ${err.message}`);
   }
 };
 
 window.handleDeleteLecturer = async function(username) {
+  console.log('🗑️ [LecturerMgmt] Yêu cầu xóa tài khoản giảng viên:', username);
   if (confirm(`⚠️ Bạn có chắc muốn XÓA tài khoản Giảng viên (${username}) không?`)) {
     showAppLoading('⏳ Đang xóa tài khoản...');
     try {
@@ -251,6 +276,7 @@ window.handleDeleteLecturer = async function(username) {
       handleLoadLecturerManagement();
     } catch (err) {
       hideAppLoading();
+      console.error('❌ [LecturerMgmt] Lỗi xóa tài khoản:', err);
       alert(`❌ Lỗi xóa: ${err.message}`);
     }
   }
