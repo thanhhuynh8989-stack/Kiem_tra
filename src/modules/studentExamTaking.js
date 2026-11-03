@@ -15,9 +15,6 @@ import { AntiCheatEngine } from './antiCheatEngine.js';
 
 let activeAntiCheatInstance = null;
 
-/**
- * 1. RESET SẠCH BỘ NHỚ ĐÁP ÁN VÀ TRẠNG THÁI PHIÊN THI
- */
 export function resetExamSessionState() {
   window.currentActiveAnswersForExam = {};
   if (typeof window.userAnswers !== 'undefined') {
@@ -34,9 +31,6 @@ function shuffleArray(arr) {
   return array;
 }
 
-/**
- * 2. QUẢN LÝ BẢN NHÁP BÀI THI (EXAM DRAFT MANAGER)
- */
 export const ExamDraftManager = {
   getDraftKey(username, examId) {
     const cleanId = String(examId || '')
@@ -89,9 +83,6 @@ function normalizeChoice(val) {
   return { letter: str, index: str };
 }
 
-/**
- * 3. DASHBOARD BÀI THI SINH VIÊN
- */
 export async function handleLoadStudentDashboard() {
   const container = document.getElementById('studentExamContainer');
   if (!container) return;
@@ -162,9 +153,6 @@ export function renderStudentDashboard(exams = []) {
   container.innerHTML = html;
 }
 
-/**
- * 4. BẮT ĐẦU LÀM BÀI THI & RENDER GIAO DIỆN LÀM BÀI
- */
 export async function handleStartTakeExam(examId, examCode = '') {
   if (activeAntiCheatInstance) {
     activeAntiCheatInstance.stop();
@@ -197,7 +185,7 @@ export async function handleStartTakeExam(examId, examCode = '') {
 
     if (draft) {
       window.isInternalDialogActive = true;
-      const wantContinue = confirm('📌 Bạn có muốn tiếp tục làm lại bài thi dở không?');
+      const wantContinue = confirm('📌 Bạn có muốn tiếp tục làm bài thi dở không?');
       setTimeout(() => { window.isInternalDialogActive = false; }, 500);
 
       if (wantContinue) {
@@ -297,7 +285,6 @@ export function renderTakeExamScreen(examId, fileName, shuffledQuestions, savedA
   });
   activeAntiCheatInstance.start(initialViolationCount);
 
-  // Đếm ngược thời gian làm bài
   const timerEl = document.getElementById('examTimerDisplay');
   if (window.activeExamTimer) clearInterval(window.activeExamTimer);
 
@@ -369,9 +356,6 @@ export async function handleConfirmSubmitExam(examId, totalQuestions) {
   }
 }
 
-/**
- * 5. HÀM NỘP BÀI THI & CHẤM ĐIỂM TẠI SERVER
- */
 export async function executeSubmitExam(
   examId = (window.currentActiveExamId || window.currentExamId),
   questions = (window.currentActiveQuestionsForExam || window.currentExamQuestions || []),
@@ -475,9 +459,6 @@ export async function executeSubmitExam(
   }
 }
 
-/**
- * 6. XEM LẠI BÀI THI ĐÃ NỘP (HỖ TRỢ GIẢNG VIÊN VÀ SINH VIÊN)
- */
 export async function handleReviewSubmittedExam(arg1, arg2 = '', arg3 = '') {
   const currentUsername = getLoggedInUsername();
   let examId = String(arg1 || '').trim();
