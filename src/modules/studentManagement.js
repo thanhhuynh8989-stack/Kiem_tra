@@ -140,21 +140,53 @@ export async function handleLoadStudentManagement() {
 }
 
 /**
- * 2. Tải File Excel/CSV Mẫu Chuẩn UTF-8 BOM
+ * 2. Tải File Excel Mẫu (.xlsx) Chuẩn Định Dạng
  */
-export function downloadStudentTemplateCSV() {
-  const csvHeader = "Mã Sinh Viên,Họ Và Tên,Lớp Học,Mật Khẩu,Email\n";
-  const csvSample = "SV001,Nguyễn Văn A,CNTT1,123456,nguyenvana@gmail.com\nSV002,Trần Thị B,CNTT1,123456,tranthib@gmail.com\n";
-  
-  const blob = new Blob(["\uFEFF" + csvHeader + csvSample], { type: 'text/csv;charset=utf-8;' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = 'Mau_Danh_Sach_Sinh_Vien.csv';
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-  URL.revokeObjectURL(url);
+export function downloadStudentTemplateXLSX() {
+  // Lấy thư viện XLSX từ import hoặc window.XLSX (nếu nhúng qua CDN)
+  const XLSXLib = typeof XLSX !== 'undefined' ? XLSX : window.XLSX;
+
+  if (!XLSXLib) {
+    alert('⚠️ Chưa nạp thư viện XLSX. Vui lòng kiểm tra lại kết nối hoặc thẻ script XLSX!');
+    return;
+  }
+
+  // Dữ liệu mẫu chuẩn cấu trúc 5 cột
+  const sampleData = [
+    {
+      "Mã Sinh Viên": "SV001",
+      "Họ Và Tên": "Nguyễn Văn A",
+      "Lớp Học": "CNTT1",
+      "Mật Khẩu": "123456",
+      "Email": "nguyenvana@gmail.com"
+    },
+    {
+      "Mã Sinh Viên": "SV002",
+      "Họ Và Tên": "Trần Thị B",
+      "Lớp Học": "CNTT1",
+      "Mật Khẩu": "123456",
+      "Email": "tranthib@gmail.com"
+    }
+  ];
+
+  // 1. Tạo Sheet từ mảng dữ liệu JSON
+  const worksheet = XLSXLib.utils.json_to_sheet(sampleData);
+
+  // 2. Tùy chỉnh độ rộng cột (Width) giúp hiển thị đẹp mắt trong Excel
+  worksheet['!cols'] = [
+    { wch: 16 }, // Mã Sinh Viên
+    { wch: 25 }, // Họ Và Tên
+    { wch: 15 }, // Lớp Học
+    { wch: 15 }, // Mật Khẩu
+    { wch: 30 }  // Email
+  ];
+
+  // 3. Tạo Workbook và gắn Sheet vào
+  const workbook = XLSXLib.utils.book_new();
+  XLSXLib.utils.book_append_sheet(workbook, worksheet, "DanhSachSinhVien");
+
+  // 4. Xuất file về máy người dùng dạng .xlsx
+  XLSXLib.writeFile(workbook, 'Mau_Danh_Sach_Sinh_Vien.xlsx');
 }
 
 /**
@@ -284,6 +316,6 @@ export async function deleteStudent(studentId) {
 // Window Bindings
 window.handleLoadStudentManagement = handleLoadStudentManagement;
 window.handleStudentFileSelected = handleStudentFileSelected;
-window.downloadStudentTemplateCSV = downloadStudentTemplateCSV;
+window.downloadStudentTemplateXLSX = downloadStudentTemplateXLSX;
 window.resetStudentPassword = resetStudentPassword;
 window.deleteStudent = deleteStudent;
