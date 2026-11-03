@@ -7,7 +7,16 @@ import {
   showAppLoading, 
   hideAppLoading,
   escapeHtml,
-  startViolationTracking
+  startViolationTracking,
+  openForgotPasswordModal,
+  closeForgotModal,
+  sendForgotOTP,
+  submitResetPassword,
+  openRegisterLecturerModal,
+  closeRegisterModal,
+  sendRegisterOTP,
+  submitLecturerRegistration,
+  togglePasswordVisibility
 } from './modules/authAndCore.js';
 
 // BỔ SUNG KHAI BÁO ĐẦY ĐỦ CÁC HÀM XEM LẠI BÀI VÀ NỘP BÀI
@@ -24,7 +33,6 @@ import { handleExamFileUpload, renderDefaultUploadScreen } from './modules/aiExa
 import { loadExamList, handleEditExam, deleteExam } from './modules/examManagement.js';
 import { handleViewExamSubmissions } from './modules/gradebookManagement.js';
 import { handleLoadLecturerManagement } from './modules/lecturerManagement.js';
-import { switchTab, reloadCurrentTab } from './navigation.js';
 
 // Biến toàn cục theo dõi Tab đang mở
 window.currentActiveTab = 'tab-exams';
@@ -339,12 +347,32 @@ window.submitLoginForm = submitLoginForm;
 window.handleLogout = handleLogout;
 window.triggerExamUpload = triggerExamUpload;
 
+// Bind các hàm khôi phục mật khẩu & Đăng ký giảng viên Modal
+window.togglePasswordVisibility = togglePasswordVisibility;
+window.openForgotPasswordModal = openForgotPasswordModal;
+window.closeForgotModal = closeForgotModal;
+window.sendForgotOTP = sendForgotOTP;
+window.submitResetPassword = submitResetPassword;
+window.openRegisterLecturerModal = openRegisterLecturerModal;
+window.closeRegisterModal = closeRegisterModal;
+window.sendRegisterOTP = sendRegisterOTP;
+window.submitLecturerRegistration = submitLecturerRegistration;
+
 // Bind các hàm xem bài làm, khôi phục phiên và nộp bài toàn cục
 window.handleReviewSubmittedExam = handleReviewSubmittedExam;
 window.renderExamReviewUI = renderExamReviewUI;
 window.executeSubmitExam = executeSubmitExam;
 window.handleViewExamSubmissions = handleViewExamSubmissions;
 window.checkAndRestoreStudentSession = checkAndRestoreStudentSession;
+
+// Bind các hàm module Quản lý giảng viên & Đề thi
+window.handleLoadLecturerManagement = handleLoadLecturerManagement;
+window.handleLoadStudentManagement = handleLoadStudentManagement;
+window.handleLoadLecturerDashboard = handleLoadLecturerDashboard;
+window.handleLoadStudentDashboard = handleLoadStudentDashboard;
+window.loadExamList = loadExamList;
+window.handleEditExam = handleEditExam;
+window.deleteExam = deleteExam;
 
 document.addEventListener('DOMContentLoaded', () => {
   initUserSessionUI();
