@@ -1,0 +1,369 @@
+{
+  "examId": "exam_78ya8kw2",
+  "title": "Đề thi thực hành_2026",
+  "durationMinutes": 20,
+  "createdBy": "thanh",
+  "createdAt": "2026-11-08T02:19:39.234Z",
+  "questions": [
+    {
+      "id": "q_1",
+      "stem": "Đặc điểm nào dưới đây không có ở hồng cầu người?",
+      "options": [
+        "Hình đĩa, lõm hai mặt",
+        "Nhiều nhân, nhân nhỏ và nằm phân tán",
+        "Tham gia vào chức năng vận chuyển khí",
+        "Màu đỏ hồng"
+      ],
+      "correctAnswer": 1,
+      "hasImage": false,
+      "imageUrl": null,
+      "originalOptionCount": 4,
+      "flags": {
+        "needsUserConfirmation": true,
+        "note": "🤖 AI (gemini-3.5-flash) đã sinh bổ sung phương án/đáp án. Giảng viên vui lòng rà soát lại."
+      }
+    },
+    {
+      "id": "q_2",
+      "stem": "Các loại lạp thể trong thực vật là:",
+      "options": [
+        "Sắc lạp, lạp dầu, lạp bột",
+        "Lục lạp, lạp dầu, lạp đạm, lạp bột",
+        "Lục lạp, sắc lạp, vô sắc lạp",
+        "Lục lạp, sắc lạp, lạp dầu"
+      ],
+      "correctAnswer": 2,
+      "hasImage": false,
+      "imageUrl": null,
+      "originalOptionCount": 4,
+      "flags": {
+        "needsUserConfirmation": true,
+        "note": "🤖 AI (gemini-3.5-flash) đã sinh bổ sung phương án/đáp án. Giảng viên vui lòng rà soát lại."
+      }
+    },
+    {
+      "id": "q_3",
+      "stem": "Hiện tượng xảy ra khi cho tế bào biểu bì hành bị co nguyên sinh vào nước cất?",
+      "options": [
+        "Tế bào chất bị mất màu",
+        "Tế bào chất hút nước",
+        "Tế bào chất mất nước",
+        "Thành tế bào bị vỡ"
+      ],
+      "correctAnswer": 1,
+      "hasImage": false,
+      "imageUrl": null,
+      "originalOptionCount": 4,
+      "flags": {
+        "needsUserConfirmation": true,
+        "note": "🤖 AI (gemini-3.5-flash) đã sinh bổ sung phương án/đáp án. Giảng viên vui lòng rà soát lại."
+      }
+    },
+    {
+      "id": "q_4",
+      "stem": "Hiện tượng gì xảy ra khi cho tế bào biểu bì hành vào dung dịch NaCl 10%?",
+      "options": [
+        "Co nguyên sinh",
+        "Tan bào",
+        "Teo bào",
+        "Trương bào"
+      ],
+      "correctAnswer": 0,
+      "hasImage": false,
+      "imageUrl": null,
+      "originalOptionCount": 4,
+      "flags": {
+        "needsUserConfirmation": false,
+        "note": "✅ Giữ nguyên từ bản gốc, AI không tác động."
+      }
+    },
+    {
+      "id": "q_5",
+      "stem": "Đặc trưng của bạch cầu ưa acid (Eosinophil)?",
+      "options": [
+        "Nhân gồm nhiều thùy, tế bào chất màu xanh nhạt",
+        "Nhân gồm 2 thùy, tế bào chất màu đỏ tía",
+        "Nhân gồm 1 khối lõm, nằm lệch 1 phía, tế bào chất không màu",
+        "Nhân gồm 2 thùy, tế bào chất xanh đậm"
+      ],
+      "correctAnswer": 1,
+      "hasImage": false,
+      "imageUrl": null,
+      "originalOptionCount": 4,
+      "flags": {
+        "needsUserConfirmation": true,
+        "note": "🤖 AI (gemini-3.5-flash) đã sinh bổ sung phương án/đáp án. Giảng viên vui lòng rà soát lại."
+      }
+    },
+    {
+      "id": "q_6",
+      "stem": "Bạch cầu không hạt:",
+      "options": [
+        "Chỉ tham gia đông máu",
+        "Nhân tròn hoặc hình hạt đậu, bào tương nhạt",
+        "Nhân chia đôi, bào tương nhiều hạt",
+        "Chỉ có ở trẻ em"
+      ],
+      "correctAnswer": 1,
+      "hasImage": false,
+      "imageUrl": null,
+      "originalOptionCount": 4,
+      "flags": {
+        "needsUserConfirmation": true,
+        "note": "🤖 AI (gemini-3.5-flash) đã sinh bổ sung phương án/đáp án. Giảng viên vui lòng rà soát lại."
+      }
+    },
+    {
+      "id": "q_7",
+      "stem": "Chức năng chính của mono:",
+      "options": [
+        "Tiết enzyme ngoại tiết",
+        "Thực bào (tiêu diệt mầm bệnh)",
+        "Gây độc",
+        "Phát hiện kháng nguyên"
+      ],
+      "correctAnswer": 1,
+      "hasImage": false,
+      "imageUrl": null,
+      "originalOptionCount": 4,
+      "flags": {
+        "needsUserConfirmation": true,
+        "note": "🤖 AI (gemini-3.5-flash) đã sinh bổ sung phương án/đáp án. Giảng viên vui lòng rà soát lại."
+      }
+    },
+    {
+      "id": "q_8",
+      "stem": "Mô tả tiêu bản hồng cầu máu ếch?",
+      "options": [
+        "Hình oval, màu tím",
+        "Hình cầu, màu xám",
+        "Hình cầu, màu tím",
+        "Hình oval, màu xám"
+      ],
+      "correctAnswer": 3,
+      "hasImage": false,
+      "imageUrl": null,
+      "originalOptionCount": 4,
+      "flags": {
+        "needsUserConfirmation": false,
+        "note": "✅ Giữ nguyên từ bản gốc, AI không tác động."
+      }
+    },
+    {
+      "id": "q_9",
+      "stem": "Khí khổng mở khi:",
+      "options": [
+        "Môi trường bên ngoài tăng muối",
+        "Áp suất giảm trong khí khổng",
+        "Tế bào giữ khí khổng mất nước",
+        "Tế bào khí khổng hút nước"
+      ],
+      "correctAnswer": 3,
+      "hasImage": false,
+      "imageUrl": null,
+      "originalOptionCount": 4,
+      "flags": {
+        "needsUserConfirmation": true,
+        "note": "🤖 AI (gemini-3.5-flash) đã sinh bổ sung phương án/đáp án. Giảng viên vui lòng rà soát lại."
+      }
+    },
+    {
+      "id": "q_10",
+      "stem": "Ốc thứ cấp được sử dụng để điều chỉnh tiêu cự trong những trường hợp nào?",
+      "options": [
+        "Chỉ sử dụng ở vật kính 100X",
+        "Tất cả các vật kính",
+        "Chỉ sử dụng ở vật kính 4X",
+        "Chỉ sử dụng ở vật kính 40X"
+      ],
+      "correctAnswer": 2,
+      "hasImage": false,
+      "imageUrl": null,
+      "originalOptionCount": 4,
+      "flags": {
+        "needsUserConfirmation": true,
+        "note": "🤖 AI (gemini-3.5-flash) đã sinh bổ sung phương án/đáp án. Giảng viên vui lòng rà soát lại."
+      }
+    },
+    {
+      "id": "q_11",
+      "stem": "Tinh thể canxi oxalat ở Bèo tây thường có hình:",
+      "options": [
+        "Hình khối lập phương",
+        "Hình lăng trụ",
+        "Hình kim nhọn 1 đầu",
+        "Hình kim nhọn 2 đầu"
+      ],
+      "correctAnswer": 3,
+      "hasImage": false,
+      "imageUrl": null,
+      "originalOptionCount": 4,
+      "flags": {
+        "needsUserConfirmation": true,
+        "note": "🤖 AI (gemini-3.5-flash) đã sinh bổ sung phương án/đáp án. Giảng viên vui lòng rà soát lại."
+      }
+    },
+    {
+      "id": "q_12",
+      "stem": "Phương pháp làm tiêu bản dấu quét thường được dùng để nghiên cứu",
+      "options": [
+        "Vi sinh vật",
+        "Máu",
+        "Mẫu vật định hình",
+        "Tế bào thực vật"
+      ],
+      "correctAnswer": 1,
+      "hasImage": false,
+      "imageUrl": null,
+      "originalOptionCount": 4,
+      "flags": {
+        "needsUserConfirmation": true,
+        "note": "🤖 AI (gemini-3.5-flash) đã sinh bổ sung phương án/đáp án. Giảng viên vui lòng rà soát lại."
+      }
+    },
+    {
+      "id": "q_13",
+      "stem": "Hiện tượng xảy ra khi cho tế bào hồng cầu máu ếch vào nước cất?",
+      "options": [
+        "Màng tế bào bị trương ra",
+        "Thành tế bào bị biến tính",
+        "Màng tế bào bị biến tính",
+        "Thành tế bào bị trương ra"
+      ],
+      "correctAnswer": 0,
+      "hasImage": false,
+      "imageUrl": null,
+      "originalOptionCount": 4,
+      "flags": {
+        "needsUserConfirmation": false,
+        "note": "✅ Giữ nguyên từ bản gốc, AI không tác động."
+      }
+    },
+    {
+      "id": "q_14",
+      "stem": "Thị kính có độ phóng đại 40X, vật kính có độ phóng đại 40X, độ lớn của hình ảnh thu được lớn hơn vật thật bao nhiêu?",
+      "options": [
+        "40 lần",
+        "1600 lần",
+        "80 lần",
+        "160 lần"
+      ],
+      "correctAnswer": 1,
+      "hasImage": false,
+      "imageUrl": null,
+      "originalOptionCount": 4,
+      "flags": {
+        "needsUserConfirmation": true,
+        "note": "🤖 AI (gemini-3.5-flash) đã sinh bổ sung phương án/đáp án. Giảng viên vui lòng rà soát lại."
+      }
+    },
+    {
+      "id": "q_15",
+      "stem": "Bạch cầu có kích thước nhỏ nhất?",
+      "options": [
+        "Eosinophil",
+        "Neutrophil",
+        "Basophil",
+        "Lymphocyte"
+      ],
+      "correctAnswer": 3,
+      "hasImage": false,
+      "imageUrl": null,
+      "originalOptionCount": 4,
+      "flags": {
+        "needsUserConfirmation": true,
+        "note": "🤖 AI (gemini-3.5-flash) đã sinh bổ sung phương án/đáp án. Giảng viên vui lòng rà soát lại."
+      }
+    },
+    {
+      "id": "q_16",
+      "stem": "Nước sẽ vận chuyển như thế nào khi cho tế bào hồng cầu máu ếch vào dung dịch NaCl 0,6%?",
+      "options": [
+        "Nước đi vào tế bào nhiều hơn",
+        "Không vận chuyển",
+        "Nước đi ra khỏi tế bào nhiều hơn",
+        "Nước vận chuyển vào và ra khỏi tế bào với số lượng và vận tốc như nhau"
+      ],
+      "correctAnswer": 3,
+      "hasImage": false,
+      "imageUrl": null,
+      "originalOptionCount": 4,
+      "flags": {
+        "needsUserConfirmation": true,
+        "note": "🤖 AI (gemini-3.5-flash) đã sinh bổ sung phương án/đáp án. Giảng viên vui lòng rà soát lại."
+      }
+    },
+    {
+      "id": "q_17",
+      "stem": "Lạp dầu dự trữ hợp chất hữu cơ nào?",
+      "options": [
+        "Glucose",
+        "Protein",
+        "Lipid",
+        "Cellulose"
+      ],
+      "correctAnswer": 2,
+      "hasImage": false,
+      "imageUrl": null,
+      "originalOptionCount": 4,
+      "flags": {
+        "needsUserConfirmation": true,
+        "note": "🤖 AI (gemini-3.5-flash) đã sinh bổ sung phương án/đáp án. Giảng viên vui lòng rà soát lại."
+      }
+    },
+    {
+      "id": "q_18",
+      "stem": "Sự khác nhau trong kỳ cuối giữa tế bào động vật và thực vật?",
+      "options": [
+        "Ở thực vật phân tách ngẫu nhiên, ở động vật phân tách đều",
+        "Ở động vật phân tách ngẫu nhiên, ở thực vật phân tách đều",
+        "Ở thực vật hình thành eo phân chia, ở động vật hình thành vách ngăn",
+        "Ở động vật hình thành eo phân chia, ở thực vật hình thành vách ngăn"
+      ],
+      "correctAnswer": 3,
+      "hasImage": false,
+      "imageUrl": null,
+      "originalOptionCount": 4,
+      "flags": {
+        "needsUserConfirmation": true,
+        "note": "🤖 AI (gemini-3.5-flash) đã sinh bổ sung phương án/đáp án. Giảng viên vui lòng rà soát lại."
+      }
+    },
+    {
+      "id": "q_19",
+      "stem": "Bạch cầu có hạt bao gồm:",
+      "options": [
+        "Chỉ neutrophil",
+        "Lympho, mono",
+        "Neutrophil, eosinophil, basophil",
+        "Tất cả bạch cầu"
+      ],
+      "correctAnswer": 2,
+      "hasImage": false,
+      "imageUrl": null,
+      "originalOptionCount": 4,
+      "flags": {
+        "needsUserConfirmation": true,
+        "note": "🤖 AI (gemini-3.5-flash) đã sinh bổ sung phương án/đáp án. Giảng viên vui lòng rà soát lại."
+      }
+    },
+    {
+      "id": "q_20",
+      "stem": "Các đặc điểm để phân biệt bạch cầu có hạt và bạch cầu không hạt?",
+      "options": [
+        "Kích thước nhân và màu tế bào chất",
+        "Hình dạng nhân và màu tế bào chất",
+        "Hình dạng nhân",
+        "Màu tế bào chất"
+      ],
+      "correctAnswer": 1,
+      "hasImage": false,
+      "imageUrl": null,
+      "originalOptionCount": 4,
+      "flags": {
+        "needsUserConfirmation": true,
+        "note": "🤖 AI (gemini-3.5-flash) đã sinh bổ sung phương án/đáp án. Giảng viên vui lòng rà soát lại."
+      }
+    }
+  ]
+}
