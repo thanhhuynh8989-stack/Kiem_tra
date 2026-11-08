@@ -1,0 +1,189 @@
+{
+  "examId": "exam_rxb8vd1s",
+  "title": "Thi trắc nghiệm thực hành_2026",
+  "durationMinutes": 10,
+  "createdBy": "thanh",
+  "createdAt": "2026-11-08T03:18:08.034Z",
+  "questions": [
+    {
+      "id": "q_1",
+      "stem": "Hiện tượng xảy ra khi cho tế bào biểu bì hành bị co nguyên sinh vào nước cất?",
+      "options": [
+        "Tế bào chất bị mất màu",
+        "Tế bào chất hút nước",
+        "Tế bào chất mất nước",
+        "Thành tế bào bị vỡ"
+      ],
+      "correctAnswer": 1,
+      "hasImage": false,
+      "imageUrl": null,
+      "originalOptionCount": 4,
+      "flags": {
+        "needsUserConfirmation": false,
+        "note": "✅ Giữ nguyên từ bản gốc, AI không tác động."
+      }
+    },
+    {
+      "id": "q_2",
+      "stem": "Nước sẽ vận chuyển như thế nào khi cho tế bào hồng cầu máu ếch vào dung dịch NaCl 0,6%?",
+      "options": [
+        "Nước đi vào tế bào nhiều hơn",
+        "Không vận chuyển",
+        "Nước đi ra khỏi tế bào nhiều hơn",
+        "Nước vận chuyển vào và ra khỏi tế bào với số lượng và vận tốc như nhau"
+      ],
+      "correctAnswer": 3,
+      "hasImage": false,
+      "imageUrl": null,
+      "originalOptionCount": 4,
+      "flags": {
+        "needsUserConfirmation": false,
+        "note": "✅ Giữ nguyên từ bản gốc, AI không tác động."
+      }
+    },
+    {
+      "id": "q_3",
+      "stem": "Hiện tượng xảy ra khi cho tế bào hồng cầu máu ếch vào nước cất?",
+      "options": [
+        "Thành tế bào bị trương ra",
+        "Màng tế bào bị trương ra",
+        "Màng tế bào bị biến tính",
+        "Thành tế bào bị biến tính"
+      ],
+      "correctAnswer": 1,
+      "hasImage": false,
+      "imageUrl": null,
+      "originalOptionCount": 4,
+      "flags": {
+        "needsUserConfirmation": false,
+        "note": "✅ Giữ nguyên từ bản gốc, AI không tác động."
+      }
+    },
+    {
+      "id": "q_4",
+      "stem": "Mô tả tiêu bản hồng cầu máu ếch?",
+      "options": [
+        "Hình oval, màu xanh",
+        "Hình cầu, màu tím",
+        "Hình cầu, màu xanh",
+        "Hình oval, màu tím"
+      ],
+      "correctAnswer": 0,
+      "hasImage": false,
+      "imageUrl": null,
+      "originalOptionCount": 4,
+      "flags": {
+        "needsUserConfirmation": false,
+        "note": "✅ Giữ nguyên từ bản gốc, AI không tác động."
+      }
+    },
+    {
+      "id": "q_5",
+      "stem": "Ốc thứ cấp được sử dụng để điều chỉnh tiêu cự trong những trường hợp nào?",
+      "options": [
+        "Chỉ sử dụng ở vật kính 40X",
+        "Tất cả các vật kính",
+        "Chỉ sử dụng ở vật kính 4X",
+        "Chỉ sử dụng ở vật kính 100X"
+      ],
+      "correctAnswer": 2,
+      "hasImage": false,
+      "imageUrl": null,
+      "originalOptionCount": 4,
+      "flags": {
+        "needsUserConfirmation": true,
+        "note": "🤖 AI (gemini-3.5-flash) đã sinh bổ sung phương án/đáp án. Giảng viên vui lòng rà soát lại."
+      }
+    },
+    {
+      "id": "q_6",
+      "stem": "Sự khác nhau trong kỳ cuối giữa tế bào động vật và thực vật?",
+      "options": [
+        "Ở thực vật hình thành eo phân chia, ở động vật hình thành vách ngăn",
+        "Ở thực vật phân tách ngẫu nhiên, ở động vật phân tách đều",
+        "Ở động vật hình thành eo phân chia, ở thực vật hình thành vách ngăn",
+        "Ở động vật phân tách ngẫu nhiên, ở thực vật phân tách đều"
+      ],
+      "correctAnswer": 2,
+      "hasImage": false,
+      "imageUrl": null,
+      "originalOptionCount": 4,
+      "flags": {
+        "needsUserConfirmation": false,
+        "note": "✅ Giữ nguyên từ bản gốc, AI không tác động."
+      }
+    },
+    {
+      "id": "q_7",
+      "stem": "Hiện tượng gì xảy ra khi cho tế bào biểu bì hành vào dung dịch NaCl 10%?",
+      "options": [
+        "Teo bào",
+        "Co nguyên sinh",
+        "Tan bào",
+        "Trương bào"
+      ],
+      "correctAnswer": 1,
+      "hasImage": false,
+      "imageUrl": null,
+      "originalOptionCount": 4,
+      "flags": {
+        "needsUserConfirmation": false,
+        "note": "✅ Giữ nguyên từ bản gốc, AI không tác động."
+      }
+    },
+    {
+      "id": "q_8",
+      "stem": "Đặc trưng của bạch cầu ưa acid (Eosinophil)?",
+      "options": [
+        "Nhân gồm nhiều thùy, tế bào chất màu xanh nhạt",
+        "Nhân gồm 2 thùy, tế bào chất xanh đậm",
+        "Nhân gồm 1 khối lõm, nằm lệch 1 phía, tế bào chất không màu",
+        "Nhân gồm 2 thùy, tế bào chất màu đỏ tía"
+      ],
+      "correctAnswer": 3,
+      "hasImage": false,
+      "imageUrl": null,
+      "originalOptionCount": 4,
+      "flags": {
+        "needsUserConfirmation": false,
+        "note": "✅ Giữ nguyên từ bản gốc, AI không tác động."
+      }
+    },
+    {
+      "id": "q_9",
+      "stem": "Bạch cầu có kích thước nhỏ nhất?",
+      "options": [
+        "Lymphocyte",
+        "Eosinophil",
+        "Neutrophil",
+        "Basophil"
+      ],
+      "correctAnswer": 0,
+      "hasImage": false,
+      "imageUrl": null,
+      "originalOptionCount": 4,
+      "flags": {
+        "needsUserConfirmation": false,
+        "note": "✅ Giữ nguyên từ bản gốc, AI không tác động."
+      }
+    },
+    {
+      "id": "q_10",
+      "stem": "Các đặc điểm để phân biệt bạch cầu có hạt và bạch cầu không hạt?",
+      "options": [
+        "Hình dạng nhân và màu tế bào chất",
+        "Màu tế bào chất",
+        "Hình dạng nhân",
+        "Kích thước nhân và màu tế bào chất"
+      ],
+      "correctAnswer": 0,
+      "hasImage": false,
+      "imageUrl": null,
+      "originalOptionCount": 4,
+      "flags": {
+        "needsUserConfirmation": false,
+        "note": "✅ Giữ nguyên từ bản gốc, AI không tác động."
+      }
+    }
+  ]
+}
