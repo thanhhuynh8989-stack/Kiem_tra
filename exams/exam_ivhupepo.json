@@ -1,0 +1,369 @@
+{
+  "examId": "exam_ivhupepo",
+  "title": "Kiểm tra SHĐC_chương 2",
+  "durationMinutes": 20,
+  "createdBy": "thanh",
+  "createdAt": "2026-11-17T01:09:34.507Z",
+  "questions": [
+    {
+      "id": "q_1",
+      "stem": "Cơ chế tác động thường gặp của enzyme là:",
+      "options": [
+        "Làm giảm năng lượng hoạt hoá phản ứng",
+        "Làm tăng năng lượng hoạt hoá phản ứng",
+        "Làm giảm pH của phản ứng",
+        "Làm tăng pH của phản ứng"
+      ],
+      "correctAnswer": 0,
+      "hasImage": false,
+      "imageUrl": null,
+      "originalOptionCount": 4,
+      "flags": {
+        "needsUserConfirmation": true,
+        "note": "🤖 AI (gemini-3.5-flash) đã sinh bổ sung phương án/đáp án. Giảng viên vui lòng rà soát lại."
+      }
+    },
+    {
+      "id": "q_2",
+      "stem": "Phản ứng sáng của quang hợp xảy ra ở đâu trong lục lạp?",
+      "options": [
+        "Stroma",
+        "Grana",
+        "Màng trong",
+        "Màng ngoài"
+      ],
+      "correctAnswer": 1,
+      "hasImage": false,
+      "imageUrl": null,
+      "originalOptionCount": 4,
+      "flags": {
+        "needsUserConfirmation": true,
+        "note": "🤖 AI (gemini-3.5-flash) đã sinh bổ sung phương án/đáp án. Giảng viên vui lòng rà soát lại."
+      }
+    },
+    {
+      "id": "q_3",
+      "stem": "Kênh vận chuyển nào không nằm trên màng sinh chất mà có mặt trên màng ty thể và lục lạp?",
+      "options": [
+        "Kênh liên kết",
+        "Kênh Na+/K+",
+        "Kênh H+",
+        "Kênh Ca++"
+      ],
+      "correctAnswer": 2,
+      "hasImage": false,
+      "imageUrl": null,
+      "originalOptionCount": 4,
+      "flags": {
+        "needsUserConfirmation": true,
+        "note": "🤖 AI (gemini-3.5-flash) đã sinh bổ sung phương án/đáp án. Giảng viên vui lòng rà soát lại."
+      }
+    },
+    {
+      "id": "q_4",
+      "stem": "Có bao nhiêu phân tử NADH2 được tạo ra từ quá trình đường phân?",
+      "options": [
+        "1",
+        "3",
+        "2",
+        "4"
+      ],
+      "correctAnswer": 2,
+      "hasImage": false,
+      "imageUrl": null,
+      "originalOptionCount": 4,
+      "flags": {
+        "needsUserConfirmation": true,
+        "note": "🤖 AI (gemini-3.5-flash) đã sinh bổ sung phương án/đáp án. Giảng viên vui lòng rà soát lại."
+      }
+    },
+    {
+      "id": "q_5",
+      "stem": "Enzyme là polymer của :",
+      "options": [
+        "Axit béo",
+        "Amino acid",
+        "Phosphate hữu cơ",
+        "Đường 6 cacbon"
+      ],
+      "correctAnswer": 1,
+      "hasImage": false,
+      "imageUrl": null,
+      "originalOptionCount": 4,
+      "flags": {
+        "needsUserConfirmation": true,
+        "note": "🤖 AI (gemini-3.5-flash) đã sinh bổ sung phương án/đáp án. Giảng viên vui lòng rà soát lại."
+      }
+    },
+    {
+      "id": "q_6",
+      "stem": "Amylase là enzyme phân giải cơ chất nào sau đây?",
+      "options": [
+        "Protein",
+        "Steroid",
+        "Lipid",
+        "Tinh bột"
+      ],
+      "correctAnswer": 3,
+      "hasImage": false,
+      "imageUrl": null,
+      "originalOptionCount": 4,
+      "flags": {
+        "needsUserConfirmation": false,
+        "note": "✅ Giữ nguyên từ bản gốc, AI không tác động."
+      }
+    },
+    {
+      "id": "q_7",
+      "stem": "Quá trình hô hấp kỵ khí (lên men) xảy ra ở:",
+      "options": [
+        "Ty thể",
+        "Tế bào chất",
+        "Lưới nội chất",
+        "Lục lạp"
+      ],
+      "correctAnswer": 1,
+      "hasImage": false,
+      "imageUrl": null,
+      "originalOptionCount": 4,
+      "flags": {
+        "needsUserConfirmation": true,
+        "note": "🤖 AI (gemini-3.5-flash) đã sinh bổ sung phương án/đáp án. Giảng viên vui lòng rà soát lại."
+      }
+    },
+    {
+      "id": "q_8",
+      "stem": "Phân tử NAD+ làm chức năng gì?",
+      "options": [
+        "Nhận một phân tử nước",
+        "Nhận một phân tử hydro",
+        "Nhận một phân tử oxy",
+        "Cho một phân tử oxy"
+      ],
+      "correctAnswer": 1,
+      "hasImage": false,
+      "imageUrl": null,
+      "originalOptionCount": 4,
+      "flags": {
+        "needsUserConfirmation": true,
+        "note": "🤖 AI (gemini-3.5-flash) đã sinh bổ sung phương án/đáp án. Giảng viên vui lòng rà soát lại."
+      }
+    },
+    {
+      "id": "q_9",
+      "stem": "Coenzyme thường có bản chất là gì?",
+      "options": [
+        "Kim loại",
+        "Luôn luôn là protein",
+        "Thường là vitamin",
+        "Luôn luôn là hợp chất vô cơ"
+      ],
+      "correctAnswer": 2,
+      "hasImage": false,
+      "imageUrl": null,
+      "originalOptionCount": 4,
+      "flags": {
+        "needsUserConfirmation": true,
+        "note": "🤖 AI (gemini-3.5-flash) đã sinh bổ sung phương án/đáp án. Giảng viên vui lòng rà soát lại."
+      }
+    },
+    {
+      "id": "q_10",
+      "stem": "Chuỗi vận chuyển điện tử (chuỗi hô hấp) tạo ra bao nhiêu phân tử ATP từ 1 phân tử NADHH+?",
+      "options": [
+        "1",
+        "2",
+        "3",
+        "4"
+      ],
+      "correctAnswer": 2,
+      "hasImage": false,
+      "imageUrl": null,
+      "originalOptionCount": 4,
+      "flags": {
+        "needsUserConfirmation": true,
+        "note": "🤖 AI (gemini-3.5-flash) đã sinh bổ sung phương án/đáp án. Giảng viên vui lòng rà soát lại."
+      }
+    },
+    {
+      "id": "q_11",
+      "stem": "Quá trình đường phân xảy ra ở đâu trong tế bào?",
+      "options": [
+        "Ty thể",
+        "Lục lạp",
+        "Mạng lưới nội chất có hạt",
+        "Tế bào chất"
+      ],
+      "correctAnswer": 3,
+      "hasImage": false,
+      "imageUrl": null,
+      "originalOptionCount": 4,
+      "flags": {
+        "needsUserConfirmation": false,
+        "note": "✅ Giữ nguyên từ bản gốc, AI không tác động."
+      }
+    },
+    {
+      "id": "q_12",
+      "stem": "Nhóm sắc tố nào quan trọng nhất trong quang hợp?",
+      "options": [
+        "Chloropyll",
+        "Carotenoid",
+        "Phycobilin",
+        "Anthocyan"
+      ],
+      "correctAnswer": 0,
+      "hasImage": false,
+      "imageUrl": null,
+      "originalOptionCount": 4,
+      "flags": {
+        "needsUserConfirmation": true,
+        "note": "🤖 AI (gemini-3.5-flash) đã sinh bổ sung phương án/đáp án. Giảng viên vui lòng rà soát lại."
+      }
+    },
+    {
+      "id": "q_13",
+      "stem": "Phát biểu nào sau về chu trình Krebs là KHÔNG đúng?",
+      "options": [
+        "Xảy ra ở tế bào người",
+        "Xảy ra trong chất nền ty thể",
+        "Là quá trình oxy hoá hoàn toàn phân tử acetyl-coenzyme A",
+        "Xảy ra ở màng trong ty thể"
+      ],
+      "correctAnswer": 3,
+      "hasImage": false,
+      "imageUrl": null,
+      "originalOptionCount": 4,
+      "flags": {
+        "needsUserConfirmation": false,
+        "note": "✅ Giữ nguyên từ bản gốc, AI không tác động."
+      }
+    },
+    {
+      "id": "q_14",
+      "stem": "Quang hợp xảy ra nhiều nhất ở nhóm tế bào nào của lá thực vật C3?",
+      "options": [
+        "Tế bào mô xốp",
+        "Tế bào biểu bì mặt trên",
+        "Tế bào biểu bì mặt dưới",
+        "Tế bào mô giậu"
+      ],
+      "correctAnswer": 3,
+      "hasImage": false,
+      "imageUrl": null,
+      "originalOptionCount": 4,
+      "flags": {
+        "needsUserConfirmation": false,
+        "note": "✅ Giữ nguyên từ bản gốc, AI không tác động."
+      }
+    },
+    {
+      "id": "q_15",
+      "stem": "So sánh nào sau đây về quá trình hô hấp hiếu khí với hô hấp kỵ khí là không đúng?",
+      "options": [
+        "Hiệu quả năng lượng là như nhau",
+        "Đều bắt đầu từ quá trình phân giải đường",
+        "Có sự phát sinh NADH2",
+        "Có sự phát sinh năng lượng ATP"
+      ],
+      "correctAnswer": 0,
+      "hasImage": false,
+      "imageUrl": null,
+      "originalOptionCount": 4,
+      "flags": {
+        "needsUserConfirmation": true,
+        "note": "🤖 AI (gemini-3.5-flash) đã sinh bổ sung phương án/đáp án. Giảng viên vui lòng rà soát lại."
+      }
+    },
+    {
+      "id": "q_16",
+      "stem": "Trong quang hợp, oxy được giải phóng ra bắt nguồn từ đâu?",
+      "options": [
+        "Sự khử CO2",
+        "Sự quang phân ly nước",
+        "Sự khử diệp lục",
+        "Sự kết hợp giữa nước và CO2"
+      ],
+      "correctAnswer": 1,
+      "hasImage": false,
+      "imageUrl": null,
+      "originalOptionCount": 4,
+      "flags": {
+        "needsUserConfirmation": true,
+        "note": "🤖 AI (gemini-3.5-flash) đã sinh bổ sung phương án/đáp án. Giảng viên vui lòng rà soát lại."
+      }
+    },
+    {
+      "id": "q_17",
+      "stem": "Sản phẩm của pha sáng gồm có:",
+      "options": [
+        "ATP, NADP+ và CO2",
+        "ATP, NADP+ và O2",
+        "ATP, NADPH và CO2",
+        "ATP, NADPH và O2"
+      ],
+      "correctAnswer": 3,
+      "hasImage": false,
+      "imageUrl": null,
+      "originalOptionCount": 4,
+      "flags": {
+        "needsUserConfirmation": false,
+        "note": "✅ Giữ nguyên từ bản gốc, AI không tác động."
+      }
+    },
+    {
+      "id": "q_18",
+      "stem": "Pha sáng của quá trình quang hợp KHÔNG có đặc điểm nào sau:",
+      "options": [
+        "Có khử CO2",
+        "Có quang phân ly nước",
+        "Vận chuyển điện tử",
+        "Tạo ATP"
+      ],
+      "correctAnswer": 0,
+      "hasImage": false,
+      "imageUrl": null,
+      "originalOptionCount": 4,
+      "flags": {
+        "needsUserConfirmation": true,
+        "note": "🤖 AI (gemini-3.5-flash) đã sinh bổ sung phương án/đáp án. Giảng viên vui lòng rà soát lại."
+      }
+    },
+    {
+      "id": "q_19",
+      "stem": "Thành phần chính của hầu hết enzyme là gì?",
+      "options": [
+        "RNA",
+        "Protein",
+        "DNA",
+        "Vitamin"
+      ],
+      "correctAnswer": 1,
+      "hasImage": false,
+      "imageUrl": null,
+      "originalOptionCount": 4,
+      "flags": {
+        "needsUserConfirmation": true,
+        "note": "🤖 AI (gemini-3.5-flash) đã sinh bổ sung phương án/đáp án. Giảng viên vui lòng rà soát lại."
+      }
+    },
+    {
+      "id": "q_20",
+      "stem": "Có tổng bao nhiêu phân tử ATP được thu được qua 3 giai đoạn Đường phân, Decarboxyl hóa oxy hóa phân tử pyruvate, chu trình Krebs?",
+      "options": [
+        "2",
+        "4",
+        "6",
+        "8"
+      ],
+      "correctAnswer": 1,
+      "hasImage": false,
+      "imageUrl": null,
+      "originalOptionCount": 4,
+      "flags": {
+        "needsUserConfirmation": true,
+        "note": "🤖 AI (gemini-3.5-flash) đã sinh bổ sung phương án/đáp án. Giảng viên vui lòng rà soát lại."
+      }
+    }
+  ]
+}
